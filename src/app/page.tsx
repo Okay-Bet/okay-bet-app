@@ -5,7 +5,7 @@ import { ThirdwebProvider } from "thirdweb/react";
 import { client, contract } from "./client";
 import CreateBetForm from "../components/CreateBetForm";
 import BetList from "../components/BetList";
-import { createWallet } from "thirdweb/wallets";
+import { createWallet, inAppWallet } from "thirdweb/wallets";
 import { defineChain } from "thirdweb";
 import { baseSepolia } from "thirdweb/chains";
 import Image from "next/image";
@@ -16,6 +16,9 @@ export default function Home() {
   const wallets = [
     createWallet("com.coinbase.wallet"),
     createWallet("io.metamask"),
+    inAppWallet({
+      providers: ["facebook", "apple", "google"],
+    }),
   ];
 
   return (

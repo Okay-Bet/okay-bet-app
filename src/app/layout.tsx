@@ -3,7 +3,7 @@ import "./globals.css";
 import { ThirdwebProvider } from "thirdweb/react";
 
 export const metadata: Metadata = {
-  title: "Bets With Friends",
+  title: "Okay Bet",
   description: "Make onchain bets with your friends. Connect your wallet to get started.",
 };
 
