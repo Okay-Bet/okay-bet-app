@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-const THIRD_WEB_CLIENT_SECRET = process.env.THIRD_WEB_CLIENT_SECRET;
+const THIRD_WEB_CLIENT_SECRET = process.env.SECRET_KEY;
 
 export async function POST(request: Request) {
   const { queryBy, value } = await request.json();
