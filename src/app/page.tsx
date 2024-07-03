@@ -5,11 +5,12 @@ import { ThirdwebProvider } from "thirdweb/react";
 import { client, contract } from "./client";
 import CreateBetForm from "../components/CreateBetForm";
 import BetList from "../components/BetList";
-import { createWallet, inAppWallet } from "thirdweb/wallets";
+import { createWallet, inAppWallet, privateKeyToAccount } from "thirdweb/wallets";
 import { defineChain } from "thirdweb";
 import { baseSepolia } from "thirdweb/chains";
 import Image from "next/image";
 import logo from "@public/bets.png";
+import WalletLookup from "../components/WalletLookup";
 
 export default function Home() {
   const account = useActiveAccount();
@@ -19,6 +20,10 @@ export default function Home() {
     inAppWallet({
       providers: ["facebook", "apple", "google"],
     }),
+    // privateKeyToAccount({
+    //   client,
+    //   privateKey: process.env.PRIVATE_KEY!,
+    // }),
   ];
 
   return (
@@ -76,6 +81,7 @@ function Pitch() {
           The decider doesn&apos;t get any of the money. They can only decide where the money goes.
         </p>
       </div>
+      <WalletLookup />
     </header>
   );
 }
