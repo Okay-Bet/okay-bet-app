@@ -4,11 +4,15 @@ import { resolveAddress } from "thirdweb/extensions/ens";
 import { ethers } from "ethers";
 import { client } from "@/app/client";
 import { createBet } from "../generated/betFactory";
+import { getUserWalletAddressByEmail, getUserWalletAddressByPhone } from "@/services/userService";
 
 export const useCreateBetForm = (contract: any) => {
   const [better1, setBetter1] = useState<string>("");
   const [better2, setBetter2] = useState<string>("");
   const [decider, setDecider] = useState<string>("");
+  const [better1Type, setBetter1Type] = useState<string>("wallet"); // wallet, email, phone
+  const [better2Type, setBetter2Type] = useState<string>("wallet"); // wallet, email, phone
+  const [deciderType, setDeciderType] = useState<string>("wallet"); // wallet, email, phone
   const [wagerUSD, setWagerUSD] = useState<string>("");
   const [conditions, setConditions] = useState<string>("");
   const [message, setMessage] = useState<string>("");
@@ -40,15 +44,28 @@ export const useCreateBetForm = (contract: any) => {
     fetchEthToUsdRate();
   }, []);
 
+  const resolveUserAddress = async (identifier: string, type: string): Promise<string> => {
+    if (type === "wallet") {
+      return await resolveAddress({ client, name: identifier });
+    } else if (type === "email") {
+      return await getUserWalletAddressByEmail(identifier);
+    } else if (type === "phone") {
+      return await getUserWalletAddressByPhone(identifier);
+    } else {
+      throw new Error("Invalid identifier type");
+    }
+  };
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setIsLoading(true);
     setMessage("");
 
     try {
-      const resolvedBetter1 = await resolveAddress({ client, name: better1 });
-      const resolvedBetter2 = await resolveAddress({ client, name: better2 });
-      const resolvedDecider = await resolveAddress({ client, name: decider });
+      const resolvedBetter1 = await resolveUserAddress(better1, better1Type);
+      const resolvedBetter2 = await resolveUserAddress(better2, better2Type);
+      const resolvedDecider = await resolveUserAddress(decider, deciderType);
+
       const wagerInEth = (parseFloat(wagerUSD) / ethToUsdRate).toFixed(18);
       const wagerInWei = ethers.utils.parseEther(wagerInEth);
 
@@ -88,6 +105,12 @@ export const useCreateBetForm = (contract: any) => {
     setBetter2,
     decider,
     setDecider,
+    better1Type,
+    setBetter1Type,
+    better2Type,
+    setBetter2Type,
+    deciderType,
+    setDeciderType,
     wagerUSD,
     setWagerUSD,
     conditions,
@@ -98,6 +121,6 @@ export const useCreateBetForm = (contract: any) => {
     setIsFormVisible,
     isAlertOpen,
     setIsAlertOpen,
-    handleSubmit
+    handleSubmit,
   };
 };
