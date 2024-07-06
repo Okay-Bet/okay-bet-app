@@ -6,7 +6,6 @@ const THIRD_WEB_CLIENT_SECRET = process.env.SECRET_KEY;
 export async function POST(request: Request) {
   const { email } = await request.json();
   
-  console.log("Received request with email:", email);
 
   if (!email) {
     console.log("Missing required parameter: email");
@@ -21,7 +20,6 @@ export async function POST(request: Request) {
   url.searchParams.set("email", email);
 
   try {
-    console.log("Fetching data from Thirdweb API with URL:", url.href);
     const response = await fetch(url.href, {
       headers: {
         Authorization: `Bearer ${THIRD_WEB_CLIENT_SECRET}`,
@@ -29,13 +27,16 @@ export async function POST(request: Request) {
     });
 
     if (!response.ok) {
-      console.log(`Failed to fetch wallet metadata: ${response.statusText}`);
       throw new Error('Failed to fetch wallet metadata');
     }
 
     const data = await response.json();
-    console.log("Fetched data successfully:", data);
-    return NextResponse.json(data);
+
+    if (data && data.length > 0) {
+      return NextResponse.json({ walletAddress: data[0].walletAddress });
+    }
+
+    return NextResponse.json({ message: 'Wallet address not found' }, { status: 404 });
   } catch (error) {
     console.error('Error fetching wallet address by email:', error);
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
