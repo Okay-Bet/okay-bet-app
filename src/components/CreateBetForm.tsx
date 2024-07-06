@@ -1,93 +1,35 @@
+// components/CreateBetForm.tsx
 "use client";
-import React, { useState, ChangeEvent, FormEvent, useEffect } from "react";
-import { useSendTransaction, useActiveAccount } from "thirdweb/react";
-import { resolveAddress } from "thirdweb/extensions/ens";
-import { ethers } from "ethers";
-import { client } from "@/app/client";
+import React, { ChangeEvent, FormEvent } from "react";
 import { Collapse } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
 import AlertModal from "./AlertModal";
-import { createBet } from "../generated/betFactory"; // Adjust the path as needed
+import { useCreateBetForm } from "../hooks/useCreateBetForm";
 
 interface CreateBetFormProps {
   contract: any;
 }
 
 const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
-  const [better1, setBetter1] = useState<string>("");
-  const [better2, setBetter2] = useState<string>("");
-  const [decider, setDecider] = useState<string>("");
-  const [wagerUSD, setWagerUSD] = useState<string>("");
-  const [conditions, setConditions] = useState<string>("");
-  const [message, setMessage] = useState<string>("");
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isFormVisible, setIsFormVisible] = useState<boolean>(false);
-  const [ethToUsdRate, setEthToUsdRate] = useState<number>(0);
-  const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
-
-  const { mutateAsync: sendTransaction } = useSendTransaction();
-  const account = useActiveAccount();
-
-  useEffect(() => {
-    if (account) {
-      setBetter1(account.address);
-    }
-  }, [account]);
-
-  useEffect(() => {
-    const fetchEthToUsdRate = async () => {
-      try {
-        const response = await fetch("https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD");
-        const data = await response.json();
-        setEthToUsdRate(data.USD);
-      } catch (error) {
-        console.error("Error fetching ETH to USD rate:", error);
-      }
-    };
-
-    fetchEthToUsdRate();
-  }, []);
-
-  const handleSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-    setIsLoading(true);
-    setMessage("");
-
-    try {
-      const resolvedBetter1 = await resolveAddress({ client, name: better1 });
-      const resolvedBetter2 = await resolveAddress({ client, name: better2 });
-      const resolvedDecider = await resolveAddress({ client, name: decider });
-      const wagerInEth = (parseFloat(wagerUSD) / ethToUsdRate).toFixed(18);
-      const wagerInWei = ethers.utils.parseEther(wagerInEth);
-
-      const transaction = createBet({
-        contract,
-        better1: resolvedBetter1,
-        better2: resolvedBetter2,
-        decider: resolvedDecider,
-        wager: BigInt(wagerInWei.toString()),
-        conditions,
-      });
-
-      await sendTransaction(transaction);
-      setMessage("Bet created successfully!");
-      setIsAlertOpen(true);
-
-      // Reset form fields and close form
-      setBetter1(account?.address || "");
-      setBetter2("");
-      setDecider("");
-      setWagerUSD("");
-      setConditions("");
-      setIsFormVisible(false);
-    } catch (error: any) {
-      console.error("Error creating bet:", error);
-      setMessage(`Error creating bet: ${error.message}`);
-      setIsAlertOpen(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const {
+    better1,
+    setBetter1,
+    better2,
+    setBetter2,
+    decider,
+    setDecider,
+    wagerUSD,
+    setWagerUSD,
+    conditions,
+    setConditions,
+    message,
+    isLoading,
+    isFormVisible,
+    setIsFormVisible,
+    isAlertOpen,
+    setIsAlertOpen,
+    handleSubmit,
+  } = useCreateBetForm(contract);
 
   return (
     <div className="max-w-md mx-auto my-4 p-4 bg-primary text-quaternary rounded-lg shadow-lg">
