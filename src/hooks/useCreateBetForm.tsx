@@ -21,6 +21,13 @@ export const useCreateBetForm = (contract: any) => {
   const [ethToUsdRate, setEthToUsdRate] = useState<number>(0);
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
 
+  const [better1Valid, setBetter1Valid] = useState<boolean>(false);
+  const [better2Valid, setBetter2Valid] = useState<boolean>(false);
+  const [deciderValid, setDeciderValid] = useState<boolean>(false);
+  const [better1Loading, setBetter1Loading] = useState<boolean>(false);
+  const [better2Loading, setBetter2Loading] = useState<boolean>(false);
+  const [deciderLoading, setDeciderLoading] = useState<boolean>(false);
+
   const { mutateAsync: sendTransaction } = useSendTransaction();
   const account = useActiveAccount();
 
@@ -55,6 +62,49 @@ export const useCreateBetForm = (contract: any) => {
       throw new Error("Invalid identifier type");
     }
   };
+
+  const validateAddress = async (identifier: string, type: string, setValid: (isValid: boolean) => void, setLoading: (isLoading: boolean) => void) => {
+    if (!identifier) {
+      setValid(false);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const resolvedAddress = await resolveUserAddress(identifier, type);
+      setValid(!!resolvedAddress);
+    } catch (error) {
+      setValid(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      validateAddress(better1, better1Type, setBetter1Valid, setBetter1Loading);
+    }, 2000);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [better1, better1Type]);
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      validateAddress(better2, better2Type, setBetter2Valid, setBetter2Loading);
+    }, 2000);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [better2, better2Type]);
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      validateAddress(decider, deciderType, setDeciderValid, setDeciderLoading);
+    }, 2000);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [decider, deciderType]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -98,6 +148,8 @@ export const useCreateBetForm = (contract: any) => {
     }
   };
 
+  const canSubmit = better1Valid && better2Valid && deciderValid;
+
   return {
     better1,
     setBetter1,
@@ -122,5 +174,12 @@ export const useCreateBetForm = (contract: any) => {
     isAlertOpen,
     setIsAlertOpen,
     handleSubmit,
+    better1Valid,
+    better2Valid,
+    deciderValid,
+    better1Loading,
+    better2Loading,
+    deciderLoading,
+    canSubmit,
   };
 };

@@ -1,9 +1,11 @@
 "use client";
 import React, { ChangeEvent, useState } from "react";
-import { Collapse } from "@mui/material";
+import { Collapse, CircularProgress } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
 import AlertModal from "./AlertModal";
 import { useCreateBetForm } from "../hooks/useCreateBetForm"; // Adjust the path as needed
+import CheckIcon from '@mui/icons-material/Check';
+import CloseIcon from '@mui/icons-material/Close';
 
 interface CreateBetFormProps {
   contract: any;
@@ -34,11 +36,31 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
     isAlertOpen,
     setIsAlertOpen,
     handleSubmit,
+    better1Valid,
+    better2Valid,
+    deciderValid,
+    better1Loading,
+    better2Loading,
+    deciderLoading,
+    canSubmit,
   } = useCreateBetForm(contract);
 
   const [better1ContactMethod, setBetter1ContactMethod] = useState<string>("wallet");
   const [better2ContactMethod, setBetter2ContactMethod] = useState<string>("wallet");
   const [deciderContactMethod, setDeciderContactMethod] = useState<string>("wallet");
+
+  const renderValidationIcon = (loading: boolean, valid: boolean) => {
+    if (loading) {
+      return <CircularProgress size={24} className="ml-2" />;
+    }
+    if (valid) {
+      return <CheckIcon className="text-green-500 ml-2" />;
+    }
+    if (valid === false) {
+      return <CloseIcon className="text-red-500 ml-2" />;
+    }
+    return null;
+  };
 
   return (
     <div className="max-w-md mx-auto my-4 p-4 bg-primary text-quaternary rounded-lg shadow-lg">
@@ -94,14 +116,17 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
                   Phone
                 </label>
               </div>
-              <input
-                id="better1"
-                value={better1}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setBetter1(e.target.value)}
-                required
-                placeholder={`Enter Better 1 ${better1ContactMethod === 'wallet' ? 'Address or ENS' : better1ContactMethod === 'email' ? 'Email' : 'Phone'}`}
-                className="w-full p-2 border rounded text-black"
-              />
+              <div className="flex items-center">
+                <input
+                  id="better1"
+                  value={better1}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setBetter1(e.target.value)}
+                  required
+                  placeholder={`Enter Better 1 ${better1ContactMethod === 'wallet' ? 'Address or ENS' : better1ContactMethod === 'email' ? 'Email' : 'Phone'}`}
+                  className="w-full p-2 border rounded text-black"
+                />
+                {renderValidationIcon(better1Loading, better1Valid)}
+              </div>
             </div>
           </Tooltip>
           <Tooltip title="Enter the address, email, or phone number of the second bettor" arrow>
@@ -148,14 +173,17 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
                   Phone
                 </label>
               </div>
-              <input
-                id="better2"
-                value={better2}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setBetter2(e.target.value)}
-                required
-                placeholder={`Enter Better 2 ${better2ContactMethod === 'wallet' ? 'Address or ENS' : better2ContactMethod === 'email' ? 'Email' : 'Phone'}`}
-                className="w-full p-2 border rounded text-black"
-              />
+              <div className="flex items-center">
+                <input
+                  id="better2"
+                  value={better2}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setBetter2(e.target.value)}
+                  required
+                  placeholder={`Enter Better 2 ${better2ContactMethod === 'wallet' ? 'Address or ENS' : better2ContactMethod === 'email' ? 'Email' : 'Phone'}`}
+                  className="w-full p-2 border rounded text-black"
+                />
+                {renderValidationIcon(better2Loading, better2Valid)}
+              </div>
             </div>
           </Tooltip>
           <Tooltip title="Enter the address, email, or phone number of the decider" arrow>
@@ -202,14 +230,17 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
                   Phone
                 </label>
               </div>
-              <input
-                id="decider"
-                value={decider}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setDecider(e.target.value)}
-                required
-                placeholder={`Enter Decider ${deciderContactMethod === 'wallet' ? 'Address or ENS' : deciderContactMethod === 'email' ? 'Email' : 'Phone'}`}
-                className="w-full p-2 border rounded text-black"
-              />
+              <div className="flex items-center">
+                <input
+                  id="decider"
+                  value={decider}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setDecider(e.target.value)}
+                  required
+                  placeholder={`Enter Decider ${deciderContactMethod === 'wallet' ? 'Address or ENS' : deciderContactMethod === 'email' ? 'Email' : 'Phone'}`}
+                  className="w-full p-2 border rounded text-black"
+                />
+                {renderValidationIcon(deciderLoading, deciderValid)}
+              </div>
             </div>
           </Tooltip>
           <Tooltip title="Enter the amount of USD for the wager. It will be converted to ETH." arrow>
@@ -238,7 +269,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
               />
             </div>
           </Tooltip>
-          <button type="submit" disabled={isLoading} className="w-full p-4 bg-tertiary text-font font-heading rounded-lg hover:bg-quaternary transition-colors">
+          <button type="submit" disabled={isLoading || !canSubmit} className="w-full p-4 bg-tertiary text-font font-heading rounded-lg hover:bg-quaternary transition-colors">
             {isLoading ? "Creating Bet..." : "Make Bet"}
           </button>
           {message && <p className="mt-4">{message}</p>}
