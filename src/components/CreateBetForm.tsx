@@ -1,11 +1,12 @@
 "use client";
 import React, { ChangeEvent, useState } from "react";
-import { Collapse, CircularProgress } from "@mui/material";
+import { Collapse } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
 import AlertModal from "./AlertModal";
-import { useCreateBetForm } from "../hooks/useCreateBetForm"; // Adjust the path as needed
-import CheckIcon from '@mui/icons-material/Check';
-import CloseIcon from '@mui/icons-material/Close';
+import { useCreateBetForm } from "../hooks/useCreateBetForm";
+import CircularProgress from "@mui/material/CircularProgress";
+import CheckIcon from "@mui/icons-material/Check";
+import CloseIcon from "@mui/icons-material/Close";
 
 interface CreateBetFormProps {
   contract: any;
@@ -49,17 +50,14 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
   const [better2ContactMethod, setBetter2ContactMethod] = useState<string>("wallet");
   const [deciderContactMethod, setDeciderContactMethod] = useState<string>("wallet");
 
-  const renderValidationIcon = (loading: boolean, valid: boolean) => {
-    if (loading) {
-      return <CircularProgress size={24} className="ml-2" />;
+  const renderValidationIcon = (isValid: boolean, isLoading: boolean) => {
+    if (isLoading) {
+      return <CircularProgress size={20} />;
+    } else if (isValid) {
+      return <CheckIcon style={{ color: "green" }} />;
+    } else {
+      return <CloseIcon style={{ color: "red" }} />;
     }
-    if (valid) {
-      return <CheckIcon className="text-green-500 ml-2" />;
-    }
-    if (valid === false) {
-      return <CloseIcon className="text-red-500 ml-2" />;
-    }
-    return null;
   };
 
   return (
@@ -125,7 +123,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
                   placeholder={`Enter Better 1 ${better1ContactMethod === 'wallet' ? 'Address or ENS' : better1ContactMethod === 'email' ? 'Email' : 'Phone'}`}
                   className="w-full p-2 border rounded text-black"
                 />
-                {renderValidationIcon(better1Loading, better1Valid)}
+                {renderValidationIcon(better1Valid, better1Loading)}
               </div>
             </div>
           </Tooltip>
@@ -182,7 +180,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
                   placeholder={`Enter Better 2 ${better2ContactMethod === 'wallet' ? 'Address or ENS' : better2ContactMethod === 'email' ? 'Email' : 'Phone'}`}
                   className="w-full p-2 border rounded text-black"
                 />
-                {renderValidationIcon(better2Loading, better2Valid)}
+                {renderValidationIcon(better2Valid, better2Loading)}
               </div>
             </div>
           </Tooltip>
@@ -239,7 +237,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
                   placeholder={`Enter Decider ${deciderContactMethod === 'wallet' ? 'Address or ENS' : deciderContactMethod === 'email' ? 'Email' : 'Phone'}`}
                   className="w-full p-2 border rounded text-black"
                 />
-                {renderValidationIcon(deciderLoading, deciderValid)}
+                {renderValidationIcon(deciderValid, deciderLoading)}
               </div>
             </div>
           </Tooltip>

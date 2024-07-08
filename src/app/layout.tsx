@@ -5,6 +5,7 @@ import { ThirdwebProvider } from "thirdweb/react";
 export const metadata: Metadata = {
   title: "Okay Bet",
   description: "Make onchain bets with your friends. Connect your wallet to get started.",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({

@@ -6,6 +6,9 @@ import { client } from "@/app/client";
 import { createBet } from "../generated/betFactory";
 import { getUserWalletAddressByEmail, getUserWalletAddressByPhone } from "@/services/userService";
 
+// Define the type for Ethereum address
+type EthereumAddress = `0x${string}`;
+
 export const useCreateBetForm = (contract: any) => {
   const [better1, setBetter1] = useState<string>("");
   const [better2, setBetter2] = useState<string>("");
@@ -51,13 +54,16 @@ export const useCreateBetForm = (contract: any) => {
     fetchEthToUsdRate();
   }, []);
 
-  const resolveUserAddress = async (identifier: string, type: string): Promise<string> => {
+  const resolveUserAddress = async (identifier: string, type: string): Promise<EthereumAddress> => {
     if (type === "wallet") {
-      return await resolveAddress({ client, name: identifier });
+      const address = await resolveAddress({ client, name: identifier });
+      return address as EthereumAddress;
     } else if (type === "email") {
-      return await getUserWalletAddressByEmail(identifier);
+      const address = await getUserWalletAddressByEmail(identifier);
+      return address as EthereumAddress;
     } else if (type === "phone") {
-      return await getUserWalletAddressByPhone(identifier);
+      const address = await getUserWalletAddressByPhone(identifier);
+      return address as EthereumAddress;
     } else {
       throw new Error("Invalid identifier type");
     }

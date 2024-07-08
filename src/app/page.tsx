@@ -10,7 +10,6 @@ import { defineChain } from "thirdweb";
 import { baseSepolia } from "thirdweb/chains";
 import Image from "next/image";
 import logo from "@public/bets.png";
-import WalletLookup from "../components/WalletLookup";
 
 export default function Home() {
   const account = useActiveAccount();
@@ -18,7 +17,7 @@ export default function Home() {
     createWallet("com.coinbase.wallet"),
     createWallet("io.metamask"),
     inAppWallet({
-      providers: ["facebook", "apple", "google"],
+      // providers: ["facebook", "apple", "google"],
     }),
     // privateKeyToAccount({
     //   client,
@@ -81,7 +80,6 @@ function Pitch() {
           The decider doesn&apos;t get any of the money. They can only decide where the money goes.
         </p>
       </div>
-      <WalletLookup />
     </header>
   );
 }
