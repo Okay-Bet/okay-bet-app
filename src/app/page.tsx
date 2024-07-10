@@ -5,9 +5,8 @@ import { ThirdwebProvider } from "thirdweb/react";
 import { client, contract } from "./client";
 import CreateBetForm from "../components/CreateBetForm";
 import BetList from "../components/BetList";
-import { createWallet, inAppWallet, privateKeyToAccount } from "thirdweb/wallets";
-import { defineChain } from "thirdweb";
-import { baseSepolia } from "thirdweb/chains";
+import { createWallet, inAppWallet } from "thirdweb/wallets";
+import { baseSepolia, defineChain } from "thirdweb/chains";
 import Image from "next/image";
 import logo from "@public/bets.png";
 
@@ -15,14 +14,17 @@ export default function Home() {
   const account = useActiveAccount();
   const wallets = [
     createWallet("com.coinbase.wallet"),
-    createWallet("io.metamask"),
     inAppWallet({
-      // providers: ["facebook", "apple", "google"],
+      auth: {
+        options: [
+          "google",
+          "facebook",
+          "apple",
+          "phone",
+          "email",
+        ],
+      },
     }),
-    // privateKeyToAccount({
-    //   client,
-    //   privateKey: process.env.PRIVATE_KEY!,
-    // }),
   ];
 
   return (
@@ -41,7 +43,9 @@ export default function Home() {
             <ConnectButton
               client={client}
               wallets={wallets}
-              chain={defineChain(baseSepolia)}
+              chain = {defineChain(baseSepolia)}
+              theme={"dark"}
+              connectModal={{ size: "wide" }}
               appMetadata={{
                 name: "Bets with Friends",
                 url: "https://betswithfriends.fun",
@@ -71,13 +75,16 @@ function Pitch() {
           Connect your wallet to start betting with friends!
         </h1>
         <p className="text-lg md:text-xl text-font mb-2">
-          Make a bet between you and a friend, then pick a decider that both of you trust!
+          Make a bet between you and a friend, then pick a decider that both of
+          you trust!
         </p>
         <p className="text-lg md:text-xl text-font mb-2">
-          Once each side pays the wager, the bet is on. Only the decider can pick a winner or cancel it to refund the betters.
+          Once each side pays the wager, the bet is on. Only the decider can
+          pick a winner or cancel it to refund the betters.
         </p>
         <p className="text-lg md:text-xl text-font">
-          The decider doesn&apos;t get any of the money. They can only decide where the money goes.
+          The decider doesn&apos;t get any of the money. They can only decide
+          where the money goes.
         </p>
       </div>
     </header>
