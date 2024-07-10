@@ -61,15 +61,15 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
   };
 
   return (
-    <div className="max-w-md mx-auto my-4 p-4 bg-primary text-quaternary rounded-lg shadow-lg">
+    <div className="max-w-md mx-auto p-4 bg-primary text-quaternary">
       <button
         onClick={() => setIsFormVisible(!isFormVisible)}
-        className="text-lg w-full p-2 bg-primary text-quaternary font-bold font-heading italic rounded"
+        className="text-lg  p-2 bg-primary text-quaternary font-bold font-heading italic rounded"
       >
         {isFormVisible ? "NEW BET" : "NEW BET"}
       </button>
       <Collapse in={isFormVisible}>
-        <form onSubmit={handleSubmit} className="p-6 bg-secondary text-font rounded space-y-4 shadow-lg">
+        <form onSubmit={handleSubmit} className="p-6 bg-secondary text-font font-bold space-y-4">
           <Tooltip title="Your wallet address will be autofilled as Better 1" arrow>
             <div>
               <label htmlFor="better1" className="block mb-2">Better 1</label>
@@ -121,7 +121,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setBetter1(e.target.value)}
                   required
                   placeholder={`Enter Better 1 ${better1ContactMethod === 'wallet' ? 'Address or ENS' : better1ContactMethod === 'email' ? 'Email' : 'Phone'}`}
-                  className="w-full p-2 border rounded text-black"
+                  className="w-full p-2 border text-black"
                 />
                 {renderValidationIcon(better1Valid, better1Loading)}
               </div>
@@ -129,7 +129,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
           </Tooltip>
           <Tooltip title="Enter the address, email, or phone number of the second bettor" arrow>
             <div>
-              <label htmlFor="better2" className="block mb-2">Better 2</label>
+              <label htmlFor="better2" className="block mb-2 font-bold">Better 2</label>
               <div className="flex space-x-2 mb-2">
                 <label>
                   <input
@@ -178,7 +178,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setBetter2(e.target.value)}
                   required
                   placeholder={`Enter Better 2 ${better2ContactMethod === 'wallet' ? 'Address or ENS' : better2ContactMethod === 'email' ? 'Email' : 'Phone'}`}
-                  className="w-full p-2 border rounded text-black"
+                  className="w-full p-2 border text-black"
                 />
                 {renderValidationIcon(better2Valid, better2Loading)}
               </div>
@@ -186,7 +186,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
           </Tooltip>
           <Tooltip title="Enter the address, email, or phone number of the decider" arrow>
             <div>
-              <label htmlFor="decider" className="block mb-2">Decider</label>
+              <label htmlFor="decider" className="block mb-2 font-bold">Decider</label>
               <div className="flex space-x-2 mb-2">
                 <label>
                   <input
@@ -235,7 +235,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setDecider(e.target.value)}
                   required
                   placeholder={`Enter Decider ${deciderContactMethod === 'wallet' ? 'Address or ENS' : deciderContactMethod === 'email' ? 'Email' : 'Phone'}`}
-                  className="w-full p-2 border rounded text-black"
+                  className="w-full p-2 border text-black"
                 />
                 {renderValidationIcon(deciderValid, deciderLoading)}
               </div>
@@ -251,7 +251,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
                 value={wagerUSD}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setWagerUSD(e.target.value)}
                 required
-                className="w-full p-2 border rounded text-black"
+                className="w-full p-2 border text-black"
               />
             </div>
           </Tooltip>
@@ -263,12 +263,12 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
                 value={conditions}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setConditions(e.target.value)}
                 required
-                className="w-full p-2 border rounded text-black"
+                className="w-full p-2 border  text-black"
               />
             </div>
           </Tooltip>
-          <button type="submit" disabled={isLoading || !canSubmit} className="w-full p-4 bg-tertiary text-font font-heading rounded-lg hover:bg-quaternary transition-colors">
-            {isLoading ? "Creating Bet..." : "Make Bet"}
+          <button type="submit" disabled={isLoading || !canSubmit} className="w-full p-4 bg-tertiary text-font font-heading rounded-lg hover:bg-quaternary hover:text-primary hover:italic transition-colors">
+            {isLoading ? "Creating Bet..." : "MAKE BET"}
           </button>
           {message && <p className="mt-4">{message}</p>}
         </form>

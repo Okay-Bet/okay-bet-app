@@ -26,6 +26,7 @@ export default function Home() {
     <ThirdwebProvider>
       <main className="min-h-screen flex flex-col items-center justify-center">
         <div className="py-10 text-center">
+          <div className="m-3">
           <Image
             src={logo}
             alt="Okay Bet Logo"
@@ -33,6 +34,7 @@ export default function Home() {
             height={150}
             className="mx-auto mb-10"
           />
+          </div>
 
           <div className="flex justify-center mb-10 font-heading">
             <ConnectButton
@@ -77,7 +79,7 @@ function Pitch() {
           Make a bet on anything you can think of with your friend and have the winner decided by another friend.
         </p>
   
-        <h1 className="text-3xl md:text-4xl font-heading text-font tracking-tighter italic mb-4">
+        <h1 className="text-3xl md:text-4xl font-heading text-font tracking-tighter italic mb-10">
           HOW IT WORKS
         </h1>
         <div className="flex flex-col md:flex-row justify-center items-center space-y-8 md:space-y-0 md:space-x-8 mb-8">

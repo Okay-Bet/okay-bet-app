@@ -172,9 +172,9 @@ const OpenBets: React.FC<OpenBetsProps> = ({
     `${address.slice(0, 6)}...${address.slice(-4)}`;
 
   return (
-    <div className="max-w-md mx-auto my-4 p-4 bg-primary text-quaternary rounded-lg shadow-lg">
+    <div className="max-w-md mx-auto my-4 p-4 bg-primary text-quaternary font-bold">
       <h3
-        className="text-lg font-bold mb-2 cursor-pointer"
+        className="text-lg italic mb-2 cursor-pointer"
         onClick={() => setIsOpen(!isOpen)}
       >
         Active Bets
@@ -188,13 +188,13 @@ const OpenBets: React.FC<OpenBetsProps> = ({
           return (
             <div
               key={index}
-              className="p-4 mb-4 bg-secondary rounded-lg shadow-md"
+              className="p-4 mb-4 bg-secondary"
             >
               <h4 className="text-xl font-bold mb-2 text-font">
                 {bet.conditions}
               </h4>
               <div className="grid grid-cols-1 gap-4 mb-2">
-                <div className="p-4 bg-tertiary text-font rounded-lg shadow-md">
+                <div className="p-4 bg-tertiary text-font ">
                   <span>
                     Better 1:{" "}
                     {bet.better1Display.endsWith(".eth")
@@ -202,7 +202,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({
                       : shortenAddress(bet.better1Display)}
                   </span>
                 </div>
-                <div className="p-4 bg-tertiary text-font rounded-lg shadow-md">
+                <div className="p-4 bg-tertiary text-font  ">
                   <span>
                     Better 2:{" "}
                     {bet.better2Display.endsWith(".eth")
@@ -210,7 +210,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({
                       : shortenAddress(bet.better2Display)}
                   </span>
                 </div>
-                <div className="p-4 bg-tertiary text-font rounded-lg shadow-md">
+                <div className="p-4 bg-tertiary text-font">
                   <span>
                     Decider:{" "}
                     {bet.deciderDisplay.endsWith(".eth")
@@ -228,19 +228,19 @@ const OpenBets: React.FC<OpenBetsProps> = ({
                 <div>
                   <button
                     onClick={() => handleResolveBet(bet.address, bet.better1)}
-                    className="w-full p-2 bg-green-500 text-font font-heading rounded-lg mt-2 hover:bg-yellow-400 transition-colors"
+                    className="w-full p-2 bg-green-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic  transition-colors"
                   >
                     Declare Better 1 as Winner
                   </button>
                   <button
                     onClick={() => handleResolveBet(bet.address, bet.better2)}
-                    className="w-full p-2 bg-green-500 text-font font-heading rounded-lg mt-2 hover:bg-yellow-400 transition-colors"
+                    className="w-full p-2 bg-green-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
                   >
                     Declare Better 2 as Winner
                   </button>
                   <button
                     onClick={() => handleInvalidateBet(bet.address)}
-                    className="w-full p-2 bg-red-500 text-font font-heading rounded-lg mt-2 hover:bg-red-400 transition-colors"
+                    className="w-full p-2 bg-primary text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
                   >
                     Cancel Bet
                   </button>

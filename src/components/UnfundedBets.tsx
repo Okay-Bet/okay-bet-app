@@ -191,7 +191,7 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
   };
 
   return (
-    <div className="max-w-md mx-auto my-4 p-4 bg-primary text-quaternary rounded-lg shadow-lg">
+    <div className="max-w-md mx-auto my-4 p-4 bg-primary text-quaternary">
       <h3
         className="text-lg font-bold mb-2 cursor-pointer"
         onClick={() => setIsOpen(!isOpen)}
@@ -210,13 +210,13 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
           return (
             <div
               key={index}
-              className="p-4 mb-4 bg-secondary rounded-lg shadow-md"
+              className="p-4 mb-4 bg-secondary"
             >
               <h4 className="text-xl font-bold mb-2 text-font">
                 {bet.conditions}
               </h4>
               <div className="grid grid-cols-1 gap-4 mb-2">
-                <div className="p-4 bg-yellow-300 text-font rounded-lg shadow-md">
+                <div className="p-4 bg-tertiary text-font shadow-md">
                   <span>
                     Better 1:{" "}
                     {bet.better1Display.endsWith(".eth")
@@ -224,7 +224,7 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
                       : shortenAddress(bet.better1Display)}
                   </span>
                 </div>
-                <div className="p-4 bg-yellow-300 text-font rounded-lg shadow-md">
+                <div className="p-4 bg-tertiary text-font  shadow-md">
                   <span>
                     Better 2:{" "}
                     {bet.better2Display.endsWith(".eth")
@@ -232,7 +232,7 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
                       : shortenAddress(bet.better2Display)}
                   </span>
                 </div>
-                <div className="p-4 bg-yellow-300 text-font rounded-lg shadow-md">
+                <div className="p-4 bg-tertiary text-font  shadow-md">
                   <span>
                     Decider:{" "}
                     {bet.deciderDisplay.endsWith(".eth")
@@ -245,7 +245,7 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
                 Wager: ${wagerInUsd} USD ({bet.wagerEth} ETH)
               </div>
               <div className="mb-2">
-                <span className="inline-block px-4 py-2 bg-blue-500 text-white rounded-full">
+                <span className="inline-block px-4 py-2 bg-blue-500 text-white">
                   {getBetStatusText(
                     bet.status,
                     bet.better1Display.endsWith(".eth")
@@ -260,7 +260,7 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
               {canFund ? (
                 <button
                   onClick={() => handleFundBet(bet.address, bet.wagerWei)}
-                  className="w-full p-2 bg-green-500 text-font font-heading rounded-lg mt-2 hover:bg-yellow-400 transition-colors"
+                  className="w-full p-2 bg-green-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
                 >
                   Fund Bet
                 </button>
@@ -271,7 +271,7 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
               )}
               <button
                 onClick={() => handleCancelBet(bet.address)}
-                className="w-full p-2 mb-2 bg-red-500 text-font font-heading rounded-lg mt-2 hover:bg-red-400 transition-colors"
+                className="w-full p-2 mb-2 bg-red-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
               >
                 Cancel Bet
               </button>

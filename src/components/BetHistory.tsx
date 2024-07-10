@@ -122,12 +122,12 @@ const BetHistory: React.FC<BetHistoryProps> = ({ betAddresses, accountAddress })
   }, [betAddresses, address, ethToUsdRate]);
 
   return (
-    <div className="max-w-md mx-auto my-4 p-4 bg-primary text-quaternary rounded-lg shadow-lg">
+    <div className="max-w-md mx-auto my-4 p-4 bg-primary text-quaternary">
       <h3 className="text-lg font-bold mb-2 cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
         Bet History
       </h3>
       <Collapse in={isOpen}>
-        <div className="p-4 bg-secondary rounded-lg shadow-md mb-4">
+        <div className="p-4 bg-secondary mb-4">
           <h4 className="text-xl font-bold mb-2 text-font">Record</h4>
           <table className="w-full text-left text-font">
             <tbody>

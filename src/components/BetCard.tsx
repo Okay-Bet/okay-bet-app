@@ -18,7 +18,7 @@ const BetCard: React.FC<BetCardProps> = ({ bet, ethToUsdRate, address }) => {
 
   let betCardClass = "bg-secondary";
   if (bet.status === 5) {
-    betCardClass = "bg-gray-300";
+    betCardClass = "bg-gray-300 text-primary text-opacity-50";
   } else if (bet.status === 4) {
     if (bet.winner.toLowerCase() === address.toLowerCase()) {
       betCardClass = "bg-green-500";
@@ -30,13 +30,13 @@ const BetCard: React.FC<BetCardProps> = ({ bet, ethToUsdRate, address }) => {
   return (
     <div className="mb-4">
       <div
-        className={`p-4 ${betCardClass} text-font rounded-lg shadow-md cursor-pointer`}
+        className={`p-4 ${betCardClass} text-font shadow-md cursor-pointer`}
         onClick={() => setIsOpen(!isOpen)}
       >
         <h4 className="text-xl font-bold mb-2">{bet.conditions}</h4>
       </div>
       <Collapse in={isOpen}>
-        <div className={`p-4 ${betCardClass} text-font rounded-lg shadow-md mt-2`}>
+        <div className={`p-4 ${betCardClass} text-font shadow-md mt-2`}>
           <div className="flex justify-between mb-2">
             <span>
               Better 1:{" "}
