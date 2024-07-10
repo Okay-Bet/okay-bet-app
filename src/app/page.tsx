@@ -8,7 +8,7 @@ import BetList from "../components/BetList";
 import { createWallet, inAppWallet } from "thirdweb/wallets";
 import { baseSepolia, defineChain } from "thirdweb/chains";
 import Image from "next/image";
-import logo from "@public/bets.png";
+import logo from "@public/okay_bet.png";
 
 export default function Home() {
   const account = useActiveAccount();
@@ -50,6 +50,10 @@ export default function Home() {
                 name: "Bets with Friends",
                 url: "https://betswithfriends.fun",
               }}
+              connectButton={{
+                label: "CONNECT WALLET",
+                className: "bg-secondary text-quaternary px-4 py-2 rounded-lg",
+              }}
             />
           </div>
 
@@ -69,10 +73,10 @@ export default function Home() {
 
 function Pitch() {
   return (
-    <header className="flex flex-col items-center mb-20 md:mb-20">
-      <div className="bg-tertiary bg-opacity-75 p-6 rounded-lg shadow-lg text-center max-w-xl">
-        <h1 className="text-3xl md:text-4xl font-heading text-font tracking-tighter  mb-4">
-          Connect your wallet to start betting with friends!
+    <header className="flex width-full items-center ">
+      <div className="bg-secondary p-6 rounded-lg shadow-lg text-center">
+        <h1 className="text-3xl md:text-4xl font-heading text-font tracking-tighter italic mb-4">
+          HOW IT WORKS
         </h1>
         <p className="text-lg md:text-xl text-font mb-2">
           Make a bet between you and a friend, then pick a decider that both of

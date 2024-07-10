@@ -15,7 +15,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="font-body bg-geometric-circle from-primary to-quaternary">
+      <body className="font-body bg-quaternary">
         <ThirdwebProvider>{children}</ThirdwebProvider>
       </body>
     </html>

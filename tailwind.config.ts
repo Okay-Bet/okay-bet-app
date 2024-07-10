@@ -9,22 +9,22 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        heading: ["'Luckiest Guy'", "cursive"],
-        body: ["'Comic Sans MS'", "sans-serif"],
+        heading: ["'Monument'", "sans-serif"],
+        body: ["'Montserrat'", "sans-serif"],
       },
       colors: {
-        primary: "#03AED2",
-        secondary: "#68D2E8",
-        tertiary: "#FDDE55",
-        quaternary: "#FEEFAD",
-        font: "#071952",
+        primary: "#000000",
+        secondary: "#ff3131",
+        tertiary: "#DC5F00",
+        quaternary: "#EEEEEE",
+        font: "#EEEEEE",
       },
       backgroundImage: {
         'geometric-circle': 'radial-gradient(circle at center, var(--tw-gradient-stops))',
       },
       gradientColorStops: {
-        from: '#03AED2',
-        to: 'rgba(3, 174, 210, 0)', 
+        from: '#ff3131',
+        to: 'rgba(3, 174, 210, 0)',
       },
     },
   },

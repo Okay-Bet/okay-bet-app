@@ -194,7 +194,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({
                 {bet.conditions}
               </h4>
               <div className="grid grid-cols-1 gap-4 mb-2">
-                <div className="p-4 bg-yellow-300 text-font rounded-lg shadow-md">
+                <div className="p-4 bg-tertiary text-font rounded-lg shadow-md">
                   <span>
                     Better 1:{" "}
                     {bet.better1Display.endsWith(".eth")
@@ -202,7 +202,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({
                       : shortenAddress(bet.better1Display)}
                   </span>
                 </div>
-                <div className="p-4 bg-yellow-300 text-font rounded-lg shadow-md">
+                <div className="p-4 bg-tertiary text-font rounded-lg shadow-md">
                   <span>
                     Better 2:{" "}
                     {bet.better2Display.endsWith(".eth")
@@ -210,7 +210,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({
                       : shortenAddress(bet.better2Display)}
                   </span>
                 </div>
-                <div className="p-4 bg-yellow-300 text-font rounded-lg shadow-md">
+                <div className="p-4 bg-tertiary text-font rounded-lg shadow-md">
                   <span>
                     Decider:{" "}
                     {bet.deciderDisplay.endsWith(".eth")
