@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { useSendTransaction } from "thirdweb/react";
 import { getContract } from "thirdweb";
 import { ethers } from "ethers";
@@ -11,6 +12,7 @@ import { resolveName } from "thirdweb/extensions/ens";
 import { Collapse } from "@mui/material";
 import AlertModal from "./AlertModal";
 import ShareButton from "./ShareButton";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
 interface OpenBetsProps {
   betAddresses: string[];
@@ -186,10 +188,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({
           );
 
           return (
-            <div
-              key={index}
-              className="p-4 mb-4 bg-secondary"
-            >
+            <div key={index} className="p-4 mb-4 bg-secondary">
               <h4 className="text-xl font-bold mb-2 text-font">
                 {bet.conditions}
               </h4>
@@ -259,6 +258,9 @@ const OpenBets: React.FC<OpenBetsProps> = ({
                 conditions={bet.conditions}
                 ethToUsdRate={ethToUsdRate}
               />
+              <Link href={`/bet/${bet.address}`} passHref>
+                <OpenInNewIcon />
+              </Link>
             </div>
           );
         })}

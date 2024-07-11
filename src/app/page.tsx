@@ -1,58 +1,33 @@
 "use client";
 
-import { ConnectButton, useActiveAccount } from "thirdweb/react";
+import { useActiveAccount } from "thirdweb/react";
 import { ThirdwebProvider } from "thirdweb/react";
 import { client, contract } from "./client";
 import CreateBetForm from "../components/CreateBetForm";
 import BetList from "../components/BetList";
-import { createWallet, inAppWallet } from "thirdweb/wallets";
-import { baseSepolia, defineChain } from "thirdweb/chains";
 import Image from "next/image";
 import logo from "@public/okay_bet.png";
 import FAQ from "@/components/FAQ";
+import ConnectWallet from "@/components/ConnectWallet";
 
 export default function Home() {
   const account = useActiveAccount();
-  const wallets = [
-    createWallet("com.coinbase.wallet"),
-    inAppWallet({
-      auth: {
-        options: ["google", "facebook", "apple", "phone", "email"],
-      },
-    }),
-  ];
 
   return (
     <ThirdwebProvider>
       <main className="min-h-screen flex flex-col items-center justify-center">
         <div className="py-10 text-center">
           <div className="m-3">
-          <Image
-            src={logo}
-            alt="Okay Bet Logo"
-            width={400}
-            height={150}
-            className="mx-auto mb-10"
-          />
-          </div>
-
-          <div className="flex justify-center mb-10 font-heading">
-            <ConnectButton
-              client={client}
-              wallets={wallets}
-              chain={defineChain(baseSepolia)}
-              theme={"dark"}
-              connectModal={{ size: "wide" }}
-              appMetadata={{
-                name: "Bets with Friends",
-                url: "https://betswithfriends.fun",
-              }}
-              connectButton={{
-                label: "CONNECT WALLET",
-                className: "bg-secondary text-font px-4 py-2 rounded-lg",
-              }}
+            <Image
+              src={logo}
+              alt="Okay Bet Logo"
+              width={400}
+              height={150}
+              className="mx-auto mb-10"
             />
           </div>
+
+          <ConnectWallet />
 
           {account ? (
             <div>
@@ -78,7 +53,7 @@ function Pitch() {
         <p className="text-lg md:text-xl text-quaternary mb-8">
           Make a bet on anything you can think of with your friend and have the winner decided by another friend.
         </p>
-  
+
         <h1 className="text-3xl md:text-4xl font-heading text-font tracking-tighter italic mb-10">
           HOW IT WORKS
         </h1>
@@ -121,5 +96,4 @@ function Pitch() {
       <FAQ />
     </div>
   );
-  
 }
