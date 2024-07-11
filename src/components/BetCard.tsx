@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import { Collapse } from "@mui/material";
-import ShareButton from "./ShareButton"; 
+import ShareButton from "./ShareButton";
+import Link from "next/link";
 
 interface BetCardProps {
   bet: any;
@@ -29,12 +30,12 @@ const BetCard: React.FC<BetCardProps> = ({ bet, ethToUsdRate, address }) => {
 
   return (
     <div className="mb-4">
-      <div
-        className={`p-4 ${betCardClass} text-font shadow-md cursor-pointer`}
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        <h4 className="text-xl font-bold mb-2">{bet.conditions}</h4>
-      </div>
+        <div
+          className={`p-4 ${betCardClass} text-font shadow-md cursor-pointer`}
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          <h4 className="text-xl font-bold mb-2">{bet.conditions}</h4>
+        </div>
       <Collapse in={isOpen}>
         <div className={`p-4 ${betCardClass} text-font shadow-md mt-2`}>
           <div className="flex justify-between mb-2">
@@ -72,8 +73,11 @@ const BetCard: React.FC<BetCardProps> = ({ bet, ethToUsdRate, address }) => {
                   : shortenAddress(bet.winnerDisplay)
                 : "N/A"}
             </span>
+
           </div>
-          <ShareButton 
+          <Link href={`/bet/${bet.address}`} passHref>
+
+          <ShareButton
             better1Display={bet.better1Display}
             better2Display={bet.better2Display}
             deciderDisplay={bet.deciderDisplay}
@@ -82,7 +86,10 @@ const BetCard: React.FC<BetCardProps> = ({ bet, ethToUsdRate, address }) => {
             conditions={bet.conditions}
             ethToUsdRate={ethToUsdRate}
           />
+                  </Link>
+
         </div>
+
       </Collapse>
     </div>
   );
