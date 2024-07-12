@@ -266,6 +266,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({
                     <OpenInNewIcon />
                   </a>
                 </Link>
+                
               </div>
             </div>
           );
