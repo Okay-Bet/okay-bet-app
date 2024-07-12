@@ -54,6 +54,12 @@ export const useCreateBetForm = (contract: any) => {
     fetchEthToUsdRate();
   }, []);
 
+  const convertUsdToEth = (usdAmount: string): string => {
+    if (!usdAmount || !ethToUsdRate) return "0";
+    const ethAmount = parseFloat(usdAmount) / ethToUsdRate;
+    return ethAmount.toFixed(6); // Limit to 6 decimal places
+  };
+
   const resolveUserAddress = async (identifier: string, type: string): Promise<EthereumAddress> => {
     if (type === "wallet") {
       const address = await resolveAddress({ client, name: identifier });
@@ -183,6 +189,8 @@ export const useCreateBetForm = (contract: any) => {
     better1Valid,
     better2Valid,
     deciderValid,
+    ethToUsdRate,
+    convertUsdToEth,
     better1Loading,
     better2Loading,
     deciderLoading,
