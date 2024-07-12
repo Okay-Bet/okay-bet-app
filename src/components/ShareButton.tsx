@@ -11,6 +11,7 @@ interface ShareButtonProps {
   status: number;
   conditions: string;
   ethToUsdRate: number;
+  address: string; 
 }
 
 const ShareButton: React.FC<ShareButtonProps> = ({

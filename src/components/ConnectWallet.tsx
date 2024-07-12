@@ -2,7 +2,7 @@
 
 import { ConnectButton, useActiveAccount } from "thirdweb/react";
 import { createWallet, inAppWallet } from "thirdweb/wallets";
-import { baseSepolia, defineChain } from "thirdweb/chains";
+import { base, defineChain } from "thirdweb/chains";
 import { client } from "@/app/client";
 
 const wallets = [
@@ -20,12 +20,12 @@ const ConnectWallet = () => {
       <ConnectButton
         client={client}
         wallets={wallets}
-        chain={defineChain(baseSepolia)}
+        chain={defineChain(base)}
         theme={"dark"}
         connectModal={{ size: "wide" }}
         appMetadata={{
-          name: "Bets with Friends",
-          url: "https://betswithfriends.fun",
+          name: "Okay Bet",
+          url: "https://okaybet.fun",
         }}
         connectButton={{
           label: "CONNECT WALLET",
