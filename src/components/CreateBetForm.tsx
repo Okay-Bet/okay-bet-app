@@ -290,7 +290,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
               className="w-full p-2 border text-black"
             />
             <p className="text-sm text-quaternary mt-1">
-              Equivalent: {convertUsdToEth(wagerUSD)} ETH
+               {convertUsdToEth(wagerUSD)} ETH
               {ethToUsdRate > 0 && ` (1 ETH = $${ethToUsdRate.toFixed(2)})`}
             </p>
           </div>

@@ -240,11 +240,11 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
                   </span>
                 </div>
               </div>
-              <div className="mb-2 text-font">
-                Wager: ${wagerInUsd} USD ({bet.wagerEth} ETH)
+              <div className="inline-block px-4 py-2 bg-blue-500 text-font rounded-full">
+                ${wagerInUsd} USD ({bet.wagerEth} ETH)
               </div>
-              <div className="mb-2">
-                <span className="inline-block px-4 py-2 bg-blue-500 text-white">
+              <div className="mb-2 mt-2">
+                <span className="inline-block px-4 py-2 bg-tertiary text-font">
                   {getBetStatusText(
                     bet.status,
                     bet.better1Display.endsWith(".eth")
@@ -274,18 +274,23 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
               >
                 Cancel Bet
               </button>
-              <ShareButton
-                better1Display={bet.better1Display}
-                better2Display={bet.better2Display}
-                deciderDisplay={bet.deciderDisplay}
-                wagerEth={bet.wagerEth}
-                status={bet.status}
-                conditions={bet.conditions}
-                ethToUsdRate={ethToUsdRate}
-              />
-              <Link href={`/bet/${bet.address}`} passHref>
-                <OpenInNewIcon />
-              </Link>
+              <div className="flex justify-end items-center space-x-4 mt-2">
+                <ShareButton
+                  better1Display={bet.better1Display}
+                  better2Display={bet.better2Display}
+                  deciderDisplay={bet.deciderDisplay}
+                  wagerEth={bet.wagerEth}
+                  status={bet.status}
+                  conditions={bet.conditions}
+                  ethToUsdRate={ethToUsdRate}
+                  address={bet.address}
+                />
+                <Link href={`/bet/${bet.address}`} passHref legacyBehavior>
+                  <a className="text-primary hover:text-quaternary cursor-pointer mt-1">
+                    <OpenInNewIcon />
+                  </a>
+                </Link>
+              </div>
             </div>
           );
         })}

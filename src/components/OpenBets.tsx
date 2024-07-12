@@ -13,6 +13,7 @@ import { Collapse } from "@mui/material";
 import AlertModal from "./AlertModal";
 import ShareButton from "./ShareButton";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import QrCodeIcon from "@mui/icons-material/QrCode";
 
 interface OpenBetsProps {
   betAddresses: string[];
@@ -188,12 +189,12 @@ const OpenBets: React.FC<OpenBetsProps> = ({
           );
 
           return (
-            <div key={index} className="p-4 mb-4 bg-secondary">
-              <h4 className="text-xl font-bold mb-2 text-font">
+            <div key={index} className="p-6 mb-6 bg-secondary shadow-md">
+              <h4 className="text-xl font-bold mb-4 text-font">
                 {bet.conditions}
               </h4>
-              <div className="grid grid-cols-1 gap-4 mb-2">
-                <div className="p-4 bg-tertiary text-font ">
+              <div className="grid grid-cols-1 gap-4 mb-4">
+                <div className="p-4 bg-tertiary text-font rounded-lg shadow-sm">
                   <span>
                     Better 1:{" "}
                     {bet.better1Display.endsWith(".eth")
@@ -201,7 +202,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({
                       : shortenAddress(bet.better1Display)}
                   </span>
                 </div>
-                <div className="p-4 bg-tertiary text-font  ">
+                <div className="p-4 bg-tertiary text-font rounded-lg shadow-sm">
                   <span>
                     Better 2:{" "}
                     {bet.better2Display.endsWith(".eth")
@@ -209,7 +210,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({
                       : shortenAddress(bet.better2Display)}
                   </span>
                 </div>
-                <div className="p-4 bg-tertiary text-font">
+                <div className="p-4 bg-tertiary text-font rounded-lg shadow-sm">
                   <span>
                     Decider:{" "}
                     {bet.deciderDisplay.endsWith(".eth")
@@ -218,49 +219,54 @@ const OpenBets: React.FC<OpenBetsProps> = ({
                   </span>
                 </div>
               </div>
-              <div className="mb-2">
+              <div className="mb-4">
                 <span className="inline-block px-4 py-2 bg-blue-500 text-white rounded-full">
-                  Wager: ${wagerInUsd} USD ({bet.wagerEth} ETH)
+                  ${wagerInUsd} USD ({bet.wagerEth} ETH)
                 </span>
               </div>
               {address === bet.decider.toLowerCase() ? (
                 <div>
                   <button
                     onClick={() => handleResolveBet(bet.address, bet.better1)}
-                    className="w-full p-2 bg-green-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic  transition-colors"
+                    className="w-full p-2 bg-green-500 text-font font-heading mt-2 hover:bg-tertiary hover:italic  transition-colors"
                   >
                     Declare Better 1 as Winner
                   </button>
                   <button
                     onClick={() => handleResolveBet(bet.address, bet.better2)}
-                    className="w-full p-2 bg-green-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
+                    className="w-full p-2 bg-green-500 text-font font-heading mt-2 hover:bg-tertiary hover:italic transition-colors"
                   >
                     Declare Better 2 as Winner
                   </button>
                   <button
                     onClick={() => handleInvalidateBet(bet.address)}
-                    className="w-full p-2 bg-primary text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
+                    className="w-full p-2 bg-primary text-font font-heading mt-2 hover:bg-tertiary hover:italic transition-colors"
                   >
                     Cancel Bet
                   </button>
                 </div>
               ) : (
-                <p className="text-font mb-2 mt-2 text-center italic">
-                  Waiting for the decider to resolve the bet.
+                <p className="text-font mb-4 mt-4 text-lg text-bold text-center italic">
+                  Waiting for decider to pick a winner
                 </p>
               )}
-              <ShareButton
-                better1Display={bet.better1Display}
-                better2Display={bet.better2Display}
-                deciderDisplay={bet.deciderDisplay}
-                wagerEth={bet.wagerEth}
-                status={bet.status}
-                conditions={bet.conditions}
-                ethToUsdRate={ethToUsdRate}
-              />
-              <Link href={`/bet/${bet.address}`} passHref>
-                <OpenInNewIcon />
-              </Link>
+              <div className="flex justify-end items-center space-x-4 mt-4">
+                <ShareButton
+                  better1Display={bet.better1Display}
+                  better2Display={bet.better2Display}
+                  deciderDisplay={bet.deciderDisplay}
+                  wagerEth={bet.wagerEth}
+                  status={bet.status}
+                  conditions={bet.conditions}
+                  ethToUsdRate={ethToUsdRate}
+                  address={bet.address}
+                />
+                <Link href={`/bet/${bet.address}`} passHref legacyBehavior>
+                  <a className="text-primary hover:text-quaternary cursor-pointer mt-1">
+                    <OpenInNewIcon />
+                  </a>
+                </Link>
+              </div>
             </div>
           );
         })}
