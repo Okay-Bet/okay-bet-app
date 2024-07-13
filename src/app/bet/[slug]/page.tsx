@@ -15,10 +15,26 @@ import ShareButton from "@/components/ShareButton";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import Link from "next/link";
 
+interface BetDetailsType {
+  address: string;
+  better1: string;
+  better2: string;
+  decider: string;
+  wagerWei: string;
+  wager: string;
+  conditions: string;
+  status: number;
+  winner: string;
+  better1Display: string;
+  better2Display: string;
+  deciderDisplay: string;
+  winnerDisplay: string;
+}
+
 const BetDetails = () => {
   const pathname = usePathname();
   const slug = pathname.split('/').pop();
-  const [betDetails, setBetDetails] = useState<any>(null);
+  const [betDetails, setBetDetails] = useState<BetDetailsType | null>(null);
   const [loading, setLoading] = useState(true);
   const account = useActiveAccount();
   const { mutateAsync: sendTransaction } = useSendTransaction();
@@ -65,20 +81,20 @@ const BetDetails = () => {
             : "Not resolved yet",
         ]);
 
-        const details = {
+        const details: BetDetailsType = {
           address: betAddress,
           better1,
           better2,
           decider,
-          wagerWei, // Ensure wagerWei is included
+          wagerWei: wagerWei.toString(), // Ensure wagerWei is a string
           wager: ethers.utils.formatEther(wagerWei),
           conditions: betData[4],
           status,
           winner: betData[6],
-          better1Display,
-          better2Display,
-          deciderDisplay,
-          winnerDisplay,
+          better1Display: better1Display || "", // Default to empty string if null
+          better2Display: better2Display || "", // Default to empty string if null
+          deciderDisplay: deciderDisplay || "", // Default to empty string if null
+          winnerDisplay: winnerDisplay || "", // Default to empty string if null
         };
 
         console.log('Formatted Bet Details:', details);
@@ -230,7 +246,7 @@ const BetDetails = () => {
     return <p>No bet found</p>;
   }
 
-  const getUserRole = (account, betDetails) => {
+  const getUserRole = (account: string | null, betDetails: BetDetailsType) => {
     if (!account) return 'other';
     const address = account.toLowerCase();
     if (address === betDetails.better1.toLowerCase()) return 'better1';
@@ -239,7 +255,7 @@ const BetDetails = () => {
     return 'other';
   };
 
-  const getAvailableActions = (userRole, betStatus) => {
+  const getAvailableActions = (userRole: string, betStatus: number) => {
     const actions = [];
     if (userRole === 'better1' || userRole === 'better2') {
       if (betStatus === 0 || betStatus === 1 || betStatus === 2) {
@@ -253,7 +269,7 @@ const BetDetails = () => {
     return actions;
   };
 
-  const userRole = getUserRole(account?.address, betDetails);
+  const userRole = getUserRole(account?.address || '', betDetails);
   const availableActions = getAvailableActions(userRole, betDetails.status);
 
   const wagerInUsd = (parseFloat(betDetails.wager) * ethToUsdRate).toFixed(2);
@@ -352,7 +368,7 @@ const BetDetails = () => {
               status={betDetails.status}
               conditions={betDetails.conditions}
               ethToUsdRate={ethToUsdRate}
-              betAddress={betDetails.address} // Updated prop
+              address={betDetails.address} // Updated prop
             />
             <Link href={`/bet/${betDetails.address}`} passHref legacyBehavior>
               <a className="text-primary hover:text-quaternary cursor-pointer mt-1">
