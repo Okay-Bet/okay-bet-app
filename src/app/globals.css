@@ -24,3 +24,11 @@
     @apply font-heading;
   }
 }
+
+.qrcode-icon-button .MuiSvgIcon-root {
+  color: black;
+}
+
+.qrcode-icon-button:hover .MuiSvgIcon-root {
+  color: white;
+}

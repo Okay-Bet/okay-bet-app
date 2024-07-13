@@ -4,8 +4,14 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { ethers } from "ethers";
 import { getContract } from "thirdweb";
-import { client, contract } from "@/app/client"; 
-import { bet, fundBet, cancelBet, resolveBet, invalidateBet } from "@/generated/bet";
+import { client, contract } from "@/app/client";
+import {
+  bet,
+  fundBet,
+  cancelBet,
+  resolveBet,
+  invalidateBet,
+} from "@/generated/bet";
 import { resolveName } from "thirdweb/extensions/ens";
 import { useActiveAccount, useSendTransaction } from "thirdweb/react";
 import ConnectWallet from "@/components/ConnectWallet";
@@ -14,6 +20,7 @@ import AlertModal from "@/components/AlertModal";
 import ShareButton from "@/components/ShareButton";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import Link from "next/link";
+import QRCodeModal from "@/components/QRCodeModal";
 
 interface BetDetailsType {
   address: string;
@@ -33,7 +40,7 @@ interface BetDetailsType {
 
 const BetDetails = () => {
   const pathname = usePathname();
-  const slug = pathname.split('/').pop();
+  const slug = pathname.split("/").pop();
   const [betDetails, setBetDetails] = useState<BetDetailsType | null>(null);
   const [loading, setLoading] = useState(true);
   const account = useActiveAccount();
@@ -51,7 +58,9 @@ const BetDetails = () => {
 
   const fetchEthToUsdRate = async () => {
     try {
-      const response = await fetch("https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD");
+      const response = await fetch(
+        "https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD"
+      );
       const data = await response.json();
       setEthToUsdRate(data.USD);
     } catch (error) {
@@ -68,18 +77,21 @@ const BetDetails = () => {
       });
 
       const betData = await bet({ contract: betContract });
-      console.log('betData:', betData);
+      console.log("betData:", betData);
 
       if (betData) {
         const [better1, better2, decider, wagerWei, , status] = betData;
-        const [better1Display, better2Display, deciderDisplay, winnerDisplay] = await Promise.all([
-          resolveName({ client, address: better1 }).catch(() => better1),
-          resolveName({ client, address: better2 }).catch(() => better2),
-          resolveName({ client, address: decider }).catch(() => decider),
-          betData[6] !== "0x0000000000000000000000000000000000000000"
-            ? resolveName({ client, address: betData[6] }).catch(() => betData[6])
-            : "Not resolved yet",
-        ]);
+        const [better1Display, better2Display, deciderDisplay, winnerDisplay] =
+          await Promise.all([
+            resolveName({ client, address: better1 }).catch(() => better1),
+            resolveName({ client, address: better2 }).catch(() => better2),
+            resolveName({ client, address: decider }).catch(() => decider),
+            betData[6] !== "0x0000000000000000000000000000000000000000"
+              ? resolveName({ client, address: betData[6] }).catch(
+                  () => betData[6]
+                )
+              : "Not resolved yet",
+          ]);
 
         const details: BetDetailsType = {
           address: betAddress,
@@ -97,11 +109,11 @@ const BetDetails = () => {
           winnerDisplay: winnerDisplay || "", // Default to empty string if null
         };
 
-        console.log('Formatted Bet Details:', details);
+        console.log("Formatted Bet Details:", details);
         setBetDetails(details);
       }
     } catch (error) {
-      console.error('Error fetching bet details:', error);
+      console.error("Error fetching bet details:", error);
     } finally {
       setLoading(false);
     }
@@ -127,9 +139,13 @@ const BetDetails = () => {
     } catch (error: unknown) {
       console.error("Error funding bet:", error);
       if (error instanceof Error) {
-        setMessage(`Error funding bet. Please try again. Details: ${error.message}`);
+        setMessage(
+          `Error funding bet. Please try again. Details: ${error.message}`
+        );
       } else {
-        setMessage("Error funding bet. Please try again. An unexpected error occurred.");
+        setMessage(
+          "Error funding bet. Please try again. An unexpected error occurred."
+        );
       }
       setIsAlertOpen(true);
     }
@@ -154,15 +170,22 @@ const BetDetails = () => {
     } catch (error: unknown) {
       console.error("Error canceling bet:", error);
       if (error instanceof Error) {
-        setMessage(`Error canceling bet. Please try again. Details: ${error.message}`);
+        setMessage(
+          `Error canceling bet. Please try again. Details: ${error.message}`
+        );
       } else {
-        setMessage("Error canceling bet. Please try again. An unexpected error occurred.");
+        setMessage(
+          "Error canceling bet. Please try again. An unexpected error occurred."
+        );
       }
       setIsAlertOpen(true);
     }
   };
 
-  const handleResolveBet = async (betAddress: string, winnerAddress: string) => {
+  const handleResolveBet = async (
+    betAddress: string,
+    winnerAddress: string
+  ) => {
     try {
       const betContract = getContract({
         client,
@@ -170,7 +193,9 @@ const BetDetails = () => {
         chain: contract.chain,
       });
 
-      const formattedWinnerAddress = ethers.utils.getAddress(winnerAddress) as `0x${string}`;
+      const formattedWinnerAddress = ethers.utils.getAddress(
+        winnerAddress
+      ) as `0x${string}`;
 
       const transaction = resolveBet({
         contract: betContract,
@@ -184,9 +209,13 @@ const BetDetails = () => {
     } catch (error: unknown) {
       console.error("Error resolving bet:", error);
       if (error instanceof Error) {
-        setMessage(`Error resolving bet. Please try again. Details: ${error.message}`);
+        setMessage(
+          `Error resolving bet. Please try again. Details: ${error.message}`
+        );
       } else {
-        setMessage("Error resolving bet. Please try again. An unexpected error occurred.");
+        setMessage(
+          "Error resolving bet. Please try again. An unexpected error occurred."
+        );
       }
       setIsAlertOpen(true);
     }
@@ -211,9 +240,13 @@ const BetDetails = () => {
     } catch (error: unknown) {
       console.error("Error invalidating bet:", error);
       if (error instanceof Error) {
-        setMessage(`Error invalidating bet. Please try again. Details: ${error.message}`);
+        setMessage(
+          `Error invalidating bet. Please try again. Details: ${error.message}`
+        );
       } else {
-        setMessage("Error invalidating bet. Please try again. An unexpected error occurred.");
+        setMessage(
+          "Error invalidating bet. Please try again. An unexpected error occurred."
+        );
       }
       setIsAlertOpen(true);
     }
@@ -247,29 +280,29 @@ const BetDetails = () => {
   }
 
   const getUserRole = (account: string | null, betDetails: BetDetailsType) => {
-    if (!account) return 'other';
+    if (!account) return "other";
     const address = account.toLowerCase();
-    if (address === betDetails.better1.toLowerCase()) return 'better1';
-    if (address === betDetails.better2.toLowerCase()) return 'better2';
-    if (address === betDetails.decider.toLowerCase()) return 'decider';
-    return 'other';
+    if (address === betDetails.better1.toLowerCase()) return "better1";
+    if (address === betDetails.better2.toLowerCase()) return "better2";
+    if (address === betDetails.decider.toLowerCase()) return "decider";
+    return "other";
   };
 
   const getAvailableActions = (userRole: string, betStatus: number) => {
     const actions = [];
-    if (userRole === 'better1' || userRole === 'better2') {
+    if (userRole === "better1" || userRole === "better2") {
       if (betStatus === 0 || betStatus === 1 || betStatus === 2) {
-        actions.push('fundBet', 'cancelBet');
+        actions.push("fundBet", "cancelBet");
       }
-    } else if (userRole === 'decider') {
+    } else if (userRole === "decider") {
       if (betStatus === 3) {
-        actions.push('resolveBet', 'invalidateBet');
+        actions.push("resolveBet", "invalidateBet");
       }
     }
     return actions;
   };
 
-  const userRole = getUserRole(account?.address || '', betDetails);
+  const userRole = getUserRole(account?.address || "", betDetails);
   const availableActions = getAvailableActions(userRole, betDetails.status);
 
   const wagerInUsd = (parseFloat(betDetails.wager) * ethToUsdRate).toFixed(2);
@@ -289,7 +322,10 @@ const BetDetails = () => {
                 Better 1:{" "}
                 {betDetails.better1Display.endsWith(".eth")
                   ? betDetails.better1Display
-                  : `${betDetails.better1Display.slice(0, 6)}...${betDetails.better1Display.slice(-4)}`}
+                  : `${betDetails.better1Display.slice(
+                      0,
+                      6
+                    )}...${betDetails.better1Display.slice(-4)}`}
               </span>
             </div>
             <div className="p-4 bg-tertiary text-font shadow-md">
@@ -297,7 +333,10 @@ const BetDetails = () => {
                 Better 2:{" "}
                 {betDetails.better2Display.endsWith(".eth")
                   ? betDetails.better2Display
-                  : `${betDetails.better2Display.slice(0, 6)}...${betDetails.better2Display.slice(-4)}`}
+                  : `${betDetails.better2Display.slice(
+                      0,
+                      6
+                    )}...${betDetails.better2Display.slice(-4)}`}
               </span>
             </div>
             <div className="p-4 bg-tertiary text-font shadow-md">
@@ -305,7 +344,10 @@ const BetDetails = () => {
                 Decider:{" "}
                 {betDetails.deciderDisplay.endsWith(".eth")
                   ? betDetails.deciderDisplay
-                  : `${betDetails.deciderDisplay.slice(0, 6)}...${betDetails.deciderDisplay.slice(-4)}`}
+                  : `${betDetails.deciderDisplay.slice(
+                      0,
+                      6
+                    )}...${betDetails.deciderDisplay.slice(-4)}`}
               </span>
             </div>
           </div>
@@ -323,19 +365,24 @@ const BetDetails = () => {
                 Winner:{" "}
                 {betDetails.winnerDisplay.endsWith(".eth")
                   ? betDetails.winnerDisplay
-                  : `${betDetails.winnerDisplay.slice(0, 6)}...${betDetails.winnerDisplay.slice(-4)}`}
+                  : `${betDetails.winnerDisplay.slice(
+                      0,
+                      6
+                    )}...${betDetails.winnerDisplay.slice(-4)}`}
               </span>
             </div>
           )}
-          {availableActions.includes('fundBet') && (
+          {availableActions.includes("fundBet") && (
             <button
-              onClick={() => handleFundBet(betDetails.address, betDetails.wagerWei)}
+              onClick={() =>
+                handleFundBet(betDetails.address, betDetails.wagerWei)
+              }
               className="w-full p-2 bg-green-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
             >
               Fund Bet
             </button>
           )}
-          {availableActions.includes('cancelBet') && (
+          {availableActions.includes("cancelBet") && (
             <button
               onClick={() => handleCancelBet(betDetails.address)}
               className="w-full p-2 mb-2 bg-red-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
@@ -343,15 +390,17 @@ const BetDetails = () => {
               Cancel Bet
             </button>
           )}
-          {availableActions.includes('resolveBet') && (
+          {availableActions.includes("resolveBet") && (
             <button
-              onClick={() => handleResolveBet(betDetails.address, betDetails.winner)}
+              onClick={() =>
+                handleResolveBet(betDetails.address, betDetails.winner)
+              }
               className="w-full p-2 bg-blue-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
             >
               Resolve Bet
             </button>
           )}
-          {availableActions.includes('invalidateBet') && (
+          {availableActions.includes("invalidateBet") && (
             <button
               onClick={() => handleInvalidateBet(betDetails.address)}
               className="w-full p-2 mb-2 bg-yellow-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
@@ -368,13 +417,11 @@ const BetDetails = () => {
               status={betDetails.status}
               conditions={betDetails.conditions}
               ethToUsdRate={ethToUsdRate}
-              address={betDetails.address} // Updated prop
+              address={betDetails.address}
             />
-            <Link href={`/bet/${betDetails.address}`} passHref legacyBehavior>
-              <a className="text-primary hover:text-quaternary cursor-pointer mt-1">
-                <OpenInNewIcon />
-              </a>
-            </Link>
+            <QRCodeModal
+              url={`https://www.okaybet.fun/bet/${betDetails.address}`}
+            />
           </div>
         </div>
       </div>

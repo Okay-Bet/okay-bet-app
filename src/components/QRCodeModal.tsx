@@ -5,15 +5,16 @@ import QrCodeIcon from "@mui/icons-material/QrCode";
 import { QRCode } from "react-qrcode-logo";
 import IconButton from "@mui/material/IconButton";
 import CloseIcon from "@mui/icons-material/Close";
+import Typography from "@mui/material/Typography";
 
 const style = {
   position: "absolute" as "absolute",
   top: "50%",
   left: "50%",
   transform: "translate(-50%, -50%)",
-  width: 300,
+  width: 360,
   bgcolor: "background.paper",
-  border: "2px solid #000",
+  borderRadius: 2,
   boxShadow: 24,
   p: 4,
 };
@@ -29,7 +30,7 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ url }) => {
 
   return (
     <div>
-      <IconButton color="primary" onClick={handleOpen}>
+      <IconButton onClick={handleOpen} className="qrcode-icon-button" aria-label="Show QR Code">
         <QrCodeIcon fontSize="large" />
       </IconButton>
       <Modal
@@ -46,13 +47,16 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ url }) => {
               position: "absolute",
               right: 8,
               top: 8,
-              color: (theme) => theme.palette.grey[500],
             }}
           >
             <CloseIcon />
           </IconButton>
-          <h2 id="qr-code-modal">Share this Bet</h2>
-          <QRCode value={url} size={256} />
+          <Typography variant="h6"component="h2" id="qr-code-modal" gutterBottom>
+            Share this Bet
+          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 2 }}>
+            <QRCode value={url} size={280} />
+          </Box>
         </Box>
       </Modal>
     </div>
