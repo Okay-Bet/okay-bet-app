@@ -99,7 +99,7 @@ const BetDetails = () => {
   };
 
   return (
-    <div className="min-h-screen bg-primary">
+    <div className="min-h-screen bg-font">
       <Navbar />
       <div className="p-4 container mx-auto">
         <h1 className="text-3xl md:text-4xl font-heading text-secondary tracking-tighter italic mb-4">
