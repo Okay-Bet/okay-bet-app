@@ -35,53 +35,68 @@ const BetCard: React.FC<BetCardProps> = ({ bet, ethToUsdRate, address }) => {
   }
 
   return (
-    <div className="mb-4">
+    <div className="mb-6">
       <div
-        className={`p-4 ${betCardClass} text-font shadow-md cursor-pointer`}
+        className={`p-6 ${betCardClass} text-font shadow-md cursor-pointer `}
         onClick={() => setIsOpen(!isOpen)}
       >
-        <h4 className="text-xl font-bold mb-2">{bet.conditions}</h4>
+        <h4 className="text-2xl font-bold mb-4">{bet.conditions}</h4>
       </div>
       <Collapse in={isOpen}>
-        <div className={`p-4 ${betCardClass} text-font shadow-md mt-2`}>
-          <div className="flex justify-between mb-2">
-            <span>
-              Better 1:{" "}
-              {bet.better1Display.endsWith(".eth")
-                ? bet.better1Display
-                : shortenAddress(bet.better1Display)}
-            </span>
-            <span>
-              Better 2:{" "}
-              {bet.better2Display.endsWith(".eth")
-                ? bet.better2Display
-                : shortenAddress(bet.better2Display)}
-            </span>
+        <div className={`p-6 ${betCardClass} text-font shadow-md mt-4 rounded-lg`}>
+          <div className="flex justify-between mb-4">
+            <div>
+              <span className="block font-semibold">Better 1:</span>
+              <span>
+                {bet.better1Display.endsWith(".eth")
+                  ? bet.better1Display
+                  : shortenAddress(bet.better1Display)}
+              </span>
+            </div>
+            <div>
+              <span className="block font-semibold">Better 2:</span>
+              <span>
+                {bet.better2Display.endsWith(".eth")
+                  ? bet.better2Display
+                  : shortenAddress(bet.better2Display)}
+              </span>
+            </div>
           </div>
-          <div className="flex justify-between mb-2">
-            <span>
-              Decider:{" "}
-              {bet.deciderDisplay.endsWith(".eth")
-                ? bet.deciderDisplay
-                : shortenAddress(bet.deciderDisplay)}
-            </span>
-            <span>
-              Wager: ${wagerInUsd} USD ({bet.wagerEth} ETH)
-            </span>
+          <div className="flex justify-between mb-4">
+            <div>
+              <span className="block font-semibold">Decider:</span>
+              <span>
+                {bet.deciderDisplay.endsWith(".eth")
+                  ? bet.deciderDisplay
+                  : shortenAddress(bet.deciderDisplay)}
+              </span>
+            </div>
+            <div>
+              <span className="block font-semibold">Wager:</span>
+              <span>
+                ${wagerInUsd} USD ({bet.wagerEth} ETH)
+              </span>
+            </div>
           </div>
-          <div className="flex justify-between mb-2">
-            <span>Status: {bet.status === 4 ? "Resolved" : "Invalidated"}</span>
-            <span>
-              Winner:{" "}
-              {bet.winnerDisplay
-                ? bet.winnerDisplay.endsWith(".eth")
-                  ? bet.winnerDisplay
-                  : shortenAddress(bet.winnerDisplay)
-                : "N/A"}
-            </span>
+          <div className="flex justify-between mb-4">
+            <div>
+              <span className="block font-semibold">Status:</span>
+              <span>
+                {bet.status === 4 ? "Resolved" : "Invalidated"}
+              </span>
+            </div>
+            <div>
+              <span className="block font-semibold">Winner:</span>
+              <span>
+                {bet.winnerDisplay
+                  ? bet.winnerDisplay.endsWith(".eth")
+                    ? bet.winnerDisplay
+                    : shortenAddress(bet.winnerDisplay)
+                  : "N/A"}
+              </span>
+            </div>
           </div>
-
-          <div className="flex justify-end items-center space-x-4 mt-2">
+          <div className="flex justify-end items-center space-x-4 mt-4">
             <ShareButton
               better1Display={bet.better1Display}
               better2Display={bet.better2Display}
