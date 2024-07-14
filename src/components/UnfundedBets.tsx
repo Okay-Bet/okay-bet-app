@@ -13,6 +13,7 @@ import { Collapse } from "@mui/material";
 import AlertModal from "./AlertModal";
 import ShareButton from "./ShareButton";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import QRCodeModal from "./QRCodeModal";
 
 interface UnfundedBetsProps {
   betAddresses: string[];
@@ -284,6 +285,9 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
                   conditions={bet.conditions}
                   ethToUsdRate={ethToUsdRate}
                   address={bet.address}
+                />
+                <QRCodeModal
+                  url={`https://www.okaybet.fun/bet/${bet.address}`}
                 />
                 <Link href={`/bet/${bet.address}`} passHref legacyBehavior>
                   <a className="text-primary hover:text-quaternary cursor-pointer mt-1">

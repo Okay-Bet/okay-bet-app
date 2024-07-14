@@ -5,6 +5,7 @@ import { Collapse } from "@mui/material";
 import ShareButton from "./ShareButton";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import Link from "next/link";
+import QRCodeModal from "./QRCodeModal";
 
 interface BetCardProps {
   bet: any;
@@ -81,22 +82,23 @@ const BetCard: React.FC<BetCardProps> = ({ bet, ethToUsdRate, address }) => {
           </div>
 
           <div className="flex justify-end items-center space-x-4 mt-2">
-                <ShareButton
-                  better1Display={bet.better1Display}
-                  better2Display={bet.better2Display}
-                  deciderDisplay={bet.deciderDisplay}
-                  wagerEth={bet.wagerEth}
-                  status={bet.status}
-                  conditions={bet.conditions}
-                  ethToUsdRate={ethToUsdRate}
-                  address={bet.address}
-                />
-                <Link href={`/bet/${bet.address}`} passHref legacyBehavior>
-                  <a className="text-primary hover:text-quaternary cursor-pointer mt-1">
-                    <OpenInNewIcon />
-                  </a>
-                </Link>
-              </div>
+            <ShareButton
+              better1Display={bet.better1Display}
+              better2Display={bet.better2Display}
+              deciderDisplay={bet.deciderDisplay}
+              wagerEth={bet.wagerEth}
+              status={bet.status}
+              conditions={bet.conditions}
+              ethToUsdRate={ethToUsdRate}
+              address={bet.address}
+            />
+            <QRCodeModal url={`https://www.okaybet.fun/bet/${bet.address}`} />
+            <Link href={`/bet/${bet.address}`} passHref legacyBehavior>
+              <a className="text-primary hover:text-quaternary cursor-pointer mt-1">
+                <OpenInNewIcon />
+              </a>
+            </Link>
+          </div>
         </div>
       </Collapse>
     </div>
