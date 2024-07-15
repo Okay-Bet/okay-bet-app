@@ -67,7 +67,7 @@ function Pitch() {
               alt="Better 1"
               className="w-28 h-28  mx-auto mb-2"
             />
-            <p className="text-lg md:text-xl font-bold text-font">Better 1</p>
+            <p className="text-lg md:text-xl font-bold text-font">Bettor 1</p>
             <p className=" md:text-base text-font">
               Creates bet, picks an opponent and decider
             </p>
@@ -78,7 +78,7 @@ function Pitch() {
               alt="Better 2"
               className="w-28 h-28  mx-auto mb-2"
             />
-            <p className="text-lg md:text-xl font-bold text-font">Better 2</p>
+            <p className="text-lg md:text-xl font-bold text-font">Bettor 2</p>
             <p className=" md:text-base text-font">
               Accepts the terms and funds their side of it or rejects the bet
             </p>

@@ -7,15 +7,15 @@ import GitHubIcon from "@mui/icons-material/GitHub";
 
 const testimonials = [
   {
+    face: "/bets.png",
+    name: "Base Onchain Summer Buildathon",
+    testimonial: "From the team behind Bets with Friends",
+  },
+  {
     face: "/noah.png",
     name: "Noah, Electrician/Degenerate",
     testimonial:
       "I feel like this has so much potential in today's young men's lifestyle",
-  },
-  {
-    face: "/bets.png",
-    name: "Base Onchain Summer Buildathon",
-    testimonial: "From the team behind Bets with Friends",
   },
 ];
 

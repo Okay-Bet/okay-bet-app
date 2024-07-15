@@ -106,7 +106,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
         >
           <div>
             <label htmlFor="better1" className="block mb-2 font-heading">
-              Better 1 (Your Account)
+              Bettor 1 (Your Account)
             </label>
             <div className="flex items-center bg-white">
               <input
@@ -128,7 +128,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
 
           <div>
             <label htmlFor="better2" className="block mb-2 font-heading">
-              Better 2
+              Bettor 2
             </label>
             <div className="flex space-x-2 mb-2 bg-tertiary p-2">
               <div className="mr-10">
@@ -288,6 +288,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
               }
               required
               className="w-full p-2 border text-black"
+              placeholder="The payout is 2x the wager"
             />
             <p className="text-sm text-quaternary mt-1">
               {convertUsdToEth(wagerUSD)} ETH

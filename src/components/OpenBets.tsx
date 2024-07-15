@@ -217,7 +217,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({
               <div className="grid grid-cols-1 gap-4 mb-4">
                 <div className="p-4 bg-tertiary text-font rounded-lg shadow-sm">
                   <span>
-                    Better 1:{" "}
+                    Bettor 1:{" "}
                     {bet.better1Display.endsWith(".eth")
                       ? bet.better1Display
                       : shortenAddress(bet.better1Display)}
@@ -225,7 +225,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({
                 </div>
                 <div className="p-4 bg-tertiary text-font rounded-lg shadow-sm">
                   <span>
-                    Better 2:{" "}
+                    Bettor 2:{" "}
                     {bet.better2Display.endsWith(".eth")
                       ? bet.better2Display
                       : shortenAddress(bet.better2Display)}

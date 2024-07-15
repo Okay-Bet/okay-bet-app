@@ -46,7 +46,7 @@ const BetCard: React.FC<BetCardProps> = ({ bet, ethToUsdRate, address }) => {
         <div className={`p-6 ${betCardClass} text-font shadow-md mt-4 rounded-lg`}>
           <div className="flex justify-between mb-4">
             <div>
-              <span className="block font-semibold">Better 1:</span>
+              <span className="block font-semibold">Bettor 1:</span>
               <span>
                 {bet.better1Display.endsWith(".eth")
                   ? bet.better1Display
@@ -54,7 +54,7 @@ const BetCard: React.FC<BetCardProps> = ({ bet, ethToUsdRate, address }) => {
               </span>
             </div>
             <div>
-              <span className="block font-semibold">Better 2:</span>
+              <span className="block font-semibold">Bettor 2:</span>
               <span>
                 {bet.better2Display.endsWith(".eth")
                   ? bet.better2Display

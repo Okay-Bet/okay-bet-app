@@ -226,7 +226,7 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
               <div className="grid grid-cols-1 gap-4 mb-2">
                 <div className="p-4 bg-tertiary text-font shadow-md">
                   <span>
-                    Better 1:{" "}
+                    Bettor 1:{" "}
                     {bet.better1Display.endsWith(".eth")
                       ? bet.better1Display
                       : shortenAddress(bet.better1Display)}
@@ -234,7 +234,7 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
                 </div>
                 <div className="p-4 bg-tertiary text-font  shadow-md">
                   <span>
-                    Better 2:{" "}
+                    Bettor 2:{" "}
                     {bet.better2Display.endsWith(".eth")
                       ? bet.better2Display
                       : shortenAddress(bet.better2Display)}
