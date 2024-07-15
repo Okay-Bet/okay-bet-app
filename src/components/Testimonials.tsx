@@ -41,7 +41,7 @@ const Testimonials = () => {
     slidesToScroll: 1,
     autoplay: true,
     autoplaySpeed: 4000,
-    beforeChange: (current, next) => setActiveSlide(next),
+    beforeChange: (current: number, next: number) => setActiveSlide(next),
   };
 
   return (
