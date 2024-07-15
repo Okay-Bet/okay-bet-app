@@ -1,4 +1,4 @@
-// components/OpenBets.js
+// components/OpenBets.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -14,6 +14,7 @@ import AlertModal from "./AlertModal";
 import ShareButton from "./ShareButton";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import QRCodeModal from "./QRCodeModal";
+import CircularProgress from "@mui/material/CircularProgress";
 
 interface OpenBetsProps {
   betAddresses: string[];
@@ -36,6 +37,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
   const [ethToUsdRate, setEthToUsdRate] = useState<number>(0);
   const [isBetFunded, setIsBetFunded] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const fetchEthToUsdRate = async () => {
     try {
@@ -117,6 +119,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({
     betAddress: string,
     winnerAddress: string
   ) => {
+    setIsLoading(true);
     try {
       const betContract = getContract({
         client,
@@ -150,10 +153,13 @@ const OpenBets: React.FC<OpenBetsProps> = ({
         );
       }
       setIsAlertOpen(true);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleInvalidateBet = async (betAddress: string) => {
+    setIsLoading(true);
     try {
       const betContract = getContract({
         client,
@@ -181,6 +187,8 @@ const OpenBets: React.FC<OpenBetsProps> = ({
         );
       }
       setIsAlertOpen(true);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -242,20 +250,31 @@ const OpenBets: React.FC<OpenBetsProps> = ({
                   <button
                     onClick={() => handleResolveBet(bet.address, bet.better1)}
                     className="w-full p-2 bg-green-500 text-font font-heading mt-2 hover:bg-tertiary hover:italic transition-colors"
+                    disabled={isLoading}
                   >
-                    Declare Better 1 as Winner
+                    {isLoading ? (
+                      <CircularProgress size={24} />
+                    ) : (
+                      "Declare Better 1 as Winner"
+                    )}
                   </button>
                   <button
                     onClick={() => handleResolveBet(bet.address, bet.better2)}
                     className="w-full p-2 bg-green-500 text-font font-heading mt-2 hover:bg-tertiary hover:italic transition-colors"
+                    disabled={isLoading}
                   >
-                    Declare Better 2 as Winner
+                    {isLoading ? (
+                      <CircularProgress size={24} />
+                    ) : (
+                      "Declare Better 2 as Winner"
+                    )}
                   </button>
                   <button
                     onClick={() => handleInvalidateBet(bet.address)}
                     className="w-full p-2 bg-primary text-font font-heading mt-2 hover:bg-tertiary hover:italic transition-colors"
+                    disabled={isLoading}
                   >
-                    Cancel Bet
+                    {isLoading ? <CircularProgress size={24} /> : "Cancel Bet"}
                   </button>
                 </div>
               ) : (
@@ -292,7 +311,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({
         message={message}
         onClose={() => {
           setIsAlertOpen(false);
-          window.location.reload();
+          fetchBetDetails(); // Refresh bet details without a full page reload
         }}
       />
     </div>

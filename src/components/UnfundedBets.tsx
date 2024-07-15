@@ -14,6 +14,7 @@ import AlertModal from "./AlertModal";
 import ShareButton from "./ShareButton";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import QRCodeModal from "./QRCodeModal";
+import CircularProgress from "@mui/material/CircularProgress";
 
 interface UnfundedBetsProps {
   betAddresses: string[];
@@ -35,6 +36,7 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
   const { mutateAsync: sendTransaction } = useSendTransaction();
   const [message, setMessage] = useState<string>("");
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchEthToUsdRate = async () => {
@@ -109,6 +111,7 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
   }, [betAddresses, address]);
 
   const handleFundBet = async (betAddress: string, wagerWei: string) => {
+    setIsLoading(true);
     try {
       const betContract = getContract({
         client,
@@ -139,10 +142,13 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
         );
       }
       setIsAlertOpen(true);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleCancelBet = async (betAddress: string) => {
+    setIsLoading(true);
     try {
       const betContract = getContract({
         client,
@@ -170,6 +176,8 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
         );
       }
       setIsAlertOpen(true);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -261,8 +269,9 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
                 <button
                   onClick={() => handleFundBet(bet.address, bet.wagerWei)}
                   className="w-full p-2 bg-green-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
+                  disabled={isLoading}
                 >
-                  Fund Bet
+                  {isLoading ? <CircularProgress size={24} /> : "Fund Bet"}
                 </button>
               ) : address === bet.decider.toLowerCase() ? (
                 <p className="text-font">You are the decider for this bet.</p>
@@ -272,8 +281,9 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
               <button
                 onClick={() => handleCancelBet(bet.address)}
                 className="w-full p-2 mb-2 bg-red-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
+                disabled={isLoading}
               >
-                Cancel Bet
+                {isLoading ? <CircularProgress size={24} /> : "Cancel Bet"}
               </button>
               <div className="flex justify-end items-center space-x-4 mt-2">
                 <ShareButton
@@ -304,7 +314,7 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
         message={message}
         onClose={() => {
           setIsAlertOpen(false);
-          window.location.reload();
+          fetchBetDetails(); // Refresh bet details without a full page reload
         }}
       />
     </div>
