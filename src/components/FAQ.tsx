@@ -42,9 +42,9 @@ const FAQ = () => {
 
   return (
     <section className="py-10 bg-tertiary text-quaternary">
-      <div className="container mx-auto px-6">
+      <div className="container mx-auto px-6 ">
         <h2 className="text-3xl md:text-4xl font-heading text-font italic mb-8 text-center">FAQs</h2>
-        <div className="space-y-6 text-left">
+        <div className="space-y-6 text-left  ml-2">
           {faqs.map((faq, index) => (
             <div key={index} className="border-b border-quaternary pb-4">
               <h3
