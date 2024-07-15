@@ -302,7 +302,10 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
       <AlertModal
         isOpen={isAlertOpen}
         message={message}
-        onClose={() => setIsAlertOpen(false)}
+        onClose={() => {
+          setIsAlertOpen(false);
+          window.location.reload();
+        }}
       />
     </div>
   );

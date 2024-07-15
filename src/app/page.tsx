@@ -25,6 +25,7 @@ export default function Home() {
               width={400}
               height={150}
               className="mx-auto mb-10"
+              onClick={() => window.location.reload()}
             />
           </div>
 
@@ -52,7 +53,8 @@ function Pitch() {
           GAMBLING FOR YOUR GROUPCHAT
         </h1>
         <p className="text-lg md:text-xl text-quaternary mb-8">
-          Make a bet on anything you can think of with your friend and have the winner decided by another friend.
+          Make a bet on anything you can think of with your friend and have the
+          winner decided by another friend.
         </p>
 
         <h1 className="text-3xl md:text-4xl font-heading text-font tracking-tighter italic mb-10">

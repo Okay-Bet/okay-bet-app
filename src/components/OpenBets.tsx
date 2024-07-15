@@ -35,6 +35,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({
   const [message, setMessage] = useState<string>("");
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
   const [ethToUsdRate, setEthToUsdRate] = useState<number>(0);
+  const [isBetFunded, setIsBetFunded] = useState<boolean>(false);
 
   const fetchEthToUsdRate = async () => {
     try {
@@ -83,6 +84,11 @@ const OpenBets: React.FC<OpenBetsProps> = ({
             conditions: betData[4],
             status: betData[5],
           });
+
+          // Check if the bet is funded (assuming status 1 means funded, adjust based on actual status values)
+          if (betData[5] === 1) {
+            setIsBetFunded(true);
+          }
         }
       } catch (error) {
         console.error(`Error fetching bet details for ${betAddress}:`, error);
@@ -99,6 +105,13 @@ const OpenBets: React.FC<OpenBetsProps> = ({
   useEffect(() => {
     fetchBetDetails();
   }, [betAddresses, address]);
+
+  useEffect(() => {
+    if (isBetFunded) {
+      setMessage("A bet has been funded!");
+      setIsAlertOpen(true);
+    }
+  }, [isBetFunded]);
 
   const handleResolveBet = async (
     betAddress: string,
@@ -228,7 +241,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({
                 <div>
                   <button
                     onClick={() => handleResolveBet(bet.address, bet.better1)}
-                    className="w-full p-2 bg-green-500 text-font font-heading mt-2 hover:bg-tertiary hover:italic  transition-colors"
+                    className="w-full p-2 bg-green-500 text-font font-heading mt-2 hover:bg-tertiary hover:italic transition-colors"
                   >
                     Declare Better 1 as Winner
                   </button>
@@ -277,7 +290,10 @@ const OpenBets: React.FC<OpenBetsProps> = ({
       <AlertModal
         isOpen={isAlertOpen}
         message={message}
-        onClose={() => setIsAlertOpen(false)}
+        onClose={() => {
+          setIsAlertOpen(false);
+          window.location.reload();
+        }}
       />
     </div>
   );
