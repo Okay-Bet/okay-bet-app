@@ -9,6 +9,7 @@ import Image from "next/image";
 import logo from "@public/okay_bet.png";
 import FAQ from "@/components/FAQ";
 import ConnectWallet from "@/components/ConnectWallet";
+import Testimonials from "@/components/Testimonials";
 
 export default function Home() {
   const account = useActiveAccount();
@@ -45,8 +46,8 @@ export default function Home() {
 
 function Pitch() {
   return (
-    <div>
-      <section className="flex flex-col items-center justify-center w-full bg-secondary p-10 text-center">
+    <div className="max-w-md mx-auto">
+      <section className="flex flex-col items-center justify-center  bg-secondary p-10 text-center">
         <h1 className="text-3xl md:text-4xl font-heading text-quaternary tracking-tighter italic mb-4">
           GAMBLING FOR YOUR GROUPCHAT
         </h1>
@@ -57,43 +58,44 @@ function Pitch() {
         <h1 className="text-3xl md:text-4xl font-heading text-font tracking-tighter italic mb-10">
           HOW IT WORKS
         </h1>
-        <div className="flex flex-col md:flex-row justify-center items-center space-y-8 md:space-y-0 md:space-x-8 mb-8">
+        <div className="flex flex-col md:flex-row justify-center items-center space-y-6 md:space-y-0 md:space-x-2 mb-6">
           <div className="text-center">
             <img
               src="/better1.png"
               alt="Better 1"
-              className="w-32 h-32  mx-auto mb-2"
+              className="w-28 h-28  mx-auto mb-2"
             />
             <p className="text-lg md:text-xl font-bold text-font">Better 1</p>
             <p className=" md:text-base text-font">
-              Creates the bet, selects who they are betting against and who decides it.
+              Creates bet, picks an opponent and decider
             </p>
           </div>
           <div className="text-center">
             <img
               src="/better2.png"
               alt="Better 2"
-              className="w-32 h-32  mx-auto mb-2"
+              className="w-28 h-28  mx-auto mb-2"
             />
             <p className="text-lg md:text-xl font-bold text-font">Better 2</p>
             <p className=" md:text-base text-font">
-              Accepts the terms and funds their side of it or rejects the bet.
+              Accepts the terms and funds their side of it or rejects the bet
             </p>
           </div>
           <div className="text-center">
             <img
               src="/decider.png"
               alt="Decider"
-              className="w-32 h-32  mx-auto mb-2"
+              className="w-28 h-28  mx-auto mb-2"
             />
             <p className="text-lg md:text-xl font-bold text-font">Decider</p>
             <p className=" md:text-base text-font">
-              Chooses who wins the bet, or if it should be cancelled and refunded.
+              Chooses who wins, or if it should be cancelled
             </p>
           </div>
         </div>
       </section>
       <FAQ />
+      <Testimonials />
     </div>
   );
 }

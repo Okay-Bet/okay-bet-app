@@ -1,5 +1,5 @@
 "use client";
-import React, { ChangeEvent, useState, useEffect } from "react";
+import React, { ChangeEvent, useState, useEffect, FormEvent } from "react";
 import { Collapse } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
@@ -26,6 +26,10 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
     setBetter2Type,
     deciderType,
     setDeciderType,
+    better2CountryCode,
+    setBetter2CountryCode,
+    deciderCountryCode,
+    setDeciderCountryCode,
     wagerUSD,
     setWagerUSD,
     conditions,
@@ -47,25 +51,21 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
     ethToUsdRate,
     convertUsdToEth,
   } = useCreateBetForm(contract);
-  const [better1ContactMethod, setBetter1ContactMethod] =
-    useState<string>("wallet");
-  const [better2ContactMethod, setBetter2ContactMethod] =
-    useState<string>("wallet");
-  const [deciderContactMethod, setDeciderContactMethod] =
-    useState<string>("wallet");
+
+  const [better1ContactMethod, setBetter1ContactMethod] = useState<string>("wallet");
+  const [better2ContactMethod, setBetter2ContactMethod] = useState<string>("wallet");
+  const [deciderContactMethod, setDeciderContactMethod] = useState<string>("wallet");
   const [deciderWarning, setDeciderWarning] = useState<string>("");
 
   useEffect(() => {
     if (decider && (decider === better1 || decider === better2)) {
-      setDeciderWarning(
-        "Warning: The decider address matches one of the betters."
-      );
+      setDeciderWarning("Warning: The decider address matches one of the betters.");
     } else {
       setDeciderWarning("");
     }
   }, [decider, better1, better2]);
 
-  const renderValidationIcon = (isValid: boolean, isLoading: boolean) => {
+  const renderValidationIcon = (isValid: boolean, isLoading: boolean, identifier: string) => {
     if (isLoading) {
       return <CircularProgress size={20} />;
     } else if (isValid) {
@@ -91,8 +91,44 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
     }
   };
 
+  const handleBetter2Change = (e: ChangeEvent<HTMLInputElement>) => {
+    setBetter2(e.target.value);
+  };
+
+  const handleDeciderChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setDecider(e.target.value);
+  };
+
+  const formatPhoneNumber = (countryCode: string, phoneNumber: string) => {
+    return `${countryCode}${phoneNumber.replace(/[^0-9]/g, '')}`;
+  };
+
+  const handleSubmitForm = async (event: FormEvent) => {
+    event.preventDefault();
+
+    const formattedBetter2 = better2Type === "phone" ? formatPhoneNumber(better2CountryCode, better2) : better2;
+    const formattedDecider = deciderType === "phone" ? formatPhoneNumber(deciderCountryCode, decider) : decider;
+
+    try {
+      await handleSubmit({
+        ...event,
+        target: {
+          ...event.target,
+          elements: {
+            better2: { value: formattedBetter2 },
+            decider: { value: formattedDecider },
+            wagerUSD: { value: wagerUSD },
+            conditions: { value: conditions },
+          },
+        },
+      } as unknown as FormEvent);
+    } catch (error) {
+      console.error("Error submitting form:", error);
+    }
+  };
+
   return (
-    <div className="max-w-md mx-auto  bg-primary text-quaternary">
+    <div className="max-w-md mx-auto bg-primary text-quaternary">
       <button
         onClick={() => setIsFormVisible(!isFormVisible)}
         className="text-lg p-2 bg-primary text-quaternary font-bold font-heading italic rounded w-full mb-3 mt-3"
@@ -100,10 +136,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
         {isFormVisible ? "NEW BET" : "NEW BET"}
       </button>
       <Collapse in={isFormVisible}>
-        <form
-          onSubmit={handleSubmit}
-          className="p-6 bg-secondary text-font font-bold space-y-6"
-        >
+        <form onSubmit={handleSubmitForm} className="p-6 bg-secondary text-font font-bold space-y-6">
           <div>
             <label htmlFor="better1" className="block mb-2 font-heading">
               Better 1 (Your Account)
@@ -112,18 +145,14 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
               <input
                 id="better1"
                 value={better1}
-                onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                  setBetter1(e.target.value)
-                }
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setBetter1(e.target.value)}
                 required
                 placeholder="Your address is autofilled"
                 className="w-full p-2 border text-black"
               />
-              {renderValidationIcon(better1Valid, better1Loading)}
+              {renderValidationIcon(better1Valid, better1Loading, better1)}
             </div>
-            <p className="text-sm text-quaternary mt-1">
-              This is your connected wallet address
-            </p>
+            <p className="text-sm text-quaternary mt-1">This is your connected wallet address</p>
           </div>
 
           <div>
@@ -157,7 +186,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
                     setBetter2ContactMethod("email");
                     setBetter2Type("email");
                   }}
-                  className="mr-1"
+                    className="mr-1"
                 />
                 Email
               </label>
@@ -177,12 +206,17 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
               </label>
             </div>
             <div className="flex items-center bg-white">
+              {better2Type === "phone" && (
+                <input
+                  value={better2CountryCode}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setBetter2CountryCode(e.target.value)}
+                  className="w-12 p-2 border text-black"
+                />
+              )}
               <input
                 id="better2"
                 value={better2}
-                onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                  setBetter2(e.target.value)
-                }
+                onChange={handleBetter2Change}
                 required
                 placeholder={`Enter Better 2 ${
                   better2ContactMethod === "wallet"
@@ -193,7 +227,11 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
                 }`}
                 className="w-full p-2 border text-black"
               />
-              {renderValidationIcon(better2Valid, better2Loading)}
+              {renderValidationIcon(
+                better2Valid,
+                better2Loading,
+                better2Type === "phone" ? formatPhoneNumber(better2CountryCode, better2) : better2
+              )}
             </div>
           </div>
 
@@ -248,12 +286,17 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
               </label>
             </div>
             <div className="flex items-center bg-white">
+              {deciderType === "phone" && (
+                <input
+                  value={deciderCountryCode}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setDeciderCountryCode(e.target.value)}
+                  className="w-12 p-2 border text-black"
+                />
+              )}
               <input
                 id="decider"
                 value={decider}
-                onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                  setDecider(e.target.value)
-                }
+                onChange={handleDeciderChange}
                 required
                 placeholder={`Enter Decider ${
                   deciderContactMethod === "wallet"
@@ -264,7 +307,11 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
                 }`}
                 className="w-full p-2 border text-black"
               />
-              {renderValidationIcon(deciderValid, deciderLoading)}
+              {renderValidationIcon(
+                deciderValid,
+                deciderLoading,
+                deciderType === "phone" ? formatPhoneNumber(deciderCountryCode, decider) : decider
+              )}
             </div>
             {deciderWarning && (
               <p className="text-font flex items-center mt-2">
@@ -283,14 +330,12 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
               type="number"
               step="0.01"
               value={wagerUSD}
-              onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                setWagerUSD(e.target.value)
-              }
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setWagerUSD(e.target.value)}
               required
               className="w-full p-2 border text-black"
             />
             <p className="text-sm text-quaternary mt-1">
-               {convertUsdToEth(wagerUSD)} ETH
+              {convertUsdToEth(wagerUSD)} ETH
               {ethToUsdRate > 0 && ` (1 ETH = $${ethToUsdRate.toFixed(2)})`}
             </p>
           </div>
@@ -302,9 +347,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             <textarea
               id="conditions"
               value={conditions}
-              onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
-                setConditions(e.target.value)
-              }
+              onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setConditions(e.target.value)}
               required
               className="w-full p-2 border text-black"
               rows={4}
@@ -314,8 +357,9 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
           <button
             type="submit"
             disabled={isLoading || !canSubmit}
-            className={`w-full p-4 bg-tertiary text-font font-heading rounded-lg transition-colors
-    ${canSubmit ? "hover:bg-quaternary hover:text-primary hover:italic" : ""}`}
+            className={`w-full p-4 bg-tertiary text-font font-heading rounded-lg transition-colors ${
+              canSubmit ? "hover:bg-quaternary hover:text-primary hover:italic" : ""
+            }`}
           >
             {isLoading ? "Creating Bet..." : "MAKE BET"}
           </button>
@@ -323,11 +367,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
           {message && <p className="mt-4">{message}</p>}
         </form>
       </Collapse>
-      <AlertModal
-        isOpen={isAlertOpen}
-        message={message}
-        onClose={() => setIsAlertOpen(false)}
-      />
+      <AlertModal isOpen={isAlertOpen} message={message} onClose={() => setIsAlertOpen(false)} />
     </div>
   );
 };

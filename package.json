@@ -24,6 +24,8 @@
     "react": "^18.3",
     "react-dom": "^18.3",
     "react-qrcode-logo": "^3.0.0",
+    "react-slick": "^0.30.2",
+    "slick-carousel": "^1.8.1",
     "tailwindcss-bg-patterns": "^0.3.0",
     "thirdweb": "^5",
     "viem": "^2.16.4",

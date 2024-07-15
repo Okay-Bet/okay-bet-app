@@ -19,8 +19,12 @@ const FAQ = () => {
       answer: "If a bet is not yet fully funded then any of the 3 parties may cancel it. If a bet is fully funded then only the Decider may cancel and refund the betters.",
     },
     {
-      question: "What currency is the bet in?",
-      answer: "The bet is made in Ethereum on the Base network, because of this the USD value of the bet may change due to the volatility of the market.",
+      question: "Who should be Decider?",
+      answer: "The Decider is someone that both parties trust to be fair. This could be one of the betters for simplicitiy, or a mutual friend. Be careful who you pick, thier decision is final!",
+    },
+    {
+      question: "What money is the bet in?",
+      answer: "The bet is made in Ether (ETH) on the Base Ethereum network, because of this the USD value of the bet may change due to the volatility of the market.",
     },
     {
       question: "Is this safe?",
@@ -37,7 +41,7 @@ const FAQ = () => {
   };
 
   return (
-    <section className="py-20 bg-tertiary text-quaternary">
+    <section className="py-10 bg-tertiary text-quaternary">
       <div className="container mx-auto px-6">
         <h2 className="text-3xl md:text-4xl font-heading text-font italic mb-8 text-center">FAQs</h2>
         <div className="space-y-6 text-left">

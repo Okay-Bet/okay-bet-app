@@ -16,6 +16,8 @@ export const useCreateBetForm = (contract: any) => {
   const [better1Type, setBetter1Type] = useState<string>("wallet"); // wallet, email, phone
   const [better2Type, setBetter2Type] = useState<string>("wallet"); // wallet, email, phone
   const [deciderType, setDeciderType] = useState<string>("wallet"); // wallet, email, phone
+  const [better2CountryCode, setBetter2CountryCode] = useState<string>("+1");
+  const [deciderCountryCode, setDeciderCountryCode] = useState<string>("+1");
   const [wagerUSD, setWagerUSD] = useState<string>("");
   const [conditions, setConditions] = useState<string>("");
   const [message, setMessage] = useState<string>("");
@@ -60,22 +62,33 @@ export const useCreateBetForm = (contract: any) => {
     return ethAmount.toFixed(6); // Limit to 6 decimal places
   };
 
-  const resolveUserAddress = async (identifier: string, type: string): Promise<EthereumAddress> => {
+  const resolveUserAddress = async (identifier: string, type: string, countryCode?: string): Promise<EthereumAddress> => {
+    let fullIdentifier = identifier;
+    if (type === "phone" && countryCode) {
+      fullIdentifier = `${countryCode}${identifier.replace(/[^0-9]/g, '')}`;
+    }
+
     if (type === "wallet") {
-      const address = await resolveAddress({ client, name: identifier });
+      const address = await resolveAddress({ client, name: fullIdentifier });
       return address as EthereumAddress;
     } else if (type === "email") {
-      const address = await getUserWalletAddressByEmail(identifier);
+      const address = await getUserWalletAddressByEmail(fullIdentifier);
       return address as EthereumAddress;
     } else if (type === "phone") {
-      const address = await getUserWalletAddressByPhone(identifier);
+      const address = await getUserWalletAddressByPhone(fullIdentifier);
       return address as EthereumAddress;
     } else {
       throw new Error("Invalid identifier type");
     }
   };
 
-  const validateAddress = async (identifier: string, type: string, setValid: (isValid: boolean) => void, setLoading: (isLoading: boolean) => void) => {
+  const validateAddress = async (
+    identifier: string,
+    type: string,
+    countryCode: string | undefined,
+    setValid: (isValid: boolean) => void,
+    setLoading: (isLoading: boolean) => void
+  ) => {
     if (!identifier) {
       setValid(false);
       setLoading(false);
@@ -85,7 +98,7 @@ export const useCreateBetForm = (contract: any) => {
     setLoading(true);
 
     try {
-      const resolvedAddress = await resolveUserAddress(identifier, type);
+      const resolvedAddress = await resolveUserAddress(identifier, type, countryCode);
       setValid(!!resolvedAddress);
     } catch (error) {
       setValid(false);
@@ -96,7 +109,7 @@ export const useCreateBetForm = (contract: any) => {
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      validateAddress(better1, better1Type, setBetter1Valid, setBetter1Loading);
+      validateAddress(better1, better1Type, undefined, setBetter1Valid, setBetter1Loading);
     }, 2000);
 
     return () => clearTimeout(delayDebounceFn);
@@ -104,19 +117,19 @@ export const useCreateBetForm = (contract: any) => {
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      validateAddress(better2, better2Type, setBetter2Valid, setBetter2Loading);
+      validateAddress(better2, better2Type, better2CountryCode, setBetter2Valid, setBetter2Loading);
     }, 2000);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [better2, better2Type]);
+  }, [better2, better2Type, better2CountryCode]);
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      validateAddress(decider, deciderType, setDeciderValid, setDeciderLoading);
+      validateAddress(decider, deciderType, deciderCountryCode, setDeciderValid, setDeciderLoading);
     }, 2000);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [decider, deciderType]);
+  }, [decider, deciderType, deciderCountryCode]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -125,8 +138,8 @@ export const useCreateBetForm = (contract: any) => {
 
     try {
       const resolvedBetter1 = await resolveUserAddress(better1, better1Type);
-      const resolvedBetter2 = await resolveUserAddress(better2, better2Type);
-      const resolvedDecider = await resolveUserAddress(decider, deciderType);
+      const resolvedBetter2 = await resolveUserAddress(better2, better2Type, better2CountryCode);
+      const resolvedDecider = await resolveUserAddress(decider, deciderType, deciderCountryCode);
 
       const wagerInEth = (parseFloat(wagerUSD) / ethToUsdRate).toFixed(18);
       const wagerInWei = ethers.utils.parseEther(wagerInEth);
@@ -175,6 +188,10 @@ export const useCreateBetForm = (contract: any) => {
     setBetter2Type,
     deciderType,
     setDeciderType,
+    better2CountryCode,
+    setBetter2CountryCode,
+    deciderCountryCode,
+    setDeciderCountryCode,
     wagerUSD,
     setWagerUSD,
     conditions,
