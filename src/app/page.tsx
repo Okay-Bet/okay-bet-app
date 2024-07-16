@@ -3,6 +3,7 @@
 import { useActiveAccount } from "thirdweb/react";
 import { ThirdwebProvider } from "thirdweb/react";
 import { client, contract } from "./client";
+import UserProfile from "../components/UserProfile";
 import CreateBetForm from "../components/CreateBetForm";
 import BetList from "../components/BetList";
 import Image from "next/image";
@@ -31,8 +32,11 @@ export default function Home() {
 
           <ConnectWallet />
 
+
+
           {account ? (
             <div>
+              <UserProfile walletAddress={account.address} />
               <CreateBetForm contract={contract} />
               <BetList contract={contract} accountAddress={account.address} />
             </div>
