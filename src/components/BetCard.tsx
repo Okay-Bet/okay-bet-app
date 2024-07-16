@@ -64,7 +64,7 @@ const BetCard: React.FC<BetCardProps> = ({ bet, ethToUsdRate, address }) => {
           </div>
           <div className="flex justify-between mb-4">
             <div>
-              <span className="block font-semibold">Decider:</span>
+              <span className="block font-semibold">Judge:</span>
               <span>
                 {bet.deciderDisplay.endsWith(".eth")
                   ? bet.deciderDisplay

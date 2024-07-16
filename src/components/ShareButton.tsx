@@ -30,11 +30,11 @@ const ShareButton: React.FC<ShareButtonProps> = ({
   const wagerInUsd = (parseFloat(wagerEth) * ethToUsdRate).toFixed(2);
   const statusText = status === 4 ? "Resolved" : status === 5 ? "Invalidated" : "Open";
 
-  const shareText = `Okay Bet:
+  const shareText = `Okay Bet Alert
 Conditions: ${conditions}
-Better 1: ${better1Display.endsWith('.eth') ? better1Display : shortenAddress(better1Display)}
-Better 2: ${better2Display.endsWith('.eth') ? better2Display : shortenAddress(better2Display)}
-Decided By: ${deciderDisplay.endsWith('.eth') ? deciderDisplay : shortenAddress(deciderDisplay)}
+Bettor 1: ${better1Display.endsWith('.eth') ? better1Display : shortenAddress(better1Display)}
+Bettor 2: ${better2Display.endsWith('.eth') ? better2Display : shortenAddress(better2Display)}
+Judge: ${deciderDisplay.endsWith('.eth') ? deciderDisplay : shortenAddress(deciderDisplay)}
 Wager: $${wagerInUsd} USD (${wagerEth} ETH)
 Status: ${statusText}
 https://www.okaybet.fun/bet/${address}

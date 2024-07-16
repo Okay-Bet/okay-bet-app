@@ -105,8 +105,24 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
           className="p-6 bg-secondary text-font font-bold space-y-6"
         >
           <div>
+            <label htmlFor="conditions" className="block mb-2 font-heading">
+              Conditions
+            </label>
+            <textarea
+              id="conditions"
+              value={conditions}
+              onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+                setConditions(e.target.value)
+              }
+              required
+              className="w-full p-2 border text-black"
+              rows={4}
+              placeholder="Describe the conditions of the bet"
+            />
+          </div>
+          <div>
             <label htmlFor="better1" className="block mb-2 font-heading">
-              Bettor 1 (Your Account)
+              Maker (Your Account)
             </label>
             <div className="flex items-center bg-white">
               <input
@@ -128,7 +144,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
 
           <div>
             <label htmlFor="better2" className="block mb-2 font-heading">
-              Bettor 2
+              Taker
             </label>
             <div className="flex space-x-2 mb-2 bg-tertiary p-2">
               <div className="mr-10">
@@ -199,7 +215,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
 
           <div>
             <label htmlFor="decider" className="block mb-2 font-heading">
-              Decider
+              Judge
             </label>
             <div className="flex space-x-2 mb-2 bg-tertiary p-2 rounded">
               <div className="mr-10">
@@ -288,29 +304,12 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
               }
               required
               className="w-full p-2 border text-black"
-              placeholder="The payout is 2x the wager"
+              placeholder="How much do you want to bet?"
             />
             <p className="text-sm text-quaternary mt-1">
               {convertUsdToEth(wagerUSD)} ETH
               {ethToUsdRate > 0 && ` (1 ETH = $${ethToUsdRate.toFixed(2)})`}
             </p>
-          </div>
-
-          <div>
-            <label htmlFor="conditions" className="block mb-2 font-heading">
-              Conditions
-            </label>
-            <textarea
-              id="conditions"
-              value={conditions}
-              onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
-                setConditions(e.target.value)
-              }
-              required
-              className="w-full p-2 border text-black"
-              rows={4}
-              placeholder="Describe the conditions of the bet"
-            />
           </div>
           <button
             type="submit"

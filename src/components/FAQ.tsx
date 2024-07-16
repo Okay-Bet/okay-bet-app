@@ -8,19 +8,19 @@ const FAQ = () => {
   const faqs = [
     {
       question: "Where does my money go when I bet?",
-      answer: "The money is held in an escrow smart contract, only the Decider may control which better gets the pot, but they are not able to keep the money for themselves.",
+      answer: "The money is held in an escrow smart contract, only the judge may control which better gets the pot, but they are not able to keep the money for themselves.",
     },
     {
       question: "How do I get paid when I win?",
-      answer: "The money is automatically sent to your wallet when the Decider settles the bet.",
+      answer: "The money is automatically sent to your wallet when the judge settles the bet.",
     },
     {
       question: "Can a bet get cancelled?",
       answer: "If a bet is not yet fully funded then any of the 3 parties may cancel it. If a bet is fully funded then only the Decider may cancel and refund the betters.",
     },
     {
-      question: "Who should be Decider?",
-      answer: "The Decider is someone that both parties trust to be fair. This could be one of the betters for simplicitiy, or a mutual friend. Be careful who you pick, thier decision is final!",
+      question: "Who should be Judge?",
+      answer: "The judge is someone that both parties trust to be fair. This could be one of the betters for simplicitiy, or a mutual friend. Be careful who you pick, thier decision is final!",
     },
     {
       question: "What money is the bet in?",

@@ -25,7 +25,7 @@ const BetDetails: React.FC<BetDetailsProps> = ({ contract }) => {
             <ul>
               <li>Bettor 1: {data[0]}</li>
               <li>Bettor 2: {data[1]}</li>
-              <li>Decider: {data[2]}</li>
+              <li>Judge: {data[2]}</li>
               <li>Wager: {data[3].toString()}</li>
               <li>Conditions: {data[4]}</li>
               <li>Status: {data[5]}</li>
