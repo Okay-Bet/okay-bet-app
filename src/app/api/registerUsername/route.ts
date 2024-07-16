@@ -16,8 +16,6 @@ export async function POST(req: NextRequest) {
       RETURNING *
     `;
 
-    console.log('Insert result:', result); // Log the result of the insert operation
-
     return NextResponse.json({ message: 'Registration successful', user: result.rows[0] }, { status: 200 });
   } catch (error) {
     console.error('Error during registration:', error); // Log any errors

@@ -12,15 +12,16 @@ const UserProfile: React.FC<UserProfileProps> = ({ walletAddress }) => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
   if (loading) {
-    return <p>Loading...</p>;
+    return <p></p>;
   }
 
   return (
     <div>
       {username ? (
-        <p>Welcome, {username}!</p>
+        <p className='font-heading text-primary italic mb-2 text-left'>Welcome, {username}</p>
       ) : (
-        <button onClick={() => setIsModalOpen(true)}>Register Username</button>
+        <button onClick={() => setIsModalOpen(true)} className='font-heading w-half p-2 bg-tertiary text-font  rounded-lg transition-colors
+     hover:bg-quaternary hover:text-primary hover:italic'>Register Username</button>
       )}
       <RegisterUsernameModal
         open={isModalOpen}
