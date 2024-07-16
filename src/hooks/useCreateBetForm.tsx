@@ -70,6 +70,14 @@ export const useCreateBetForm = (contract: any) => {
     } else if (type === "phone") {
       const address = await getUserWalletAddressByPhone(identifier);
       return address as EthereumAddress;
+    } else if (type === "username") {
+      const response = await fetch(`/api/resolve?username=${identifier}`);
+      const data = await response.json();
+      if (response.ok && data.walletAddress) {
+        return data.walletAddress;
+      } else {
+        throw new Error("Username not found");
+      }
     } else {
       throw new Error("Invalid identifier type");
     }

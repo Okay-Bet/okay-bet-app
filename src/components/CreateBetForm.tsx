@@ -47,6 +47,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
     ethToUsdRate,
     convertUsdToEth,
   } = useCreateBetForm(contract);
+
   const [better1ContactMethod, setBetter1ContactMethod] =
     useState<string>("wallet");
   const [better2ContactMethod, setBetter2ContactMethod] =
@@ -54,6 +55,9 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
   const [deciderContactMethod, setDeciderContactMethod] =
     useState<string>("wallet");
   const [deciderWarning, setDeciderWarning] = useState<string>("");
+
+  const [resolvedBetter2, setResolvedBetter2] = useState<string>("");
+  const [resolvedDecider, setResolvedDecider] = useState<string>("");
 
   useEffect(() => {
     if (decider && (decider === better1 || decider === better2)) {
@@ -89,6 +93,59 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
         />
       );
     }
+  };
+
+  const handleResolveUsername = async (username: string) => {
+    try {
+      const res = await fetch(`/api/resolve?username=${username}`);
+      const data = await res.json();
+      if (res.ok) {
+        return data.walletAddress;
+      } else {
+        throw new Error(data.message || "Username not found");
+      }
+    } catch (error) {
+      console.error("Error resolving username:", error);
+      return "";
+    }
+  };
+
+  const handleBetter2Change = async (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setBetter2(value);
+    setBetter2Loading(true);
+
+    const delayDebounceFn = setTimeout(async () => {
+      if (better2ContactMethod === "username") {
+        const resolvedAddress = await handleResolveUsername(value);
+        setResolvedBetter2(resolvedAddress);
+        setBetter2Valid(resolvedAddress !== "");
+      } else {
+        setResolvedBetter2("");
+      }
+      setBetter2Loading(false);
+    }, 2000);
+
+    return () => clearTimeout(delayDebounceFn);
+  };
+
+  const handleDeciderChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setDecider(value);
+    setDeciderLoading(true);
+
+    const delayDebounceFn = setTimeout(async () => {
+      if (deciderContactMethod === "username") {
+        const resolvedAddress = await handleResolveUsername(value);
+        setResolvedDecider(resolvedAddress);
+        setDeciderValid(resolvedAddress !== "");
+      } else {
+        setResolvedDecider("");
+      }
+      setDeciderLoading(false);
+    }, 2000);
+
+    return () => clearTimeout(delayDebounceFn);
   };
 
   return (
@@ -141,6 +198,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
                     onChange={() => {
                       setBetter2ContactMethod("wallet");
                       setBetter2Type("wallet");
+                      setResolvedBetter2("");
                     }}
                     className="mr-1"
                   />
@@ -156,6 +214,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
                   onChange={() => {
                     setBetter2ContactMethod("email");
                     setBetter2Type("email");
+                    setResolvedBetter2("");
                   }}
                   className="mr-1"
                 />
@@ -170,31 +229,54 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
                   onChange={() => {
                     setBetter2ContactMethod("phone");
                     setBetter2Type("phone");
+                    setResolvedBetter2("");
                   }}
                   className="mr-1"
                 />
                 Phone
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="better2ContactMethod"
+                  value="username"
+                  checked={better2ContactMethod === "username"}
+                  onChange={() => {
+                    setBetter2ContactMethod("username");
+                    setBetter2Type("username");
+                    setBetter2Valid(false);
+                    setBetter2Loading(true);
+                    setResolvedBetter2("");
+                  }}
+                  className="mr-1"
+                />
+                Username
               </label>
             </div>
             <div className="flex items-center bg-white">
               <input
                 id="better2"
                 value={better2}
-                onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                  setBetter2(e.target.value)
-                }
+                onChange={handleBetter2Change}
                 required
-                placeholder={`Enter Better 2 ${
+                placeholder={`Enter Bettor 2 ${
                   better2ContactMethod === "wallet"
                     ? "Address or ENS"
                     : better2ContactMethod === "email"
                     ? "Email"
-                    : "Phone with country: +1"
+                    : better2ContactMethod === "phone"
+                    ? "Phone with country code"
+                    : "Username"
                 }`}
                 className="w-full p-2 border text-black"
               />
               {renderValidationIcon(better2Valid, better2Loading)}
             </div>
+            {resolvedBetter2 && (
+              <p className="text-sm text-quaternary mt-1">
+                Resolved Address: {resolvedBetter2}
+              </p>
+            )}
           </div>
 
           <div>
@@ -212,6 +294,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
                     onChange={() => {
                       setDeciderContactMethod("wallet");
                       setDeciderType("wallet");
+                      setResolvedDecider("");
                     }}
                     className="mr-1"
                   />
@@ -227,6 +310,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
                   onChange={() => {
                     setDeciderContactMethod("email");
                     setDeciderType("email");
+                    setResolvedDecider("");
                   }}
                   className="mr-1"
                 />
@@ -241,31 +325,54 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
                   onChange={() => {
                     setDeciderContactMethod("phone");
                     setDeciderType("phone");
+                    setResolvedDecider("");
                   }}
                   className="mr-1"
                 />
                 Phone
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="deciderContactMethod"
+                  value="username"
+                  checked={deciderContactMethod === "username"}
+                  onChange={() => {
+                    setDeciderContactMethod("username");
+                    setDeciderType("username");
+                    setDeciderValid(false);
+                    setDeciderLoading(true);
+                    setResolvedDecider("");
+                  }}
+                  className="mr-1"
+                />
+                Username
               </label>
             </div>
             <div className="flex items-center bg-white">
               <input
                 id="decider"
                 value={decider}
-                onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                  setDecider(e.target.value)
-                }
+                onChange={handleDeciderChange}
                 required
                 placeholder={`Enter Decider ${
                   deciderContactMethod === "wallet"
                     ? "Address or ENS"
                     : deciderContactMethod === "email"
                     ? "Email"
-                    : "Phone with country: +1"
+                    : deciderContactMethod === "phone"
+                    ? "Phone with country code"
+                    : "Username"
                 }`}
                 className="w-full p-2 border text-black"
               />
               {renderValidationIcon(deciderValid, deciderLoading)}
             </div>
+            {resolvedDecider && (
+              <p className="text-sm text-quaternary mt-1">
+                Resolved Address: {resolvedDecider}
+              </p>
+            )}
             {deciderWarning && (
               <p className="text-font flex items-center mt-2">
                 <WarningIcon fontSize="small" className="mr-1" />
@@ -315,8 +422,11 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
           <button
             type="submit"
             disabled={isLoading || !canSubmit}
-            className={`w-full p-4 bg-tertiary text-font font-heading rounded-lg transition-colors
-    ${canSubmit ? "hover:bg-quaternary hover:text-primary hover:italic" : ""}`}
+            className={`w-full p-4 bg-tertiary text-font font-heading rounded-lg transition-colors ${
+              canSubmit
+                ? "hover:bg-quaternary hover:text-primary hover:italic"
+                : ""
+            }`}
           >
             {isLoading ? "Creating Bet..." : "MAKE BET"}
           </button>
