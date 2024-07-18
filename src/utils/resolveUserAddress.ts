@@ -7,7 +7,7 @@ import { getUserWalletAddressByEmail, getUserWalletAddressByPhone } from "@/serv
  * @param input - The input to resolve (email, phone, wallet address, or ENS address).
  * @returns The resolved wallet address.
  */
-const resolveUserAddress = async (input: string): Promise<string> => {
+export const resolveUserAddress = async (input: string): Promise<string> => {
   // Check if the input is an email
   if (input.includes("@")) {
     const emailResolvedAddress = await getUserWalletAddressByEmail(input);
@@ -32,5 +32,3 @@ const resolveUserAddress = async (input: string): Promise<string> => {
     return input;
   }
 };
-
-export default resolveUserAddress;

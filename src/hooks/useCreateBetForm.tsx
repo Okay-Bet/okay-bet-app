@@ -1,13 +1,11 @@
+// hooks/useCreateBetForm.ts
 import { useState, useEffect, FormEvent } from "react";
 import { useSendTransaction, useActiveAccount } from "thirdweb/react";
-import { resolveAddress } from "thirdweb/extensions/ens";
 import { ethers } from "ethers";
-import { client } from "@/app/client";
-import { createBet } from "../generated/betFactory";
-import { getUserWalletAddressByEmail, getUserWalletAddressByPhone } from "@/services/userService";
-
-// Define the type for Ethereum address
-type EthereumAddress = `0x${string}`;
+import { useFetchEthToUsdRate } from "./useFetchEthToUsdRate";
+import { useValidateAddress } from "./useValidateAddress";
+import { resolveUserAddress } from "./useResolveUserAddress";
+import { createBet } from "@/generated/betFactory";
 
 export const useCreateBetForm = (contract: any) => {
   const [better1, setBetter1] = useState<string>("");
@@ -21,16 +19,13 @@ export const useCreateBetForm = (contract: any) => {
   const [message, setMessage] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isFormVisible, setIsFormVisible] = useState<boolean>(false);
-  const [ethToUsdRate, setEthToUsdRate] = useState<number>(0);
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
 
-  const [better1Valid, setBetter1Valid] = useState<boolean>(false);
-  const [better2Valid, setBetter2Valid] = useState<boolean>(false);
-  const [deciderValid, setDeciderValid] = useState<boolean>(false);
-  const [better1Loading, setBetter1Loading] = useState<boolean>(false);
-  const [better2Loading, setBetter2Loading] = useState<boolean>(false);
-  const [deciderLoading, setDeciderLoading] = useState<boolean>(false);
+  const { isValid: better1Valid, isLoading: better1Loading } = useValidateAddress(better1, better1Type);
+  const { isValid: better2Valid, isLoading: better2Loading } = useValidateAddress(better2, better2Type);
+  const { isValid: deciderValid, isLoading: deciderLoading } = useValidateAddress(decider, deciderType);
 
+  const ethToUsdRate = useFetchEthToUsdRate();
   const { mutateAsync: sendTransaction } = useSendTransaction();
   const account = useActiveAccount();
 
@@ -40,83 +35,11 @@ export const useCreateBetForm = (contract: any) => {
     }
   }, [account]);
 
-  useEffect(() => {
-    const fetchEthToUsdRate = async () => {
-      try {
-        const response = await fetch("https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD");
-        const data = await response.json();
-        setEthToUsdRate(data.USD);
-      } catch (error) {
-        console.error("Error fetching ETH to USD rate:", error);
-      }
-    };
-
-    fetchEthToUsdRate();
-  }, []);
-
   const convertUsdToEth = (usdAmount: string): string => {
     if (!usdAmount || !ethToUsdRate) return "0";
     const ethAmount = parseFloat(usdAmount) / ethToUsdRate;
     return ethAmount.toFixed(6); // Limit to 6 decimal places
   };
-
-  const resolveUserAddress = async (identifier: string, type: string): Promise<EthereumAddress> => {
-    if (type === "wallet") {
-      const address = await resolveAddress({ client, name: identifier });
-      return address as EthereumAddress;
-    } else if (type === "email") {
-      const address = await getUserWalletAddressByEmail(identifier);
-      return address as EthereumAddress;
-    } else if (type === "phone") {
-      const address = await getUserWalletAddressByPhone(identifier);
-      return address as EthereumAddress;
-    } else {
-      throw new Error("Invalid identifier type");
-    }
-  };
-
-  const validateAddress = async (identifier: string, type: string, setValid: (isValid: boolean) => void, setLoading: (isLoading: boolean) => void) => {
-    if (!identifier) {
-      setValid(false);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const resolvedAddress = await resolveUserAddress(identifier, type);
-      setValid(!!resolvedAddress);
-    } catch (error) {
-      setValid(false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      validateAddress(better1, better1Type, setBetter1Valid, setBetter1Loading);
-    }, 2000);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [better1, better1Type]);
-
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      validateAddress(better2, better2Type, setBetter2Valid, setBetter2Loading);
-    }, 2000);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [better2, better2Type]);
-
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      validateAddress(decider, deciderType, setDeciderValid, setDeciderLoading);
-    }, 2000);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [decider, deciderType]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
