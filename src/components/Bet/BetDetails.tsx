@@ -1,14 +1,14 @@
+// components/Bet/BetDetails.tsx
 "use client";
 
-import { useState } from "react";
 import { usePathname } from "next/navigation";
-import Navbar from "@/components/Navbar";
-import ConnectWallet from "@/components/User/ConnectWallet";
-import AlertModal from "@/components/Common/AlertModal";
-import BetInfo from "@/components/Bet/BetInfo";
-import BetActions from "@/components/Bet/BetActions";
 import { useFetchEthToUsdRate } from "@/hooks/useFetchEthToUsdRate";
 import { useFetchBetDetails } from "@/hooks/useFetchBetDetails";
+import Navbar from "@/components/Navbar";
+import ConnectWallet from "@/components/User/ConnectWallet";
+import BetInfo from "@/components/Bet/BetInfo";
+import BetActions from "@/components/Bet/BetActions";
+import AlertModal from "@/components/Common/AlertModal";
 
 const BetDetails = () => {
   const pathname = usePathname();
@@ -20,7 +20,7 @@ const BetDetails = () => {
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
 
   if (loading) {
-    return ;
+    return <p>Loading...</p>;
   }
 
   if (!betDetails) {
@@ -34,7 +34,6 @@ const BetDetails = () => {
       <Navbar />
       <div className="p-4 container mx-auto">
         <ConnectWallet />
-        <div className="p-4 mb-4 bg-secondary text-font shadow-md">
         <BetInfo betDetails={betDetails} wagerInUsd={wagerInUsd} />
         <BetActions
           betDetails={betDetails}
@@ -42,7 +41,6 @@ const BetDetails = () => {
           setMessage={setMessage}
           setIsAlertOpen={setIsAlertOpen}
         />
-        </div>
       </div>
       <AlertModal
         isOpen={isAlertOpen}
