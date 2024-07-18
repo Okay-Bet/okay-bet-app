@@ -1,17 +1,25 @@
+// app/page.tsx
 "use client";
 
 import { useActiveAccount } from "thirdweb/react";
 import { ThirdwebProvider } from "thirdweb/react";
 import { client, contract } from "./client";
 import CreateBetForm from "../components/CreateBetForm/CreateBetForm";
-import BetList from "../components/BetList";
+import OpenBets from "../components/OpenBets";
+import UnfundedBets from "../components/UnfundedBets";
+import BetHistory from "../components/BetHistory";
 import Image from "next/image";
 import logo from "@public/okay_bet.png";
 import Pitch from "@/components/Landing/Pitch";
 import ConnectWallet from "@/components/User/ConnectWallet";
+import { useBetList } from "@/hooks/useBetList";
 
 export default function Home() {
   const account = useActiveAccount();
+  const { openBets, unfundedBets, betHistory, isLoading } = useBetList({
+    contract,
+    accountAddress: account?.address || "",
+  });
 
   return (
     <ThirdwebProvider>
@@ -33,7 +41,15 @@ export default function Home() {
           {account ? (
             <div>
               <CreateBetForm contract={contract} />
-              <BetList contract={contract} accountAddress={account.address} />
+              {isLoading ? (
+                <p></p>
+              ) : (
+                <div>
+                  <OpenBets betAddresses={openBets} accountAddress={account.address} />
+                  <UnfundedBets betAddresses={unfundedBets} accountAddress={account.address} />
+                  <BetHistory betAddresses={betHistory} accountAddress={account.address} />
+                </div>
+              )}
             </div>
           ) : (
             <Pitch />

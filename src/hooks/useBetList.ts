@@ -1,22 +1,27 @@
-"use client";
-import React, { useState, useEffect } from "react";
-import { useReadContract } from "thirdweb/react";
+// hooks/useBetList.ts
+import { useState, useEffect } from "react";
 import { getContract } from "thirdweb";
-import { client } from "../app/client"; 
-import { bet } from "../generated/bet"; 
-import OpenBets from "./OpenBets";
-import UnfundedBets from "./UnfundedBets";
-import BetHistory from "./BetHistory";
+import { client } from "@/app/client";
+import { bet } from "@/generated/bet";
+import { useReadContract } from "thirdweb/react";
 
-interface BetListProps {
+interface UseBetListProps {
   contract: any;
   accountAddress: string;
 }
 
-const BetList: React.FC<BetListProps> = ({ contract, accountAddress }) => {
+interface BetListData {
+  openBets: string[];
+  unfundedBets: string[];
+  betHistory: string[];
+  isLoading: boolean;
+}
+
+export const useBetList = ({ contract, accountAddress }: UseBetListProps): BetListData => {
   const [openBets, setOpenBets] = useState<string[]>([]);
   const [unfundedBets, setUnfundedBets] = useState<string[]>([]);
   const [betHistory, setBetHistory] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const { data: betAddresses, isLoading: isLoadingAddresses } = useReadContract({
     contract,
@@ -25,13 +30,12 @@ const BetList: React.FC<BetListProps> = ({ contract, accountAddress }) => {
   });
 
   useEffect(() => {
-
     const fetchBetDetails = async () => {
       if (betAddresses && betAddresses.length > 0) {
         const open: string[] = [];
         const unfunded: string[] = [];
         const history: string[] = [];
-    
+
         for (const betAddress of betAddresses) {
           try {
             const betContract = getContract({
@@ -39,9 +43,9 @@ const BetList: React.FC<BetListProps> = ({ contract, accountAddress }) => {
               address: betAddress,
               chain: contract.chain,
             });
-    
+
             const betData = await bet({ contract: betContract });
-    
+
             if (betData) {
               const [better1, better2, decider, , , status] = betData;
               if (
@@ -51,7 +55,7 @@ const BetList: React.FC<BetListProps> = ({ contract, accountAddress }) => {
               ) {
                 if (betData && (betData[5] === 0 || betData[5] === 1 || betData[5] === 2)) {
                   unfunded.push(betAddress);
-                } else if (status === 3 ) {
+                } else if (status === 3) {
                   open.push(betAddress);
                 } else {
                   history.push(betAddress);
@@ -62,30 +66,23 @@ const BetList: React.FC<BetListProps> = ({ contract, accountAddress }) => {
             console.error(`Error fetching bet details for ${betAddress}:`, error);
           }
         }
-    
+
         setOpenBets(open);
         setUnfundedBets(unfunded);
         setBetHistory(history);
-    
+        setIsLoading(false);
       }
     };
 
-    fetchBetDetails();
-  }, [betAddresses, accountAddress, contract.chain]);
+    if (!isLoadingAddresses) {
+      fetchBetDetails();
+    }
+  }, [betAddresses, accountAddress, contract.chain, isLoadingAddresses]);
 
-  return (
-    <div>
-      {isLoadingAddresses ? (
-        <p>Loading bet addresses...</p>
-      ) : (
-        <div>
-          <OpenBets betAddresses={openBets} accountAddress={accountAddress} />
-          <UnfundedBets betAddresses={unfundedBets} accountAddress={accountAddress} />
-          <BetHistory betAddresses={betHistory} accountAddress={accountAddress} />
-        </div>
-      )}
-    </div>
-  );
+  return {
+    openBets,
+    unfundedBets,
+    betHistory,
+    isLoading: isLoadingAddresses || isLoading,
+  };
 };
-
-export default BetList;
