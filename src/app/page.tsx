@@ -3,7 +3,7 @@
 import { useActiveAccount } from "thirdweb/react";
 import { ThirdwebProvider } from "thirdweb/react";
 import { client, contract } from "./client";
-import CreateBetForm from "../components/CreateBetForm";
+import CreateBetForm from "../components/CreateBetForm/CreateBetForm";
 import BetList from "../components/BetList";
 import Image from "next/image";
 import logo from "@public/okay_bet.png";

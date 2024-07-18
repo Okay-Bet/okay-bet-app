@@ -10,7 +10,7 @@ import { client, contract } from "@/app/client";
 import { bet, fundBet, cancelBet } from "../generated/bet";
 import { resolveName } from "thirdweb/extensions/ens";
 import { Collapse } from "@mui/material";
-import AlertModal from "./AlertModal";
+import AlertModal from "./Common/AlertModal";
 import ShareButton from "./ShareButton";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import QRCodeModal from "./QRCodeModal";
