@@ -7,6 +7,9 @@ import { useValidateAddress } from "./useValidateAddress";
 import { resolveUserAddress } from "./useResolveUserAddress";
 import { createBet } from "@/generated/betFactory";
 
+// Define the type for Ethereum address
+type EthereumAddress = `0x${string}`;
+
 export const useCreateBetForm = (contract: any) => {
   const [better1, setBetter1] = useState<string>("");
   const [better2, setBetter2] = useState<string>("");
@@ -47,9 +50,9 @@ export const useCreateBetForm = (contract: any) => {
     setMessage("");
 
     try {
-      const resolvedBetter1 = await resolveUserAddress(better1, better1Type);
-      const resolvedBetter2 = await resolveUserAddress(better2, better2Type);
-      const resolvedDecider = await resolveUserAddress(decider, deciderType);
+      const resolvedBetter1 = await resolveUserAddress(better1, better1Type) as EthereumAddress;
+      const resolvedBetter2 = await resolveUserAddress(better2, better2Type) as EthereumAddress;
+      const resolvedDecider = await resolveUserAddress(decider, deciderType) as EthereumAddress;
 
       const wagerInEth = (parseFloat(wagerUSD) / ethToUsdRate).toFixed(18);
       const wagerInWei = ethers.utils.parseEther(wagerInEth);

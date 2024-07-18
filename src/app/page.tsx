@@ -5,7 +5,7 @@ import { useActiveAccount } from "thirdweb/react";
 import { ThirdwebProvider } from "thirdweb/react";
 import { client, contract } from "./client";
 import CreateBetForm from "../components/CreateBetForm/CreateBetForm";
-import OpenBets from "../components/OpenBets";
+import OpenBets from "../components/Bet/OpenBets";
 import UnfundedBets from "../components/UnfundedBets";
 import BetHistory from "../components/BetHistory";
 import Image from "next/image";

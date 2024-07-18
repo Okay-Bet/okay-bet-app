@@ -1,12 +1,12 @@
 // components/Bet/BetActions.tsx
 import React from "react";
-import { BetDetailsType } from "@/hooks/useFetchBetDetails";
+import { BetDetailsType } from "@/hooks/useFetchSingleBetDetails";
 import { useActiveAccount, useSendTransaction } from "thirdweb/react";
 import { handleFundBet, handleCancelBet, handleResolveBet, handleInvalidateBet } from "@/utils/handleBetActions";
 
 interface BetActionsProps {
   betDetails: BetDetailsType;
-  fetchBetDetails: (betAddress: string) => void;
+  fetchBetDetails: () => void;
   setMessage: (message: string) => void;
   setIsAlertOpen: (isOpen: boolean) => void;
 }

@@ -1,5 +1,6 @@
+// hooks/useValidateAddress.ts
 import { useState, useEffect } from "react";
-import { resolveUserAddress } from "@/utils/resolveUserAddress";
+import resolveUserAddress from "@/utils/resolveUserAddress";
 
 export const useValidateAddress = (identifier: string, type: string) => {
   const [isValid, setIsValid] = useState<boolean>(false);

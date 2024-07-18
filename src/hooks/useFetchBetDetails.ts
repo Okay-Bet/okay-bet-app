@@ -1,85 +1,83 @@
 // hooks/useFetchBetDetails.ts
 import { useState, useEffect } from "react";
-import { ethers } from "ethers";
 import { getContract } from "thirdweb";
 import { client, contract } from "@/app/client";
 import { bet } from "@/generated/bet";
 import { resolveName } from "thirdweb/extensions/ens";
+import { ethers } from "ethers";
 
-interface BetDetailsType {
+export type BetDetailsType = {
   address: string;
   better1: string;
   better2: string;
   decider: string;
   wagerWei: string;
-  wager: string;
+  wagerEth: string;
   conditions: string;
   status: number;
-  winner: string;
   better1Display: string;
   better2Display: string;
   deciderDisplay: string;
   winnerDisplay: string;
-}
+  winner: string;
+};
 
-export const useFetchBetDetails = (slug: string | undefined) => {
-  const [betDetails, setBetDetails] = useState<BetDetailsType | null>(null);
-  const [loading, setLoading] = useState(true);
+export const useFetchBetDetails = (betAddresses: string[]): { betDetails: BetDetailsType[], fetchBetDetails: () => void, loading: boolean } => {
+  const [betDetails, setBetDetails] = useState<BetDetailsType[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  useEffect(() => {
-    if (slug) {
-      fetchBetDetails(slug as string);
-    }
-  }, [slug]);
+  const fetchBetDetails = async () => {
+    setLoading(true);
+    const details: BetDetailsType[] = [];
 
-  const fetchBetDetails = async (betAddress: string) => {
-    try {
-      const betContract = getContract({
-        client,
-        address: betAddress,
-        chain: contract.chain,
-      });
+    for (const betAddress of betAddresses) {
+      try {
+        const betContract = getContract({
+          client,
+          address: betAddress,
+          chain: contract.chain,
+        });
 
-      const betData = await bet({ contract: betContract });
+        const betData = await bet({ contract: betContract });
 
-      if (betData) {
-        const [better1, better2, decider, wagerWei, , status] = betData;
-        const [better1Display, better2Display, deciderDisplay, winnerDisplay] =
-          await Promise.all([
-            resolveName({ client, address: better1 }).catch(() => better1),
-            resolveName({ client, address: better2 }).catch(() => better2),
-            resolveName({ client, address: decider }).catch(() => decider),
+        if (betData) {
+          const [better1, better2, decider, winner] = await Promise.all([
+            resolveName({ client, address: betData[0] }).catch(() => null),
+            resolveName({ client, address: betData[1] }).catch(() => null),
+            resolveName({ client, address: betData[2] }).catch(() => null),
             betData[6] !== "0x0000000000000000000000000000000000000000"
-              ? resolveName({ client, address: betData[6] }).catch(
-                  () => betData[6]
-                )
+              ? resolveName({ client, address: betData[6] }).catch(() => betData[6])
               : "Not resolved yet",
           ]);
 
-        const details: BetDetailsType = {
-          address: betAddress,
-          better1,
-          better2,
-          decider,
-          wagerWei: wagerWei.toString(),
-          wager: ethers.utils.formatEther(wagerWei),
-          conditions: betData[4],
-          status,
-          winner: betData[6],
-          better1Display: better1Display || "",
-          better2Display: better2Display || "",
-          deciderDisplay: deciderDisplay || "",
-          winnerDisplay: winnerDisplay || "",
-        };
-
-        setBetDetails(details);
+          details.push({
+            address: betAddress,
+            better1: betData[0],
+            better1Display: better1 || betData[0],
+            better2: betData[1],
+            better2Display: better2 || betData[1],
+            decider: betData[2],
+            deciderDisplay: decider || betData[2],
+            wagerWei: betData[3].toString(),
+            wagerEth: parseFloat(ethers.utils.formatEther(betData[3])).toFixed(4), // Rounded to 4 decimals
+            conditions: betData[4],
+            status: betData[5],
+            winner: betData[6],
+            winnerDisplay: winner || betData[6],
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching bet details for ${betAddress}:`, error);
       }
-    } catch (error) {
-      console.error("Error fetching bet details:", error);
-    } finally {
-      setLoading(false);
     }
+
+    setBetDetails(details);
+    setLoading(false);
   };
 
-  return { betDetails, loading, fetchBetDetails };
+  useEffect(() => {
+    fetchBetDetails();
+  }, [betAddresses]);
+
+  return { betDetails, fetchBetDetails, loading };
 };
