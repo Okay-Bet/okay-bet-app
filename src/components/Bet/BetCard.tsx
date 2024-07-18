@@ -18,6 +18,7 @@ interface BetCardProps {
   setMessage: (message: string) => void;
   setIsAlertOpen: (isOpen: boolean) => void;
   isLoading: boolean;
+  initialOpen?: boolean;
   disableCollapse?: boolean;
 }
 
@@ -29,16 +30,18 @@ const BetCard: React.FC<BetCardProps> = ({
   setMessage,
   setIsAlertOpen,
   isLoading,
-  disableCollapse = false
+  initialOpen = false,
+  disableCollapse = false,
 }) => {
-  const [isOpen, setIsOpen] = useState(disableCollapse);
+  const [isOpen, setIsOpen] = useState(initialOpen);
 
-  const shortenAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`;
+  const shortenAddress = (address: string) =>
+    `${address.slice(0, 6)}...${address.slice(-4)}`;
   const wagerInUsd = (parseFloat(bet.wagerEth) * ethToUsdRate).toFixed(2);
 
-  let bgColorClass = "bg-secondary"; // Default background color
+  let bgColorClass = "bg-secondary";
   if (bet.status === 5) {
-    bgColorClass = "bg-gray-600"; // Cancelled status
+    bgColorClass = "bg-gray-600"
   } else if (bet.status === 4 && bet.winner?.toLowerCase() === accountAddress.toLowerCase()) {
     bgColorClass = "bg-green-600"; // User won
   }
@@ -56,17 +59,26 @@ const BetCard: React.FC<BetCardProps> = ({
           <div className="grid grid-cols-1 gap-4 mb-2">
             <div className="p-4 bg-tertiary text-font">
               <span>
-                Bettor 1: {bet.better1Display.endsWith(".eth") ? bet.better1Display : shortenAddress(bet.better1Display)}
+                Bettor 1:{" "}
+                {bet.better1Display.endsWith(".eth")
+                  ? bet.better1Display
+                  : shortenAddress(bet.better1Display)}
               </span>
             </div>
             <div className="p-4 bg-tertiary text-font">
               <span>
-                Bettor 2: {bet.better2Display.endsWith(".eth") ? bet.better2Display : shortenAddress(bet.better2Display)}
+                Bettor 2:{" "}
+                {bet.better2Display.endsWith(".eth")
+                  ? bet.better2Display
+                  : shortenAddress(bet.better2Display)}
               </span>
             </div>
             <div className="p-4 bg-tertiary text-font">
               <span>
-                Decider: {bet.deciderDisplay.endsWith(".eth") ? bet.deciderDisplay : shortenAddress(bet.deciderDisplay)}
+                Decider:{" "}
+                {bet.deciderDisplay.endsWith(".eth")
+                  ? bet.deciderDisplay
+                  : shortenAddress(bet.deciderDisplay)}
               </span>
             </div>
           </div>
