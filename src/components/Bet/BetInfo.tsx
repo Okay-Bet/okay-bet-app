@@ -1,6 +1,6 @@
 // components/Bet/BetInfo.tsx
 import React from "react";
-import { BetDetailsType } from "@/hooks/useFetchBetDetails";
+import { BetDetailsType } from "@/components/types/bet";
 import { getBetStatusText } from "@/utils/betUtils";
 
 interface BetInfoProps {
@@ -9,6 +9,9 @@ interface BetInfoProps {
 }
 
 const BetInfo: React.FC<BetInfoProps> = ({ betDetails, wagerInUsd }) => {
+  const shortenAddress = (address: string) =>
+    `${address.slice(0, 6)}...${address.slice(-4)}`;
+
   return (
     <div className="p-4 mb-4 bg-secondary text-font shadow-md">
       <h4 className="text-xl font-bold mb-2 text-font">
@@ -20,7 +23,7 @@ const BetInfo: React.FC<BetInfoProps> = ({ betDetails, wagerInUsd }) => {
             Better 1:{" "}
             {betDetails.better1Display.endsWith(".eth")
               ? betDetails.better1Display
-              : `${betDetails.better1Display.slice(0, 6)}...${betDetails.better1Display.slice(-4)}`}
+              : shortenAddress(betDetails.better1Display)}
           </span>
         </div>
         <div className="p-4 bg-tertiary text-font shadow-md">
@@ -28,7 +31,7 @@ const BetInfo: React.FC<BetInfoProps> = ({ betDetails, wagerInUsd }) => {
             Better 2:{" "}
             {betDetails.better2Display.endsWith(".eth")
               ? betDetails.better2Display
-              : `${betDetails.better2Display.slice(0, 6)}...${betDetails.better2Display.slice(-4)}`}
+              : shortenAddress(betDetails.better2Display)}
           </span>
         </div>
         <div className="p-4 bg-tertiary text-font shadow-md">
@@ -36,7 +39,7 @@ const BetInfo: React.FC<BetInfoProps> = ({ betDetails, wagerInUsd }) => {
             Decider:{" "}
             {betDetails.deciderDisplay.endsWith(".eth")
               ? betDetails.deciderDisplay
-              : `${betDetails.deciderDisplay.slice(0, 6)}...${betDetails.deciderDisplay.slice(-4)}`}
+              : shortenAddress(betDetails.deciderDisplay)}
           </span>
         </div>
       </div>
@@ -48,13 +51,13 @@ const BetInfo: React.FC<BetInfoProps> = ({ betDetails, wagerInUsd }) => {
           {getBetStatusText(betDetails.status)}
         </span>
       </div>
-      {betDetails.status === 4 && (
+      {betDetails.status === 4 && betDetails.winnerDisplay && (
         <div className="p-4 bg-tertiary text-font shadow-md">
           <span>
             Winner:{" "}
             {betDetails.winnerDisplay.endsWith(".eth")
               ? betDetails.winnerDisplay
-              : `${betDetails.winnerDisplay.slice(0, 6)}...${betDetails.winnerDisplay.slice(-4)}`}
+              : shortenAddress(betDetails.winnerDisplay)}
           </span>
         </div>
       )}

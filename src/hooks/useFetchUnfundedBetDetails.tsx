@@ -1,34 +1,17 @@
-// hooks/useFetchBetDetails.ts
+// src/hooks/useFetchUnfundedBetDetails.ts
 import { useState, useEffect } from "react";
 import { getContract } from "thirdweb";
 import { client, contract } from "@/app/client";
 import { bet } from "@/generated/bet";
 import { resolveName } from "thirdweb/extensions/ens";
 import { ethers } from "ethers";
+import { BetDetailsType } from "@/components/types/bet";
 
-export interface BetDetailsType {
-  address: string;
-  better1: string;
-  better1Display: string;
-  better2: string;
-  better2Display: string;
-  decider: string;
-  deciderDisplay: string;
-  wagerWei: string;
-  wagerEth: string;
-  conditions: string;
-  status: number;
-  winner: string | null;
-  winnerDisplay: string | null;
-}
-
-
-export const useFetchBetDetails = (betAddresses: string[]): { betDetails: BetDetailsType[], fetchBetDetails: () => void, loading: boolean } => {
+export const useFetchUnfundedBetDetails = (betAddresses: string[]): { betDetails: BetDetailsType[], fetchBetDetails: () => void, loading: boolean } => {
   const [betDetails, setBetDetails] = useState<BetDetailsType[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   const fetchBetDetails = async () => {
-    setLoading(true);
     const details: BetDetailsType[] = [];
 
     for (const betAddress of betAddresses) {
@@ -41,14 +24,14 @@ export const useFetchBetDetails = (betAddresses: string[]): { betDetails: BetDet
 
         const betData = await bet({ contract: betContract });
 
-        if (betData) {
+        if (betData && (betData[5] === 0 || betData[5] === 1 || betData[5] === 2)) {
           const [better1, better2, decider, winner] = await Promise.all([
             resolveName({ client, address: betData[0] }).catch(() => null),
             resolveName({ client, address: betData[1] }).catch(() => null),
             resolveName({ client, address: betData[2] }).catch(() => null),
             betData[6] !== "0x0000000000000000000000000000000000000000"
               ? resolveName({ client, address: betData[6] }).catch(() => betData[6])
-              : "Not resolved yet",
+              : null,
           ]);
 
           details.push({

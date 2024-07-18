@@ -1,26 +1,11 @@
-// hooks/useFetchSingleBetDetails.ts
+// src/hooks/useFetchSingleBetDetails.ts
 import { useState, useEffect } from "react";
 import { getContract } from "thirdweb";
 import { client, contract } from "@/app/client";
 import { bet } from "@/generated/bet";
 import { resolveName } from "thirdweb/extensions/ens";
 import { ethers } from "ethers";
-
-export interface BetDetailsType {
-  address: string;
-  better1: string;
-  better1Display: string;
-  better2: string;
-  better2Display: string;
-  decider: string;
-  deciderDisplay: string;
-  wagerWei: string;
-  wagerEth: string;
-  conditions: string;
-  status: number;
-  winner: string;
-  winnerDisplay: string;
-}
+import { BetDetailsType } from "@/components/types/bet";
 
 export const useFetchSingleBetDetails = (betAddress: string | null): { betDetails: BetDetailsType | null, fetchBetDetails: () => void, loading: boolean } => {
   const [betDetails, setBetDetails] = useState<BetDetailsType | null>(null);
@@ -47,7 +32,7 @@ export const useFetchSingleBetDetails = (betAddress: string | null): { betDetail
           resolveName({ client, address: betData[2] }).catch(() => null),
           betData[6] !== "0x0000000000000000000000000000000000000000"
             ? resolveName({ client, address: betData[6] }).catch(() => betData[6])
-            : "Not resolved yet",
+            : null,
         ]);
 
         setBetDetails({

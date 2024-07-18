@@ -32,10 +32,6 @@ const OpenBets: React.FC<OpenBetsProps> = ({ betAddresses, accountAddress }) => 
     return <div>Loading...</div>;
   }
 
-  if (!betDetails || betDetails.length === 0) {
-    return <div>No bets found</div>;
-  }
-
   return (
     <div className="max-w-md mx-auto my-4 p-4 bg-primary text-quaternary font-bold">
       <h3
@@ -45,7 +41,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({ betAddresses, accountAddress }) => 
         Active Bets
       </h3>
       <Collapse in={isOpen}>
-        {betDetails.map((bet, index) => {
+        {Array.isArray(betDetails) && betDetails.map((bet, index) => {
           const wagerInUsd = (parseFloat(bet.wagerEth) * ethToUsdRate).toFixed(2);
 
           return (
@@ -90,6 +86,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({ betAddresses, accountAddress }) => 
                   fetchBetDetails={fetchBetDetails}
                   setMessage={setMessage}
                   setIsAlertOpen={setIsAlertOpen}
+                  isLoading={loading}
                 />
               ) : (
                 <p className="text-font mb-4 mt-4 text-lg text-bold text-center italic">
