@@ -3,8 +3,6 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Collapse } from "@mui/material";
-import CircularProgress from "@mui/material/CircularProgress";
 import AlertModal from "../Common/AlertModal";
 import ShareButton from "../Common/ShareButton";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
@@ -12,37 +10,33 @@ import QRCodeModal from "../Common/QRCodeModal";
 import BetActions from "./BetActions";
 import { useFetchBetDetails } from "@/hooks/useFetchBetDetails";
 import { useFetchEthToUsdRate } from "@/hooks/useFetchEthToUsdRate";
+import CollapsibleSection from "../Common/CollapsibleSection";
 
 interface OpenBetsProps {
   betAddresses: string[];
   accountAddress: string;
 }
 
-const OpenBets: React.FC<OpenBetsProps> = ({ betAddresses, accountAddress }) => {
-  const { betDetails, fetchBetDetails, loading } = useFetchBetDetails(betAddresses);
+const OpenBets: React.FC<OpenBetsProps> = ({
+  betAddresses,
+  accountAddress,
+}) => {
+  const { betDetails, fetchBetDetails, loading } =
+    useFetchBetDetails(betAddresses);
   const ethToUsdRate = useFetchEthToUsdRate();
-  const [isOpen, setIsOpen] = useState<boolean>(true);
   const [message, setMessage] = useState<string>("");
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
 
   const shortenAddress = (address: string) =>
     `${address.slice(0, 6)}...${address.slice(-4)}`;
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
   return (
-    <div className="max-w-md mx-auto my-4 p-4 bg-primary text-quaternary font-bold">
-      <h3
-        className="text-lg italic mb-2 cursor-pointer"
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        Active Bets
-      </h3>
-      <Collapse in={isOpen}>
-        {Array.isArray(betDetails) && betDetails.map((bet, index) => {
-          const wagerInUsd = (parseFloat(bet.wagerEth) * ethToUsdRate).toFixed(2);
+    <CollapsibleSection title="Active Bets" loading={loading}>
+      {Array.isArray(betDetails) &&
+        betDetails.map((bet, index) => {
+          const wagerInUsd = (parseFloat(bet.wagerEth) * ethToUsdRate).toFixed(
+            2
+          );
 
           return (
             <div key={index} className="p-6 mb-6 bg-secondary shadow-md">
@@ -104,7 +98,9 @@ const OpenBets: React.FC<OpenBetsProps> = ({ betAddresses, accountAddress }) => 
                   ethToUsdRate={ethToUsdRate}
                   address={bet.address}
                 />
-                <QRCodeModal url={`https://www.okaybet.fun/bet/${bet.address}`} />
+                <QRCodeModal
+                  url={`https://www.okaybet.fun/bet/${bet.address}`}
+                />
                 <Link href={`/bet/${bet.address}`} passHref legacyBehavior>
                   <a className="text-primary hover:text-quaternary cursor-pointer mt-1">
                     <OpenInNewIcon />
@@ -114,7 +110,6 @@ const OpenBets: React.FC<OpenBetsProps> = ({ betAddresses, accountAddress }) => 
             </div>
           );
         })}
-      </Collapse>
       <AlertModal
         isOpen={isAlertOpen}
         message={message}
@@ -123,7 +118,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({ betAddresses, accountAddress }) => 
           fetchBetDetails(); // Refresh bet details without a full page reload
         }}
       />
-    </div>
+    </CollapsibleSection>
   );
 };
 
