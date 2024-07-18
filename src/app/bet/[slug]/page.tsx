@@ -14,7 +14,7 @@ import {
 } from "@/generated/bet";
 import { resolveName } from "thirdweb/extensions/ens";
 import { useActiveAccount, useSendTransaction } from "thirdweb/react";
-import ConnectWallet from "@/components/ConnectWallet";
+import ConnectWallet from "@/components/User/ConnectWallet";
 import Navbar from "@/components/Navbar";
 import AlertModal from "@/components/AlertModal";
 import ShareButton from "@/components/ShareButton";

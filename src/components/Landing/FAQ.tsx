@@ -1,5 +1,4 @@
-// src/components/FAQ.tsx
-
+// components/Landing/FAQ.tsx
 import React, { useState } from "react";
 
 const FAQ = () => {
