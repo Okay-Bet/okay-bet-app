@@ -42,6 +42,8 @@ const BetDetails = () => {
             setMessage={setMessage}
             setIsAlertOpen={setIsAlertOpen}
             isLoading={loading}
+            initialOpen={true}
+            disableCollapse={true}
           />
         </div>
       </div>
