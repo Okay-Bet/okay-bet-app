@@ -1,7 +1,7 @@
 // components/Bet/BetCard.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Collapse } from "@mui/material";
 import ShareButton from "../Common/ShareButton";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
@@ -18,8 +18,7 @@ interface BetCardProps {
   setMessage: (message: string) => void;
   setIsAlertOpen: (isOpen: boolean) => void;
   isLoading: boolean;
-  initialOpen?: boolean;
-  disableCollapse?: boolean; 
+  disableCollapse?: boolean;
 }
 
 const BetCard: React.FC<BetCardProps> = ({
@@ -30,41 +29,37 @@ const BetCard: React.FC<BetCardProps> = ({
   setMessage,
   setIsAlertOpen,
   isLoading,
-  initialOpen = false,
-  disableCollapse = false // Add this line
+  disableCollapse = false
 }) => {
-  const [isOpen, setIsOpen] = useState(initialOpen);
-
-  useEffect(() => {
-    setIsOpen(initialOpen);
-  }, [initialOpen]);
+  const [isOpen, setIsOpen] = useState(disableCollapse);
 
   const shortenAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`;
   const wagerInUsd = (parseFloat(bet.wagerEth) * ethToUsdRate).toFixed(2);
 
+  let bgColorClass = "bg-secondary"; // Default background color
+  if (bet.status === 5) {
+    bgColorClass = "bg-gray-600"; // Cancelled status
+  } else if (bet.status === 4 && bet.winner?.toLowerCase() === accountAddress.toLowerCase()) {
+    bgColorClass = "bg-green-600"; // User won
+  }
+
   return (
     <div className="mb-6">
-      {!disableCollapse ? (
-        <div
-          className={`p-6 bg-secondary text-font cursor-pointer`}
-          onClick={() => setIsOpen(!isOpen)}
-        >
-          <h4 className="text-2xl font-bold mb-4">{bet.conditions}</h4>
-        </div>
-      ) : (
-        <div className={`p-6 bg-secondary text-font `}>
-          <h4 className="text-2xl font-bold mb-4">{bet.conditions}</h4>
-        </div>
-      )}
-      <Collapse in={isOpen || disableCollapse}>
-        <div className={`p-6 bg-secondary text-font`}>
+      <div
+        className={`p-6 ${bgColorClass} text-font  cursor-pointer `}
+        onClick={() => !disableCollapse && setIsOpen(!isOpen)}
+      >
+        <h4 className="text-2xl font-bold ">{bet.conditions}</h4>
+      </div>
+      <Collapse in={isOpen}>
+        <div className={`p-6 ${bgColorClass} text-font`}>
           <div className="grid grid-cols-1 gap-4 mb-2">
             <div className="p-4 bg-tertiary text-font">
               <span>
                 Bettor 1: {bet.better1Display.endsWith(".eth") ? bet.better1Display : shortenAddress(bet.better1Display)}
               </span>
             </div>
-            <div className="p-4 bg-tertiary text-font ">
+            <div className="p-4 bg-tertiary text-font">
               <span>
                 Bettor 2: {bet.better2Display.endsWith(".eth") ? bet.better2Display : shortenAddress(bet.better2Display)}
               </span>
