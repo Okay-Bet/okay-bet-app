@@ -3,10 +3,10 @@
 
 import React, { useState } from "react";
 import { Collapse } from "@mui/material";
-import ShareButton from "../ShareButton";
+import ShareButton from "../Common/ShareButton";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import Link from "next/link";
-import QRCodeModal from "../QRCodeModal";
+import QRCodeModal from "../Common/QRCodeModal";
 import { BetDetailsType } from "@/components/types/bet";
 import BetActions from "./BetActions";
 

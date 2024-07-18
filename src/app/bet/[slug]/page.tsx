@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useActiveAccount } from "thirdweb/react";
-import Navbar from "@/components/Navbar";
+import Navbar from "@/components/Common/Navbar";
 import ConnectWallet from "@/components/User/ConnectWallet";
 import AlertModal from "@/components/Common/AlertModal";
 import BetCard from "@/components/Bet/BetCard";
