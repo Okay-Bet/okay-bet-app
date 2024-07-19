@@ -35,6 +35,15 @@ const BetCard: React.FC<BetCardProps> = ({
   disableCollapse = false,
 }) => {
   const { mutateAsync: sendTransaction } = useSendTransaction();
+
+  const userIsBetter1 =
+    accountAddress.toLowerCase() === bet.better1.toLowerCase();
+  const userIsBetter2 =
+    accountAddress.toLowerCase() === bet.better2.toLowerCase();
+  const userIsDecider =
+    accountAddress.toLowerCase() === bet.decider.toLowerCase();
+  const canFund =
+    (userIsBetter1 && bet.status !== 1) || (userIsBetter2 && bet.status !== 2);
   const [isOpen, setIsOpen] = useState(initialOpen);
 
   const shortenAddress = (address: string) =>
@@ -50,6 +59,19 @@ const BetCard: React.FC<BetCardProps> = ({
   ) {
     bgColorClass = "bg-green-600";
   }
+
+  const getBetStatusText = () => {
+    switch (bet.status) {
+      case 0:
+        return "Unfunded";
+      case 1:
+        return `Partially Funded (${bet.better1Display} has funded)`;
+      case 2:
+        return `Partially Funded (${bet.better2Display} has funded)`;
+      default:
+        return "Unknown Status";
+    }
+  };
 
   return (
     <div className="mb-6">
@@ -90,15 +112,20 @@ const BetCard: React.FC<BetCardProps> = ({
           <div className="inline-block px-4 py-2 bg-blue-500 text-font rounded-full">
             ${wagerInUsd} USD ({bet.wagerEth} ETH)
           </div>
-          <BetActions
-            betDetails={bet}
-            fetchBetDetails={fetchBetDetails}
-            setMessage={setMessage}
-            setIsAlertOpen={setIsAlertOpen}
-            isLoading={isLoading}
-            accountAddress={accountAddress}
-            sendTransaction={sendTransaction} 
-          />
+          <div className="justify-end items-center mt-4">
+            <BetActions
+              betDetails={bet}
+              fetchBetDetails={fetchBetDetails}
+              setMessage={setMessage}
+              setIsAlertOpen={setIsAlertOpen}
+              isLoading={isLoading}
+              accountAddress={accountAddress}
+              sendTransaction={sendTransaction}
+              canFund={canFund}
+              userIsDecider={userIsDecider}
+              betStatusText={getBetStatusText()}
+            />
+          </div>
           <div className="flex justify-end items-center space-x-4 mt-4">
             <ShareButton
               better1Display={bet.better1Display}
