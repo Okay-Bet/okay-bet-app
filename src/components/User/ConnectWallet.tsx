@@ -16,7 +16,7 @@ const wallets = [
 
 const ConnectWallet = () => {
   return (
-    <div className="flex justify-center mb-10 font-heading">
+    <div className="justify-center mb-10 font-heading">
       <ConnectButton
         client={client}
         wallets={wallets}

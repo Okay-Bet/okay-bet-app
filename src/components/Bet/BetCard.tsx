@@ -3,6 +3,7 @@
 
 import React, { useState } from "react";
 import { Collapse } from "@mui/material";
+import { useSendTransaction } from "thirdweb/react";
 import ShareButton from "../Common/ShareButton";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import Link from "next/link";
@@ -14,7 +15,7 @@ interface BetCardProps {
   bet: BetDetailsType;
   ethToUsdRate: number;
   accountAddress: string;
-  fetchBetDetails: () => void;
+  fetchBetDetails: (betAddress: string) => void;
   setMessage: (message: string) => void;
   setIsAlertOpen: (isOpen: boolean) => void;
   isLoading: boolean;
@@ -33,6 +34,7 @@ const BetCard: React.FC<BetCardProps> = ({
   initialOpen = false,
   disableCollapse = false,
 }) => {
+  const { mutateAsync: sendTransaction } = useSendTransaction();
   const [isOpen, setIsOpen] = useState(initialOpen);
 
   const shortenAddress = (address: string) =>
@@ -41,18 +43,21 @@ const BetCard: React.FC<BetCardProps> = ({
 
   let bgColorClass = "bg-secondary";
   if (bet.status === 5) {
-    bgColorClass = "bg-gray-600"
-  } else if (bet.status === 4 && bet.winner?.toLowerCase() === accountAddress.toLowerCase()) {
-    bgColorClass = "bg-green-600"; // User won
+    bgColorClass = "bg-gray-600";
+  } else if (
+    bet.status === 4 &&
+    bet.winner?.toLowerCase() === accountAddress.toLowerCase()
+  ) {
+    bgColorClass = "bg-green-600";
   }
 
   return (
     <div className="mb-6">
       <div
-        className={`p-6 ${bgColorClass} text-font  cursor-pointer `}
+        className={`p-6 ${bgColorClass} text-font cursor-pointer`}
         onClick={() => !disableCollapse && setIsOpen(!isOpen)}
       >
-        <h4 className="text-2xl font-bold ">{bet.conditions}</h4>
+        <h4 className="text-2xl font-bold">{bet.conditions}</h4>
       </div>
       <Collapse in={isOpen}>
         <div className={`p-6 ${bgColorClass} text-font`}>
@@ -91,6 +96,8 @@ const BetCard: React.FC<BetCardProps> = ({
             setMessage={setMessage}
             setIsAlertOpen={setIsAlertOpen}
             isLoading={isLoading}
+            accountAddress={accountAddress}
+            sendTransaction={sendTransaction} 
           />
           <div className="flex justify-end items-center space-x-4 mt-4">
             <ShareButton
