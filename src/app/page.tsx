@@ -2,7 +2,7 @@
 "use client";
 
 import { useActiveAccount } from "thirdweb/react";
-import { ThirdwebProvider } from "thirdweb/react";
+import { ThirdwebProvider } from "@thirdweb-dev/react";
 import { client, contract } from "./client";
 import CreateBetForm from "../components/CreateBetForm/CreateBetForm";
 import OpenBets from "../components/Bet/OpenBets";
@@ -22,7 +22,7 @@ export default function Home() {
   });
 
   return (
-    <ThirdwebProvider>
+    <ThirdwebProvider clientId={process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID}>
       <main className="min-h-screen flex flex-col items-center justify-center">
         <div className="py-10 text-center">
           <div className="m-3">
