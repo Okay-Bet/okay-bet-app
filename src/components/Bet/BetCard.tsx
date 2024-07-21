@@ -1,7 +1,6 @@
-// components/Bet/BetCard.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Collapse } from "@mui/material";
 import { useSendTransaction } from "thirdweb/react";
 import ShareButton from "../Common/ShareButton";
@@ -10,7 +9,6 @@ import Link from "next/link";
 import QRCodeModal from "../Common/QRCodeModal";
 import { BetDetailsType } from "@/components/types/bet";
 import BetActions from "./BetActions";
-import ContractEventListener from "../Common/ContractEventListener"; 
 
 interface BetCardProps {
   bet: BetDetailsType;
@@ -37,13 +35,6 @@ const BetCard: React.FC<BetCardProps> = ({
 }) => {
   const { mutateAsync: sendTransaction } = useSendTransaction();
   const [localLoading, setLocalLoading] = useState(false);
-  const [listenForEvents, setListenForEvents] = useState(false);
-
-  const handleEvent = (events: any) => {
-    fetchBetDetails(bet.address);
-    setLocalLoading(false);
-    setListenForEvents(false); // Disable the event listener after receiving an event
-  };
 
   const userIsBetter1 =
     accountAddress.toLowerCase() === bet.better1.toLowerCase();
@@ -77,6 +68,8 @@ const BetCard: React.FC<BetCardProps> = ({
         return `Partially Funded (${bet.better1Display} has funded)`;
       case 2:
         return `Partially Funded (${bet.better2Display} has funded)`;
+      case 3:
+        return "Waiting on Judge to pick winner";
       default:
         return "Unknown Status";
     }
@@ -135,7 +128,6 @@ const BetCard: React.FC<BetCardProps> = ({
               betStatusText={getBetStatusText()}
               localLoading={localLoading}
               setLocalLoading={setLocalLoading}
-              setListenForEvents={setListenForEvents} // Pass the state setter
             />
           </div>
           <div className="flex justify-end items-center space-x-4 mt-4">
@@ -156,25 +148,6 @@ const BetCard: React.FC<BetCardProps> = ({
               </a>
             </Link>
           </div>
-          {listenForEvents && (
-            <>
-              <ContractEventListener
-                contractAddress={bet.address}
-                eventName="BetFunded"
-                onEvent={handleEvent}
-              />
-              <ContractEventListener
-                contractAddress={bet.address}
-                eventName="BetCancelled"
-                onEvent={handleEvent}
-              />
-              <ContractEventListener
-                contractAddress={bet.address}
-                eventName="BetResolved"
-                onEvent={handleEvent}
-              />
-            </>
-          )}
         </div>
       </Collapse>
     </div>

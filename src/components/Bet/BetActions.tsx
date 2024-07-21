@@ -1,5 +1,4 @@
-// components/Bet/BetActions.tsx
-import React from "react";
+import React, { useState } from "react";
 import { BetDetailsType } from "@/components/types/bet";
 import {
   handleFundBet,
@@ -8,6 +7,7 @@ import {
   handleInvalidateBet,
 } from "@/utils/handleBetActions";
 import CircularProgress from "@mui/material/CircularProgress";
+import ContractEventListener from "../Common/ContractEventListener";
 
 interface BetActionsProps {
   betDetails: BetDetailsType;
@@ -34,12 +34,28 @@ const BetActions: React.FC<BetActionsProps> = ({
   userIsDecider,
   betStatusText,
 }) => {
+  const [localLoading, setLocalLoading] = useState(false);
+  const [listenForEvents, setListenForEvents] = useState(false);
+
+  const handleEvent = (events: any) => {
+    console.log("Event received:", events);
+    fetchBetDetails(betDetails.address);
+    setLocalLoading(false);
+    setListenForEvents(false); // Disable the event listener after receiving an event
+  };
+
   const userRoles = getUserRoles(accountAddress, betDetails);
   const availableActions = getAvailableActions(
     userRoles,
     betDetails.status,
     canFund
   );
+
+  const triggerAction = async (action: () => Promise<void>) => {
+    setLocalLoading(true);
+    setListenForEvents(true);
+    await action();
+  };
 
   return (
     <div>
@@ -50,7 +66,7 @@ const BetActions: React.FC<BetActionsProps> = ({
       </div>
       {availableActions.includes("fundBet") && canFund && (
         <button
-          onClick={() =>
+          onClick={() => triggerAction(() =>
             handleFundBet(
               betDetails.address,
               betDetails.wagerWei,
@@ -59,16 +75,16 @@ const BetActions: React.FC<BetActionsProps> = ({
               setMessage,
               setIsAlertOpen
             )
-          }
+          )}
           className="w-full p-2 bg-green-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
-          disabled={isLoading}
+          disabled={isLoading || localLoading}
         >
-          {isLoading ? <CircularProgress size={24} /> : "Fund Bet"}
+          {isLoading || localLoading ? <CircularProgress size={24} /> : "Fund Bet"}
         </button>
       )}
       {availableActions.includes("cancelBet") && (
         <button
-          onClick={() =>
+          onClick={() => triggerAction(() =>
             handleCancelBet(
               betDetails.address,
               sendTransaction,
@@ -76,11 +92,11 @@ const BetActions: React.FC<BetActionsProps> = ({
               setMessage,
               setIsAlertOpen
             )
-          }
+          )}
           className="w-full p-2 mb-2 bg-red-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
-          disabled={isLoading}
+          disabled={isLoading || localLoading}
         >
-          {isLoading ? <CircularProgress size={24} /> : "Cancel Bet"}
+          {isLoading || localLoading ? <CircularProgress size={24} /> : "Cancel Bet"}
         </button>
       )}
       {!canFund && !userIsDecider && (
@@ -92,7 +108,7 @@ const BetActions: React.FC<BetActionsProps> = ({
       {availableActions.includes("resolveBet") && (
         <>
           <button
-            onClick={() =>
+            onClick={() => triggerAction(() =>
               handleResolveBet(
                 betDetails.address,
                 betDetails.better1,
@@ -101,14 +117,14 @@ const BetActions: React.FC<BetActionsProps> = ({
                 setMessage,
                 setIsAlertOpen
               )
-            }
+            )}
             className="w-full p-2 bg-blue-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
-            disabled={isLoading}
+            disabled={isLoading || localLoading}
           >
             Declare Better 1 as Winner
           </button>
           <button
-            onClick={() =>
+            onClick={() => triggerAction(() =>
               handleResolveBet(
                 betDetails.address,
                 betDetails.better2,
@@ -117,9 +133,9 @@ const BetActions: React.FC<BetActionsProps> = ({
                 setMessage,
                 setIsAlertOpen
               )
-            }
+            )}
             className="w-full p-2 bg-blue-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
-            disabled={isLoading}
+            disabled={isLoading || localLoading}
           >
             Declare Better 2 as Winner
           </button>
@@ -127,7 +143,7 @@ const BetActions: React.FC<BetActionsProps> = ({
       )}
       {availableActions.includes("invalidateBet") && (
         <button
-          onClick={() =>
+          onClick={() => triggerAction(() =>
             handleInvalidateBet(
               betDetails.address,
               sendTransaction,
@@ -135,12 +151,32 @@ const BetActions: React.FC<BetActionsProps> = ({
               setMessage,
               setIsAlertOpen
             )
-          }
+          )}
           className="w-full p-2 mb-2 bg-yellow-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
-          disabled={isLoading}
+          disabled={isLoading || localLoading}
         >
           Invalidate Bet
         </button>
+      )}
+
+      {listenForEvents && (
+        <>
+          <ContractEventListener
+            contractAddress={betDetails.address}
+            eventName="BetFunded"
+            onEvent={handleEvent}
+          />
+          <ContractEventListener
+            contractAddress={betDetails.address}
+            eventName="BetCancelled"
+            onEvent={handleEvent}
+          />
+          <ContractEventListener
+            contractAddress={betDetails.address}
+            eventName="BetResolved"
+            onEvent={handleEvent}
+          />
+        </>
       )}
     </div>
   );
