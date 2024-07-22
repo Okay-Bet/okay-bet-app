@@ -9,7 +9,7 @@ import eventEmitter from "@/events/eventEmitter";
 export const handleInvalidateBet = async (
   betAddress: string,
   sendTransaction: any,
-  fetchBetDetails: (betAddress: string) => void,
+  fetchBetDetails: (betAddress: string) => Promise<any>,
   setMessage: (message: string) => void,
   setIsAlertOpen: (isOpen: boolean) => void
 ) => {

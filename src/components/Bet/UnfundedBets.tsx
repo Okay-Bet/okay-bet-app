@@ -1,6 +1,6 @@
 // components/Bet/UnfundedBets.tsx
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useFetchUnfundedBetDetails } from "@/hooks/useFetchUnfundedBetDetails";
 import BetCard from "./BetCard";
 import AlertModal from "../Common/AlertModal";
@@ -22,13 +22,18 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
   const [message, setMessage] = useState<string>("");
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
 
+  const handleRefresh = useCallback(async () => {
+    for (const betAddress of betAddresses) {
+      await fetchBetDetails(betAddress);
+    }
+  }, [fetchBetDetails, betAddresses]);
+
   useEffect(() => {
-    const handleRefresh = () => fetchBetDetails();
     eventEmitter.on('refreshUnfundedBets', handleRefresh);
     return () => {
       eventEmitter.off('refreshUnfundedBets', handleRefresh);
     };
-  }, [fetchBetDetails]);
+  }, [handleRefresh]);
 
   return (
     <CollapsibleSection title="Unfunded Bets" loading={loading}>
@@ -43,7 +48,6 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
             setMessage={setMessage}
             setIsAlertOpen={setIsAlertOpen}
             isLoading={loading}
-            refreshParent={() => {}}
           />
         ))
       ) : (
@@ -54,7 +58,7 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
         message={message}
         onClose={() => {
           setIsAlertOpen(false);
-          fetchBetDetails();
+          handleRefresh(); // Refresh details when the alert is closed
         }}
       />
     </CollapsibleSection>

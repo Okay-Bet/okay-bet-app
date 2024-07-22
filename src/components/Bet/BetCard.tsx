@@ -1,3 +1,4 @@
+// components/Bet/BetCard.tsx
 "use client";
 
 import React, { useState } from "react";
@@ -14,7 +15,7 @@ interface BetCardProps {
   bet: BetDetailsType;
   ethToUsdRate: number;
   accountAddress: string;
-  fetchBetDetails: (betAddress: string) => void;
+  fetchBetDetails: (betAddress: string) => Promise<BetDetailsType | null>;
   setMessage: (message: string) => void;
   setIsAlertOpen: (isOpen: boolean) => void;
   isLoading: boolean;

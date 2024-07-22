@@ -10,7 +10,7 @@ export const handleResolveBet = async (
   betAddress: string,
   winnerAddress: string,
   sendTransaction: any,
-  fetchBetDetails: (betAddress: string) => void,
+  fetchBetDetails: (betAddress: string) => Promise<any>,
   setMessage: (message: string) => void,
   setIsAlertOpen: (isOpen: boolean) => void
 ) => {
@@ -47,12 +47,14 @@ export const handleResolveBet = async (
       );
 
       if (events.length > 0) {
-        const [winner] = events[0].args;
-        setMessage(`Bet resolved successfully! Winner: ${winner}`);
-        setIsAlertOpen(true);
-        fetchBetDetails(betAddress);
-        eventEmitter.emit('refreshBetHistory');
-        return true;
+        const winner = events[0].args?.[0]; // Ensure args is defined and access the first element
+        if (winner) {
+          setMessage(`Bet resolved successfully! Winner: ${winner}`);
+          setIsAlertOpen(true);
+          await fetchBetDetails(betAddress);
+          eventEmitter.emit('refreshBetHistory');
+          return true;
+        }
       }
       return false;
     };

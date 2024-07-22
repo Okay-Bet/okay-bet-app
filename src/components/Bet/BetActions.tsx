@@ -1,3 +1,4 @@
+// components/Bet/BetActions.tsx
 import React from "react";
 import { BetDetailsType } from "@/components/types/bet";
 import { handleFundBet } from "@/utils/handleBetActions/handleFundBet";
@@ -8,7 +9,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 
 interface BetActionsProps {
   betDetails: BetDetailsType;
-  fetchBetDetails: (betAddress: string) => void;
+  fetchBetDetails: (betAddress: string) => Promise<BetDetailsType | null>;
   setMessage: (message: string) => void;
   setIsAlertOpen: (isOpen: boolean) => void;
   isLoading: boolean;
@@ -116,7 +117,7 @@ const BetActions: React.FC<BetActionsProps> = ({
             className="w-full p-2 bg-blue-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
             disabled={isLoading}
           >
-          {isLoading ? <CircularProgress size={24} /> : "Declare Better 1 as Winner"}
+            {isLoading ? <CircularProgress size={24} /> : "Declare Better 1 as Winner"}
           </button>
           <button
             onClick={() =>
@@ -134,7 +135,7 @@ const BetActions: React.FC<BetActionsProps> = ({
             className="w-full p-2 bg-blue-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
             disabled={isLoading}
           >
-          {isLoading ? <CircularProgress size={24} /> : "Declare Better 2 as Winner"}
+            {isLoading ? <CircularProgress size={24} /> : "Declare Better 2 as Winner"}
           </button>
         </>
       )}
@@ -154,7 +155,7 @@ const BetActions: React.FC<BetActionsProps> = ({
           className="w-full p-2 mb-2 bg-yellow-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
           disabled={isLoading}
         >
-          {isLoading ? <CircularProgress size={24} /> : "Refund Bet"}
+          {isLoading ? <CircularProgress size={24} /> : "Invalidate Bet"}
         </button>
       )}
     </div>

@@ -17,19 +17,23 @@ const OpenBets: React.FC<OpenBetsProps> = ({
   betAddresses,
   accountAddress,
 }) => {
-  const { betDetails, fetchBetDetails, loading } =
-    useFetchBetDetails(betAddresses);
+  const { betDetails, fetchBetDetails, loading } = useFetchBetDetails(betAddresses);
   const ethToUsdRate = useFetchEthToUsdRate();
   const [message, setMessage] = useState<string>("");
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
 
+  const handleRefresh = async () => {
+    for (const betAddress of betAddresses) {
+      await fetchBetDetails(betAddress);
+    }
+  };
+
   useEffect(() => {
-    const handleRefresh = () => fetchBetDetails();
     eventEmitter.on("refreshOpenBets", handleRefresh);
     return () => {
       eventEmitter.off("refreshOpenBets", handleRefresh);
     };
-  }, [fetchBetDetails]);
+  }, [fetchBetDetails, betAddresses]);
 
   return (
     <CollapsibleSection title="Open Bets" loading={loading}>
@@ -44,7 +48,6 @@ const OpenBets: React.FC<OpenBetsProps> = ({
             setMessage={setMessage}
             setIsAlertOpen={setIsAlertOpen}
             isLoading={loading}
-            refreshParent={() => {}}
           />
         ))
       ) : (
@@ -55,7 +58,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({
         message={message}
         onClose={() => {
           setIsAlertOpen(false);
-          fetchBetDetails();
+          handleRefresh(); // Refresh details when the alert is closed
         }}
       />
     </CollapsibleSection>

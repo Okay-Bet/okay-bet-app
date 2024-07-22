@@ -9,7 +9,7 @@ import eventEmitter from "@/events/eventEmitter";
 export const handleCancelBet = async (
   betAddress: string,
   sendTransaction: any,
-  fetchBetDetails: (betAddress: string) => void,
+  fetchBetDetails: (betAddress: string) => Promise<any>,
   setMessage: (message: string) => void,
   setIsAlertOpen: (isOpen: boolean) => void
 ) => {
@@ -43,12 +43,14 @@ export const handleCancelBet = async (
       );
 
       if (events.length > 0) {
-        const [canceller] = events[0].args;
-        setMessage(`Bet cancelled successfully by ${canceller}!`);
-        setIsAlertOpen(true);
-        fetchBetDetails(betAddress);
-        eventEmitter.emit('refreshBetHistory');
-        return true;
+        const canceller = events[0].args?.[0]; // Ensure args is defined and access the first element
+        if (canceller) {
+          setMessage(`Bet cancelled successfully by ${canceller}!`);
+          setIsAlertOpen(true);
+          await fetchBetDetails(betAddress);
+          eventEmitter.emit('refreshBetHistory');
+          return true;
+        }
       }
       return false;
     };

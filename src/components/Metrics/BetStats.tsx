@@ -12,6 +12,11 @@ interface BetStatsProps {
 }
 
 const BetStats: React.FC<BetStatsProps> = ({ stats }) => {
+  if (!stats) {
+    // If stats is undefined, return an empty or loading state
+    return <div className="p-6 bg-secondary mb-6">Loading stats...</div>;
+  }
+
   return (
     <div className="p-6 bg-secondary mb-6">
       <h4 className="text-2xl font-bold mb-4 text-font">Record</h4>

@@ -15,8 +15,7 @@ const BetDetails = () => {
   const pathname = usePathname();
   const slug = pathname.split("/").pop() || null;
   const ethToUsdRate = useFetchEthToUsdRate();
-  const { betDetails, loading, fetchBetDetails } =
-    useFetchSingleBetDetails(slug);
+  const { betDetails, loading, fetchBetDetails } = useFetchSingleBetDetails(slug);
   const account = useActiveAccount(); // Get the active account
 
   const [message, setMessage] = useState<string>("");
