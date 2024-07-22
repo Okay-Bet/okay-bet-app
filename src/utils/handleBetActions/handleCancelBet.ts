@@ -5,6 +5,11 @@ import { cancelBet } from "@/generated/bet";
 import { ethers } from "ethers";
 import { BASE_MAINNET_RPC } from "@/constants/rpc";
 import eventEmitter from "@/events/eventEmitter";
+import debounce from 'lodash/debounce';
+
+const debouncedEmit = debounce(() => {
+  eventEmitter.emit('refreshBets');
+}, 1000, { leading: true, trailing: false });
 
 export const handleCancelBet = async (
   betAddress: string,
@@ -19,21 +24,17 @@ export const handleCancelBet = async (
       address: betAddress,
       chain: contract.chain,
     });
-
     const transaction = cancelBet({
       contract: betContract,
     });
-
     const provider = new ethers.providers.JsonRpcProvider(BASE_MAINNET_RPC);
     const startBlock = await provider.getBlockNumber();
     await sendTransaction(transaction);
-
     const ethersBetContract = new ethers.Contract(
       betAddress,
       ["event BetCancelled(address canceller)"],
       provider
     );
-
     const checkForEvent = async () => {
       const currentBlock = await provider.getBlockNumber();
       const events = await ethersBetContract.queryFilter(
@@ -41,28 +42,24 @@ export const handleCancelBet = async (
         startBlock,
         currentBlock
       );
-
       if (events.length > 0) {
-        const canceller = events[0].args?.[0]; // Ensure args is defined and access the first element
+        const canceller = events[0].args?.[0]; 
         if (canceller) {
           setMessage(`Bet cancelled successfully by ${canceller}!`);
           setIsAlertOpen(true);
           await fetchBetDetails(betAddress);
-          eventEmitter.emit('refreshBetHistory');
-          eventEmitter.emit('refreshBetList');
+          debouncedEmit(); 
           return true;
         }
       }
       return false;
     };
-
     for (let i = 0; i < 15; i++) {
       await new Promise(resolve => setTimeout(resolve, 2000));
       if (await checkForEvent()) {
         return;
       }
     }
-
     setMessage("Transaction sent, but event not found. Please check the transaction status.");
     setIsAlertOpen(true);
   } catch (error: unknown) {

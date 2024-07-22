@@ -5,6 +5,11 @@ import { resolveBet } from "@/generated/bet";
 import { ethers } from "ethers";
 import { BASE_MAINNET_RPC } from "@/constants/rpc";
 import eventEmitter from "@/events/eventEmitter";
+import debounce from 'lodash/debounce';
+
+const debouncedEmit = debounce(() => {
+  eventEmitter.emit('refreshBets');
+}, 1000, { leading: true, trailing: false });
 
 export const handleResolveBet = async (
   betAddress: string,
@@ -22,7 +27,6 @@ export const handleResolveBet = async (
     });
 
     const formattedWinnerAddress = ethers.utils.getAddress(winnerAddress) as `0x${string}`;
-
     const transaction = resolveBet({
       contract: betContract,
       winner: formattedWinnerAddress,
@@ -47,12 +51,12 @@ export const handleResolveBet = async (
       );
 
       if (events.length > 0) {
-        const winner = events[0].args?.[0]; // Ensure args is defined and access the first element
+        const winner = events[0].args?.[0];
         if (winner) {
           setMessage(`Bet resolved successfully! Winner: ${winner}`);
           setIsAlertOpen(true);
           await fetchBetDetails(betAddress);
-          eventEmitter.emit('refreshBetHistory');
+          debouncedEmit(); 
           return true;
         }
       }
