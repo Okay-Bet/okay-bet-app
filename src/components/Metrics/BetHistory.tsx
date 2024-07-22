@@ -1,11 +1,11 @@
-// components/BetHistory.tsx
+// components/Metrics/BetHistory.tsx
 "use client";
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useFetchBetHistory } from "@/hooks/useFetchBetHistory";
 import BetCard from "../Bet/BetCard";
 import BetStats from "./BetStats";
 import CollapsibleSection from "../Common/CollapsibleSection";
+import eventEmitter from "@/events/eventEmitter";
 
 interface BetHistoryProps {
   betAddresses: string[];
@@ -17,8 +17,15 @@ const BetHistory: React.FC<BetHistoryProps> = ({
   accountAddress,
 }) => {
   const address = accountAddress.toLowerCase();
-  const { betDetails, stats, ethToUsdRate, loading, fetchBetDetails } =
-    useFetchBetHistory(betAddresses, address);
+  const { betDetails, stats, ethToUsdRate, loading, fetchBetDetails } = useFetchBetHistory(betAddresses, address);
+
+  useEffect(() => {
+    const handleRefresh = () => fetchBetDetails();
+    eventEmitter.on('refreshBetHistory', handleRefresh);
+    return () => {
+      eventEmitter.off('refreshBetHistory', handleRefresh);
+    };
+  }, [fetchBetDetails]);
 
   return (
     <CollapsibleSection title="Bet History" loading={loading}>
@@ -33,6 +40,7 @@ const BetHistory: React.FC<BetHistoryProps> = ({
           setMessage={() => {}}
           setIsAlertOpen={() => {}}
           isLoading={false}
+          refreshParent={() => {}}
         />
       ))}
     </CollapsibleSection>

@@ -4,6 +4,7 @@ import { client, contract } from "@/app/client";
 import { cancelBet } from "@/generated/bet";
 import { ethers } from "ethers";
 import { BASE_MAINNET_RPC } from "@/constants/rpc";
+import eventEmitter from "@/events/eventEmitter";
 
 export const handleCancelBet = async (
   betAddress: string,
@@ -46,6 +47,7 @@ export const handleCancelBet = async (
         setMessage(`Bet cancelled successfully by ${canceller}!`);
         setIsAlertOpen(true);
         fetchBetDetails(betAddress);
+        eventEmitter.emit('refreshBetHistory');
         return true;
       }
       return false;

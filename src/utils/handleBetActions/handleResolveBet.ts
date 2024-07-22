@@ -4,6 +4,7 @@ import { client, contract } from "@/app/client";
 import { resolveBet } from "@/generated/bet";
 import { ethers } from "ethers";
 import { BASE_MAINNET_RPC } from "@/constants/rpc";
+import eventEmitter from "@/events/eventEmitter";
 
 export const handleResolveBet = async (
   betAddress: string,
@@ -50,6 +51,7 @@ export const handleResolveBet = async (
         setMessage(`Bet resolved successfully! Winner: ${winner}`);
         setIsAlertOpen(true);
         fetchBetDetails(betAddress);
+        eventEmitter.emit('refreshBetHistory');
         return true;
       }
       return false;

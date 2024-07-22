@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { BetDetailsType } from "@/components/types/bet";
 import { handleFundBet } from "@/utils/handleBetActions/handleFundBet";
 import { handleCancelBet } from "@/utils/handleBetActions/handleCancelBet";
@@ -17,6 +17,7 @@ interface BetActionsProps {
   canFund: boolean;
   userIsDecider: boolean;
   betStatusText: string;
+  setLocalLoading: (isLoading: boolean) => void;
 }
 
 const BetActions: React.FC<BetActionsProps> = ({
@@ -30,12 +31,8 @@ const BetActions: React.FC<BetActionsProps> = ({
   canFund,
   userIsDecider,
   betStatusText,
+  setLocalLoading,
 }) => {
-
-  const handleEvent = (events: any) => {
-    fetchBetDetails(betDetails.address);
-  };
-
   const userRoles = getUserRoles(accountAddress, betDetails);
   const availableActions = getAvailableActions(
     userRoles,
@@ -43,6 +40,11 @@ const BetActions: React.FC<BetActionsProps> = ({
     canFund
   );
 
+  const handleAction = async (action: () => Promise<void>) => {
+    setLocalLoading(true);
+    await action();
+    setLocalLoading(false);
+  };
 
   return (
     <div>
@@ -53,35 +55,39 @@ const BetActions: React.FC<BetActionsProps> = ({
       </div>
       {availableActions.includes("fundBet") && canFund && (
         <button
-          onClick={() => 
-            handleFundBet(
-              betDetails.address,
-              betDetails.wagerWei,
-              sendTransaction,
-              fetchBetDetails,
-              setMessage,
-              setIsAlertOpen
-            
-          )}
+          onClick={() =>
+            handleAction(() =>
+              handleFundBet(
+                betDetails.address,
+                betDetails.wagerWei,
+                sendTransaction,
+                fetchBetDetails,
+                setMessage,
+                setIsAlertOpen
+              )
+            )
+          }
           className="w-full p-2 bg-green-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
-          disabled={isLoading }
+          disabled={isLoading}
         >
           {isLoading ? <CircularProgress size={24} /> : "Fund Bet"}
         </button>
       )}
       {availableActions.includes("cancelBet") && (
         <button
-          onClick={() => 
-            handleCancelBet(
-              betDetails.address,
-              sendTransaction,
-              fetchBetDetails,
-              setMessage,
-              setIsAlertOpen
-            
-          )}
+          onClick={() =>
+            handleAction(() =>
+              handleCancelBet(
+                betDetails.address,
+                sendTransaction,
+                fetchBetDetails,
+                setMessage,
+                setIsAlertOpen
+              )
+            )
+          }
           className="w-full p-2 mb-2 bg-red-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
-          disabled={isLoading }
+          disabled={isLoading}
         >
           {isLoading ? <CircularProgress size={24} /> : "Cancel Bet"}
         </button>
@@ -95,54 +101,60 @@ const BetActions: React.FC<BetActionsProps> = ({
       {availableActions.includes("resolveBet") && (
         <>
           <button
-            onClick={() => 
-              handleResolveBet(
-                betDetails.address,
-                betDetails.better1,
-                sendTransaction,
-                fetchBetDetails,
-                setMessage,
-                setIsAlertOpen
-              
-            )}
-            className="w-full p-2 bg-blue-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
-            disabled={isLoading }
-          >
-            Declare Better 1 as Winner
-          </button>
-          <button
-            onClick={()  =>
-              handleResolveBet(
-                betDetails.address,
-                betDetails.better2,
-                sendTransaction,
-                fetchBetDetails,
-                setMessage,
-                setIsAlertOpen
-              
-            )}
+            onClick={() =>
+              handleAction(() =>
+                handleResolveBet(
+                  betDetails.address,
+                  betDetails.better1,
+                  sendTransaction,
+                  fetchBetDetails,
+                  setMessage,
+                  setIsAlertOpen
+                )
+              )
+            }
             className="w-full p-2 bg-blue-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
             disabled={isLoading}
           >
-            Declare Better 2 as Winner
+          {isLoading ? <CircularProgress size={24} /> : "Declare Better 1 as Winner"}
+          </button>
+          <button
+            onClick={() =>
+              handleAction(() =>
+                handleResolveBet(
+                  betDetails.address,
+                  betDetails.better2,
+                  sendTransaction,
+                  fetchBetDetails,
+                  setMessage,
+                  setIsAlertOpen
+                )
+              )
+            }
+            className="w-full p-2 bg-blue-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
+            disabled={isLoading}
+          >
+          {isLoading ? <CircularProgress size={24} /> : "Declare Better 2 as Winner"}
           </button>
         </>
       )}
       {availableActions.includes("invalidateBet") && (
         <button
-          onClick={() => 
-            handleInvalidateBet(
-              betDetails.address,
-              sendTransaction,
-              fetchBetDetails,
-              setMessage,
-              setIsAlertOpen
-            
-          )}
+          onClick={() =>
+            handleAction(() =>
+              handleInvalidateBet(
+                betDetails.address,
+                sendTransaction,
+                fetchBetDetails,
+                setMessage,
+                setIsAlertOpen
+              )
+            )
+          }
           className="w-full p-2 mb-2 bg-yellow-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
-          disabled={isLoading }
+          disabled={isLoading}
         >
-          Invalidate Bet
+          {isLoading ? <CircularProgress size={24} /> : "Refund Bet"}
         </button>
       )}
     </div>
@@ -165,10 +177,14 @@ const getUserRoles = (
   return roles.length > 0 ? roles : ["other"];
 };
 
-const getAvailableActions = (userRoles: string[], betStatus: number, canFund: boolean) => {
+const getAvailableActions = (
+  userRoles: string[],
+  betStatus: number,
+  canFund: boolean
+) => {
   const actions = new Set<string>();
 
-  userRoles.forEach(role => {
+  userRoles.forEach((role) => {
     if ((role === "better1" || role === "better2") && canFund) {
       if (betStatus === 0 || betStatus === 1 || betStatus === 2) {
         actions.add("fundBet");

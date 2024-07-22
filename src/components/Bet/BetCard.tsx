@@ -120,14 +120,13 @@ const BetCard: React.FC<BetCardProps> = ({
               fetchBetDetails={fetchBetDetails}
               setMessage={setMessage}
               setIsAlertOpen={setIsAlertOpen}
-              isLoading={isLoading}
+              isLoading={localLoading}
               accountAddress={accountAddress}
               sendTransaction={sendTransaction}
               canFund={canFund}
               userIsDecider={userIsDecider}
               betStatusText={getBetStatusText()}
-              localLoading={localLoading}
-              setLocalLoading={setLocalLoading}
+              setLocalLoading={setLocalLoading} // Pass the setLocalLoading function
             />
           </div>
           <div className="flex justify-end items-center space-x-4 mt-4">
