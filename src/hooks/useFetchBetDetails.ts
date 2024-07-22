@@ -1,10 +1,11 @@
 // hooks/useFetchBetDetails.ts
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getContract } from "thirdweb";
 import { client, contract } from "@/app/client";
 import { bet } from "@/generated/bet";
 import { resolveName } from "thirdweb/extensions/ens";
 import { ethers } from "ethers";
+import eventEmitter from "@/events/eventEmitter";
 
 export interface BetDetailsType {
   address: string;
@@ -22,19 +23,12 @@ export interface BetDetailsType {
   winnerDisplay: string | null;
 }
 
-export const useFetchBetDetails = (
-  betAddresses: string[]
-): {
-  betDetails: BetDetailsType[];
-  fetchBetDetails: (betAddress: string) => Promise<BetDetailsType | null>;
-  loading: boolean;
-} => {
+export const useFetchBetDetails = (betAddresses: string[]) => {
   const [betDetails, setBetDetails] = useState<BetDetailsType[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  const fetchBetDetails = async (
-    betAddress: string
-  ): Promise<BetDetailsType | null> => {
+  const fetchBetDetails = useCallback(async (betAddress: string): Promise<BetDetailsType | null> => {
+    console.log(`Fetching details for bet ${betAddress}`);
     try {
       const betContract = getContract({
         client,
@@ -50,13 +44,11 @@ export const useFetchBetDetails = (
           resolveName({ client, address: betData[1] }).catch(() => null),
           resolveName({ client, address: betData[2] }).catch(() => null),
           betData[6] !== "0x0000000000000000000000000000000000000000"
-            ? resolveName({ client, address: betData[6] }).catch(
-                () => betData[6]
-              )
+            ? resolveName({ client, address: betData[6] }).catch(() => betData[6])
             : "Not resolved yet",
         ]);
 
-        const details = {
+        const betDetail: BetDetailsType = {
           address: betAddress,
           better1: betData[0],
           better1Display: better1 || betData[0],
@@ -72,33 +64,57 @@ export const useFetchBetDetails = (
           winnerDisplay: winner || betData[6],
         };
 
-        return details;
+        console.log('Fetched bet details:', betDetail);
+
+        setBetDetails(prevDetails => {
+          const updatedDetails = prevDetails.map(bet => 
+            bet.address === betAddress ? betDetail : bet
+          );
+          if (!updatedDetails.some(bet => bet.address === betAddress)) {
+            updatedDetails.push(betDetail);
+          }
+          console.log('Updated bet details state:', updatedDetails);
+          return updatedDetails;
+        });
+
+        return betDetail;
       }
     } catch (error) {
       console.error(`Error fetching bet details for ${betAddress}:`, error);
     }
-
     return null;
-  };
+  }, []);
 
-  const fetchAllBetDetails = async () => {
+  const fetchAllBetDetails = useCallback(async () => {
+    console.log('Fetching all bet details');
     setLoading(true);
     const details: BetDetailsType[] = [];
-
     for (const betAddress of betAddresses) {
       const betDetail = await fetchBetDetails(betAddress);
       if (betDetail) {
         details.push(betDetail);
       }
     }
-
     setBetDetails(details);
     setLoading(false);
-  };
+  }, [betAddresses, fetchBetDetails]);
 
   useEffect(() => {
     fetchAllBetDetails();
-  }, [betAddresses]);
+  }, [fetchAllBetDetails]);
+
+  useEffect(() => {
+    const handleRefresh = () => {
+      console.log('Refresh event received in useFetchBetDetails');
+      fetchAllBetDetails();
+    };
+
+    eventEmitter.on('refreshOpenBets', handleRefresh);
+
+    return () => {
+      eventEmitter.off('refreshOpenBets', handleRefresh);
+    };
+  }, [fetchAllBetDetails]);
 
   return { betDetails, fetchBetDetails, loading };
 };

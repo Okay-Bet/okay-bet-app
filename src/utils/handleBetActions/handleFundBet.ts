@@ -1,3 +1,4 @@
+// utils/handleBetActions/handleFundBet.ts
 import { getContract } from "thirdweb";
 import { client, contract } from "@/app/client";
 import { fundBet } from "@/generated/bet";
@@ -15,6 +16,7 @@ export const handleFundBet = async (
   setIsAlertOpen: (isOpen: boolean) => void
 ) => {
   try {
+    console.log('Starting handleFundBet function');
     const betContract = getContract({
       client,
       address: betAddress,
@@ -53,8 +55,11 @@ export const handleFundBet = async (
           )} ETH`
         );
         setIsAlertOpen(true);
+
+        const newBetDetails = await fetchBetDetails(betAddress);
+        console.log('bet details', newBetDetails);
+        eventEmitter.emit("refreshBetList");
         eventEmitter.emit("refreshUnfundedBets");
-        fetchBetDetails(betAddress);
         eventEmitter.emit("refreshOpenBets");
 
         return true;

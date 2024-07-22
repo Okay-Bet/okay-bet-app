@@ -1,11 +1,12 @@
 // hooks/useFetchBetHistory.ts
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getContract } from "thirdweb";
 import { ethers } from "ethers";
 import { client, contract } from "@/app/client";
 import { bet } from "@/generated/bet";
 import { resolveName } from "thirdweb/extensions/ens";
 import { BetDetailsType } from "@/components/types/bet";
+import eventEmitter from "@/events/eventEmitter";
 
 export const useFetchBetHistory = (betAddresses: string[], address: string) => {
   const [betDetails, setBetDetails] = useState<BetDetailsType[]>([]);
@@ -19,7 +20,7 @@ export const useFetchBetHistory = (betAddresses: string[], address: string) => {
   const [ethToUsdRate, setEthToUsdRate] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
 
-  const fetchEthToUsdRate = async () => {
+  const fetchEthToUsdRate = useCallback(async () => {
     try {
       const response = await fetch(
         "https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD"
@@ -29,80 +30,71 @@ export const useFetchBetHistory = (betAddresses: string[], address: string) => {
     } catch (error) {
       console.error("Error fetching ETH to USD rate:", error);
     }
-  };
+  }, []);
 
-  const fetchBetDetails = async (betAddress: string): Promise<BetDetailsType | null> => {
-    try {
-      const betContract = getContract({
-        client,
-        address: betAddress,
-        chain: contract.chain,
-      });
+  const fetchBetDetails = useCallback(async () => {
+    console.log('Fetching bet history details');
+    setLoading(true);
+    const details: BetDetailsType[] = [];
+    let betsWon = 0;
+    let betsLost = 0;
+    let betsDecided = 0;
+    let pnlEth = 0;
+    let pnlUsd = 0;
 
-      const betData = await bet({ contract: betContract });
-
-      if (betData) {
-        const [better1, better2, decider, winner] = await Promise.all([
-          resolveName({ client, address: betData[0] }).catch(() => null),
-          resolveName({ client, address: betData[1] }).catch(() => null),
-          resolveName({ client, address: betData[2] }).catch(() => null),
-          betData[6] !== "0x0000000000000000000000000000000000000000"
-            ? resolveName({ client, address: betData[6] }).catch(() => null)
-            : null,
-        ]);
-
-        return {
+    for (const betAddress of betAddresses) {
+      try {
+        const betContract = getContract({
+          client,
           address: betAddress,
-          better1: betData[0],
-          better1Display: better1 || betData[0],
-          better2: betData[1],
-          better2Display: better2 || betData[1],
-          decider: betData[2],
-          deciderDisplay: decider || betData[2],
-          wagerWei: betData[3].toString(),
-          wagerEth: parseFloat(ethers.utils.formatEther(betData[3])).toFixed(4), // Rounded to 4 decimals
-          conditions: betData[4],
-          status: betData[5],
-          winner: betData[6],
-          winnerDisplay: winner || betData[6],
-        };
-      }
-    } catch (error) {
-      console.error(`Error fetching bet details for ${betAddress}:`, error);
-    }
-    return null;
-  };
+          chain: contract.chain,
+        });
 
-  useEffect(() => {
-    const fetchAllBetDetails = async () => {
-      setLoading(true);
-      const details: BetDetailsType[] = [];
-      let betsWon = 0;
-      let betsLost = 0;
-      let betsDecided = 0;
-      let pnlEth = 0;
-      let pnlUsd = 0;
+        const betData = await bet({ contract: betContract });
 
-      for (const betAddress of betAddresses) {
-        const betDetail = await fetchBetDetails(betAddress);
-        if (betDetail) {
+        if (betData) {
+          const [better1, better2, decider, winner] = await Promise.all([
+            resolveName({ client, address: betData[0] }).catch(() => null),
+            resolveName({ client, address: betData[1] }).catch(() => null),
+            resolveName({ client, address: betData[2] }).catch(() => null),
+            betData[6] !== "0x0000000000000000000000000000000000000000"
+              ? resolveName({ client, address: betData[6] }).catch(() => null)
+              : null,
+          ]);
+
+          const betDetail: BetDetailsType = {
+            address: betAddress,
+            better1: betData[0],
+            better1Display: better1 || betData[0],
+            better2: betData[1],
+            better2Display: better2 || betData[1],
+            decider: betData[2],
+            deciderDisplay: decider || betData[2],
+            wagerWei: betData[3].toString(),
+            wagerEth: parseFloat(ethers.utils.formatEther(betData[3])).toFixed(4),
+            conditions: betData[4],
+            status: betData[5],
+            winner: betData[6],
+            winnerDisplay: winner || betData[6],
+          };
+
           details.push(betDetail);
 
-          const isWinner = betDetail.winner?.toLowerCase() === address;
-          const isDecider = betDetail.decider.toLowerCase() === address;
+          const isWinner = betData[6].toLowerCase() === address.toLowerCase();
+          const isDecider = betData[2].toLowerCase() === address.toLowerCase();
 
-          if (betDetail.status === 4 || betDetail.status === 5) {
+          if (betData[5] === 4 || betData[5] === 5) {
             // Resolved or Invalid status
-            if (betDetail.status === 4) {
+            if (betData[5] === 4) {
               // Only count resolved bets
-              const wagerEth = parseFloat(betDetail.wagerEth);
+              const wagerEth = parseFloat(ethers.utils.formatEther(betData[3]));
               if (isWinner) {
                 betsWon += 1;
                 pnlEth += wagerEth;
                 pnlUsd += wagerEth * ethToUsdRate;
               } else if (
-                address === betDetail.better1.toLowerCase() ||
-                address === betDetail.better2.toLowerCase()
+                address.toLowerCase() === betData[0].toLowerCase() ||
+                address.toLowerCase() === betData[1].toLowerCase()
               ) {
                 betsLost += 1;
                 pnlEth -= wagerEth;
@@ -115,16 +107,34 @@ export const useFetchBetHistory = (betAddresses: string[], address: string) => {
             }
           }
         }
+      } catch (error) {
+        console.error(`Error fetching bet details for ${betAddress}:`, error);
       }
+    }
 
-      setBetDetails(details);
-      setStats({ betsWon, betsLost, betsDecided, pnlEth, pnlUsd });
-      setLoading(false);
+    console.log('Fetched bet history details:', details);
+    setBetDetails(details);
+    setStats({ betsWon, betsLost, betsDecided, pnlEth, pnlUsd });
+    setLoading(false);
+  }, [betAddresses, address, ethToUsdRate]);
+
+  useEffect(() => {
+    fetchEthToUsdRate();
+    fetchBetDetails();
+  }, [fetchEthToUsdRate, fetchBetDetails]);
+
+  useEffect(() => {
+    const handleRefresh = () => {
+      console.log('Refresh event received in useFetchBetHistory');
+      fetchBetDetails();
     };
 
-    fetchEthToUsdRate();
-    fetchAllBetDetails();
-  }, [betAddresses, address, ethToUsdRate]);
+    eventEmitter.on('refreshBetHistory', handleRefresh);
+
+    return () => {
+      eventEmitter.off('refreshBetHistory', handleRefresh);
+    };
+  }, [fetchBetDetails]);
 
   return { betDetails, stats, ethToUsdRate, loading, fetchBetDetails };
 };
