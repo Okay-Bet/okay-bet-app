@@ -4,6 +4,7 @@ import { getContract } from "thirdweb";
 import { client } from "@/app/client";
 import { bet } from "@/generated/bet";
 import { useReadContract } from "thirdweb/react";
+import debounce from 'lodash/debounce';  
 import eventEmitter from "@/events/eventEmitter";
 
 interface UseBetListProps {
@@ -18,17 +19,22 @@ interface BetListData {
   isLoading: boolean;
 }
 
-export const useBetList = ({ contract, accountAddress }: UseBetListProps): BetListData => {
+export const useBetList = ({
+  contract,
+  accountAddress,
+}: UseBetListProps): BetListData => {
   const [openBets, setOpenBets] = useState<string[]>([]);
   const [unfundedBets, setUnfundedBets] = useState<string[]>([]);
   const [betHistory, setBetHistory] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const { data: betAddresses, isLoading: isLoadingAddresses } = useReadContract({
-    contract,
-    method: "function getBets() view returns (address[])",
-    params: [],
-  });
+  const { data: betAddresses, isLoading: isLoadingAddresses } = useReadContract(
+    {
+      contract,
+      method: "function getBets() view returns (address[])",
+      params: [],
+    }
+  );
 
   const fetchBetDetails = useCallback(async () => {
     if (betAddresses && betAddresses.length > 0) {
@@ -81,15 +87,19 @@ export const useBetList = ({ contract, accountAddress }: UseBetListProps): BetLi
   }, [fetchBetDetails, isLoadingAddresses]);
 
   useEffect(() => {
-    const handleRefresh = () => {
-      console.log('Refresh event received in useBetList');
-      fetchBetDetails();
-    };
+    const handleRefresh = debounce(
+      () => {
+        console.log("Refresh event received in useBetList");
+        fetchBetDetails();
+      },
+      1000,
+      { leading: true, trailing: false }
+    );
 
-    eventEmitter.on('refreshBetList', handleRefresh);
+    eventEmitter.on("refreshBets", handleRefresh);
 
     return () => {
-      eventEmitter.off('refreshBetList', handleRefresh);
+      eventEmitter.off("refreshBets", handleRefresh);
     };
   }, [fetchBetDetails]);
 

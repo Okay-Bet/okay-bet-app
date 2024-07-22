@@ -5,6 +5,12 @@ import { invalidateBet } from "@/generated/bet";
 import { ethers } from "ethers";
 import { BASE_MAINNET_RPC } from "@/constants/rpc";
 import eventEmitter from "@/events/eventEmitter";
+import debounce from "lodash/debounce";
+
+
+const debouncedEmit = debounce(() => {
+  eventEmitter.emit('refreshBets');
+}, 1000, { leading: true, trailing: false });
 
 export const handleInvalidateBet = async (
   betAddress: string,
@@ -45,8 +51,8 @@ export const handleInvalidateBet = async (
       if (events.length > 0) {
         setMessage("Bet invalidated successfully!");
         setIsAlertOpen(true);
-        fetchBetDetails(betAddress);
-        eventEmitter.emit('refreshBetHistory');
+        await fetchBetDetails(betAddress);
+        debouncedEmit();
         return true;
       }
       return false;

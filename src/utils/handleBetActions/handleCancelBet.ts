@@ -49,6 +49,7 @@ export const handleCancelBet = async (
           setIsAlertOpen(true);
           await fetchBetDetails(betAddress);
           eventEmitter.emit('refreshBetHistory');
+          eventEmitter.emit('refreshBetList');
           return true;
         }
       }

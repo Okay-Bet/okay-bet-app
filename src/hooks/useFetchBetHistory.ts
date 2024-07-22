@@ -6,6 +6,7 @@ import { client, contract } from "@/app/client";
 import { bet } from "@/generated/bet";
 import { resolveName } from "thirdweb/extensions/ens";
 import { BetDetailsType } from "@/components/types/bet";
+import debounce from "lodash/debounce";
 import eventEmitter from "@/events/eventEmitter";
 
 export const useFetchBetHistory = (betAddresses: string[], address: string) => {
@@ -33,7 +34,7 @@ export const useFetchBetHistory = (betAddresses: string[], address: string) => {
   }, []);
 
   const fetchBetDetails = useCallback(async () => {
-    console.log('Fetching bet history details');
+    console.log("Fetching bet history details");
     setLoading(true);
     const details: BetDetailsType[] = [];
     let betsWon = 0;
@@ -71,7 +72,9 @@ export const useFetchBetHistory = (betAddresses: string[], address: string) => {
             decider: betData[2],
             deciderDisplay: decider || betData[2],
             wagerWei: betData[3].toString(),
-            wagerEth: parseFloat(ethers.utils.formatEther(betData[3])).toFixed(4),
+            wagerEth: parseFloat(ethers.utils.formatEther(betData[3])).toFixed(
+              4
+            ),
             conditions: betData[4],
             status: betData[5],
             winner: betData[6],
@@ -112,7 +115,7 @@ export const useFetchBetHistory = (betAddresses: string[], address: string) => {
       }
     }
 
-    console.log('Fetched bet history details:', details);
+    console.log("Fetched bet history details:", details);
     setBetDetails(details);
     setStats({ betsWon, betsLost, betsDecided, pnlEth, pnlUsd });
     setLoading(false);
@@ -124,15 +127,19 @@ export const useFetchBetHistory = (betAddresses: string[], address: string) => {
   }, [fetchEthToUsdRate, fetchBetDetails]);
 
   useEffect(() => {
-    const handleRefresh = () => {
-      console.log('Refresh event received in useFetchBetHistory');
-      fetchBetDetails();
-    };
+    const handleRefresh = debounce(
+      () => {
+        console.log("Refresh event received in useFetchBetHistory");
+        fetchBetDetails();
+      },
+      1000,
+      { leading: true, trailing: false }
+    );
 
-    eventEmitter.on('refreshBetHistory', handleRefresh);
+    eventEmitter.on("refreshBets", handleRefresh);
 
     return () => {
-      eventEmitter.off('refreshBetHistory', handleRefresh);
+      eventEmitter.off("refreshBets", handleRefresh);
     };
   }, [fetchBetDetails]);
 
