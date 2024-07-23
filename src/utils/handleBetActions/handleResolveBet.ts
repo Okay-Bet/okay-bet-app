@@ -4,12 +4,7 @@ import { client, contract } from "@/app/client";
 import { resolveBet } from "@/generated/bet";
 import { ethers } from "ethers";
 import { BASE_MAINNET_RPC } from "@/constants/rpc";
-import eventEmitter from "@/events/eventEmitter";
-import debounce from 'lodash/debounce';
-
-const debouncedEmit = debounce(() => {
-  eventEmitter.emit('refreshBets');
-}, 1000, { leading: true, trailing: false });
+import { debouncedEmit } from "@/utils/sharedFunctions";
 
 export const handleResolveBet = async (
   betAddress: string,

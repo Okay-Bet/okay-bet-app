@@ -4,13 +4,10 @@ import { client, contract } from "@/app/client";
 import { fundBet } from "@/generated/bet";
 import { ethers } from "ethers";
 import { BASE_MAINNET_RPC } from "@/constants/rpc";
-import eventEmitter from "@/events/eventEmitter";
 import { BetStatus } from "@/utils/betStatusUtils";
-import debounce from 'lodash/debounce';
+import { debouncedEmit } from "@/utils/sharedFunctions";
 
-const debouncedEmit = debounce(() => {
-  eventEmitter.emit('refreshBets');
-}, 1000, { leading: true, trailing: false });
+
 
 export const handleFundBet = async (
   betAddress: string,
