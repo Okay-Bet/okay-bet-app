@@ -1,11 +1,12 @@
 // components/Bet/BetActions.tsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { BetDetailsType } from "@/components/types/bet";
 import { handleFundBet } from "@/utils/handleBetActions/handleFundBet";
 import { handleCancelBet } from "@/utils/handleBetActions/handleCancelBet";
 import { handleResolveBet } from "@/utils/handleBetActions/handleResolveBet";
 import { handleInvalidateBet } from "@/utils/handleBetActions/handleInvalidateBet";
 import CircularProgress from "@mui/material/CircularProgress";
+import eventEmitter from "@/events/eventEmitter";
 
 interface BetActionsProps {
   betDetails: BetDetailsType;
@@ -34,6 +35,7 @@ const BetActions: React.FC<BetActionsProps> = ({
   betStatusText,
   setLocalLoading,
 }) => {
+  const [isActionLoading, setIsActionLoading] = useState(false);
   const userRoles = getUserRoles(accountAddress, betDetails);
   const availableActions = getAvailableActions(
     userRoles,
@@ -41,10 +43,24 @@ const BetActions: React.FC<BetActionsProps> = ({
     canFund
   );
 
+  useEffect(() => {
+    const handleRefreshComplete = () => {
+      setIsActionLoading(false);
+      setLocalLoading(false);
+    };
+
+    eventEmitter.on('refreshComplete', handleRefreshComplete);
+
+    return () => {
+      eventEmitter.off('refreshComplete', handleRefreshComplete);
+    };
+  }, [setLocalLoading]);
+
   const handleAction = async (action: () => Promise<void>) => {
+    setIsActionLoading(true);
     setLocalLoading(true);
+    eventEmitter.emit('refreshStart');
     await action();
-    setLocalLoading(false);
   };
 
   return (
@@ -64,14 +80,15 @@ const BetActions: React.FC<BetActionsProps> = ({
                 sendTransaction,
                 fetchBetDetails,
                 setMessage,
-                setIsAlertOpen
+                setIsAlertOpen,
+                setIsActionLoading
               )
             )
           }
           className="w-full p-2 bg-green-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
-          disabled={isLoading}
+          disabled={isActionLoading}
         >
-          {isLoading ? <CircularProgress size={24} /> : "Fund Bet"}
+          {isActionLoading ? <CircularProgress size={24} /> : "Fund Bet"}
         </button>
       )}
       {availableActions.includes("cancelBet") && (
@@ -83,13 +100,14 @@ const BetActions: React.FC<BetActionsProps> = ({
                 sendTransaction,
                 fetchBetDetails,
                 setMessage,
-                setIsAlertOpen
+                setIsAlertOpen,
+                setIsActionLoading
               )
             )
           }
           className="w-full p-2 mb-2 bg-red-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
-          disabled={isLoading}
-        >
+          disabled={isActionLoading}
+           >
           {isLoading ? <CircularProgress size={24} /> : "Cancel Bet"}
         </button>
       )}
@@ -204,4 +222,4 @@ const getAvailableActions = (
     }
   });
   return Array.from(actions);
-};
+}

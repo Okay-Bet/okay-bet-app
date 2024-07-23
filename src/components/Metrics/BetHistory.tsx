@@ -17,13 +17,17 @@ const BetHistory: React.FC<BetHistoryProps> = ({
   accountAddress,
 }) => {
   const address = accountAddress.toLowerCase();
-  const { betDetails, stats, ethToUsdRate, loading, fetchBetDetails } =
-    useFetchBetHistory(betAddresses, address);
+  const {
+    betDetails,
+    stats,
+    ethToUsdRate,
+    loading,
+    fetchBetDetails,
+    fetchSingleBetDetails,
+  } = useFetchBetHistory(betAddresses, address);
 
   const handleRefresh = async () => {
-    for (const betAddress of betAddresses) {
-      await fetchBetDetails(betAddress);
-    }
+    await fetchBetDetails();
   };
 
   useEffect(() => {
@@ -31,28 +35,18 @@ const BetHistory: React.FC<BetHistoryProps> = ({
     return () => {
       eventEmitter.off("refreshBetHistory", handleRefresh);
     };
-  }, [fetchBetDetails, betAddresses]);
-
-  const defaultStats = {
-    betsWon: 0,
-    betsLost: 0,
-    betsDecided: 0,
-    pnlEth: 0,
-    pnlUsd: 0,
-  };
-
-  const effectiveStats = stats || defaultStats;
+  }, [fetchBetDetails]);
 
   return (
     <CollapsibleSection title="Bet History" loading={loading}>
-      <BetStats stats={effectiveStats} />
+      <BetStats stats={stats} />
       {betDetails.map((bet, index) => (
         <BetCard
           key={index}
           bet={bet}
           ethToUsdRate={ethToUsdRate}
           accountAddress={address}
-          fetchBetDetails={fetchBetDetails}
+          fetchBetDetails={fetchSingleBetDetails}
           setMessage={() => {}}
           setIsAlertOpen={() => {}}
           isLoading={false}

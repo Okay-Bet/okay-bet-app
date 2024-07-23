@@ -11,7 +11,8 @@ export const handleCancelBet = async (
   sendTransaction: any,
   fetchBetDetails: (betAddress: string) => Promise<any>,
   setMessage: (message: string) => void,
-  setIsAlertOpen: (isOpen: boolean) => void
+  setIsAlertOpen: (isOpen: boolean) => void,
+  setIsActionLoading: (isLoading: boolean) => void
 ) => {
   try {
     const betContract = getContract({
@@ -43,7 +44,8 @@ export const handleCancelBet = async (
           setMessage(`Bet cancelled successfully by ${canceller}!`);
           setIsAlertOpen(true);
           await fetchBetDetails(betAddress);
-          debouncedEmit(); 
+          await debouncedEmit(); 
+          setIsActionLoading(false); 
           return true;
         }
       }
@@ -65,5 +67,6 @@ export const handleCancelBet = async (
       setMessage("Error canceling bet. Please try again. An unexpected error occurred.");
     }
     setIsAlertOpen(true);
-  }
+    setIsActionLoading(false);
+  };
 };

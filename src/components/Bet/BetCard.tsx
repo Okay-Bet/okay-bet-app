@@ -1,7 +1,7 @@
 // components/Bet/BetCard.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Collapse } from "@mui/material";
 import { useSendTransaction } from "thirdweb/react";
 import ShareButton from "../Common/ShareButton";
@@ -10,6 +10,8 @@ import Link from "next/link";
 import QRCodeModal from "../Common/QRCodeModal";
 import { BetDetailsType } from "@/components/types/bet";
 import BetActions from "./BetActions";
+import CircularProgress from "@mui/material/CircularProgress";
+import eventEmitter from "@/events/eventEmitter";
 
 interface BetCardProps {
   bet: BetDetailsType;
@@ -36,7 +38,7 @@ const BetCard: React.FC<BetCardProps> = ({
 }) => {
   const { mutateAsync: sendTransaction } = useSendTransaction();
   const [localLoading, setLocalLoading] = useState(false);
-
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const userIsBetter1 =
     accountAddress.toLowerCase() === bet.better1.toLowerCase();
   const userIsBetter2 =
@@ -76,8 +78,31 @@ const BetCard: React.FC<BetCardProps> = ({
     }
   };
 
+  useEffect(() => {
+    const handleRefreshStart = () => {
+      setIsRefreshing(true);
+    };
+
+    const handleRefreshComplete = () => {
+      setIsRefreshing(false);
+    };
+
+    eventEmitter.on('refreshStart', handleRefreshStart);
+    eventEmitter.on('refreshComplete', handleRefreshComplete);
+
+    return () => {
+      eventEmitter.off('refreshStart', handleRefreshStart);
+      eventEmitter.off('refreshComplete', handleRefreshComplete);
+    };
+  }, []);
+
   return (
-    <div className="mb-6">
+    <div className="mb-6 relative">
+      {isRefreshing && (
+        <div className="absolute inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-10">
+          <CircularProgress />
+        </div>
+      )}
       <div
         className={`p-6 ${bgColorClass} text-font cursor-pointer`}
         onClick={() => !disableCollapse && setIsOpen(!isOpen)}

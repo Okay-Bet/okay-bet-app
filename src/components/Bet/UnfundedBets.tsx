@@ -23,25 +23,20 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
 
   const handleRefresh = async () => {
-    console.log('handleRefresh called in UnfundedBets');
     for (const betAddress of betAddresses) {
-      console.log(`Refreshing bet details for ${betAddress}`);
-      const updatedBet = await fetchBetDetails(betAddress);
-      console.log('Updated bet details:', updatedBet);
+      fetchBetDetails(betAddress);
     }
   };
 
   useEffect(() => {
-    console.log('Setting up event listener in UnfundedBets');
     eventEmitter.on('refreshUnfundedBets', handleRefresh);
     return () => {
-      console.log('Cleaning up event listener in UnfundedBets');
       eventEmitter.off('refreshUnfundedBets', handleRefresh);
     };
   }, [fetchBetDetails, betAddresses]);
 
   return (
-    <CollapsibleSection title="Unfunded Bets" loading={loading}>
+    <CollapsibleSection title="Unfunded Bets" loading={loading} >
       {betDetails.length > 0 ? (
         betDetails.map((bet, index) => (
           <BetCard
@@ -63,7 +58,7 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
         message={message}
         onClose={() => {
           setIsAlertOpen(false);
-          handleRefresh(); // Refresh details when the alert is closed
+          handleRefresh();
         }}
       />
     </CollapsibleSection>

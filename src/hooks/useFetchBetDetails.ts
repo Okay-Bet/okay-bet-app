@@ -27,7 +27,11 @@ export const useFetchBetDetails = (betAddresses: string[]) => {
   const [betDetails, setBetDetails] = useState<BetDetailsType[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  const fetchBetDetails = useCallback(async (betAddress: string): Promise<BetDetailsType | null> => {
+  const fetchBetDetails = useCallback(async (betAddress?: string): Promise<BetDetailsType | null> => {
+    if (!betAddress) {
+      return fetchAllBetDetails();
+    }
+
     console.log(`Fetching details for bet ${betAddress}`);
     try {
       const betContract = getContract({
@@ -35,9 +39,7 @@ export const useFetchBetDetails = (betAddresses: string[]) => {
         address: betAddress,
         chain: contract.chain,
       });
-
       const betData = await bet({ contract: betContract });
-
       if (betData) {
         const [better1, better2, decider, winner] = await Promise.all([
           resolveName({ client, address: betData[0] }).catch(() => null),
@@ -47,7 +49,6 @@ export const useFetchBetDetails = (betAddresses: string[]) => {
             ? resolveName({ client, address: betData[6] }).catch(() => betData[6])
             : "Not resolved yet",
         ]);
-
         const betDetail: BetDetailsType = {
           address: betAddress,
           better1: betData[0],
@@ -63,20 +64,15 @@ export const useFetchBetDetails = (betAddresses: string[]) => {
           winner: betData[6],
           winnerDisplay: winner || betData[6],
         };
-
-        console.log('Fetched bet details:', betDetail);
-
         setBetDetails(prevDetails => {
-          const updatedDetails = prevDetails.map(bet => 
+          const updatedDetails = prevDetails.map(bet =>
             bet.address === betAddress ? betDetail : bet
           );
           if (!updatedDetails.some(bet => bet.address === betAddress)) {
             updatedDetails.push(betDetail);
           }
-          console.log('Updated bet details state:', updatedDetails);
           return updatedDetails;
         });
-
         return betDetail;
       }
     } catch (error) {
@@ -85,7 +81,7 @@ export const useFetchBetDetails = (betAddresses: string[]) => {
     return null;
   }, []);
 
-  const fetchAllBetDetails = useCallback(async () => {
+  const fetchAllBetDetails = useCallback(async (): Promise<BetDetailsType | null> => {
     console.log('Fetching all bet details');
     setLoading(true);
     const details: BetDetailsType[] = [];
@@ -97,6 +93,7 @@ export const useFetchBetDetails = (betAddresses: string[]) => {
     }
     setBetDetails(details);
     setLoading(false);
+    return null;
   }, [betAddresses, fetchBetDetails]);
 
   useEffect(() => {
@@ -108,9 +105,7 @@ export const useFetchBetDetails = (betAddresses: string[]) => {
       console.log('Refresh event received in useFetchBetDetails');
       fetchAllBetDetails();
     };
-
     eventEmitter.on('refreshOpenBets', handleRefresh);
-
     return () => {
       eventEmitter.off('refreshOpenBets', handleRefresh);
     };
