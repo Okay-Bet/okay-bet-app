@@ -6,6 +6,11 @@ import { ethers } from "ethers";
 import { BASE_MAINNET_RPC } from "@/constants/rpc";
 import eventEmitter from "@/events/eventEmitter";
 import { BetStatus } from "@/utils/betStatusUtils";
+import debounce from 'lodash/debounce';
+
+const debouncedEmit = debounce(() => {
+  eventEmitter.emit('refreshBets');
+}, 1000, { leading: true, trailing: false });
 
 export const handleFundBet = async (
   betAddress: string,
@@ -22,23 +27,18 @@ export const handleFundBet = async (
       address: betAddress,
       chain: contract.chain,
     });
-
     const transaction = fundBet({
       contract: betContract,
     });
-
     const wagerWeiBigInt = BigInt(wagerWei);
     const provider = new ethers.providers.JsonRpcProvider(BASE_MAINNET_RPC);
     const startBlock = await provider.getBlockNumber();
-
     await sendTransaction({ ...transaction, value: wagerWeiBigInt });
-
     const ethersBetContract = new ethers.Contract(
       betAddress,
       ["event BetFunded(address funder, uint256 amount)"],
       provider
     );
-
     const checkForEvent = async () => {
       const currentBlock = await provider.getBlockNumber();
       const events = await ethersBetContract.queryFilter(
@@ -46,7 +46,6 @@ export const handleFundBet = async (
         startBlock,
         currentBlock
       );
-
       if (events.length > 0) {
         const [funder, amount] = events[0].args;
         setMessage(
@@ -55,25 +54,19 @@ export const handleFundBet = async (
           )} ETH`
         );
         setIsAlertOpen(true);
-
         const newBetDetails = await fetchBetDetails(betAddress);
         console.log('bet details', newBetDetails);
-        eventEmitter.emit("refreshBetList");
-        eventEmitter.emit("refreshUnfundedBets");
-        eventEmitter.emit("refreshOpenBets");
-
+        debouncedEmit();
         return true;
       }
       return false;
     };
-
     for (let i = 0; i < 15; i++) {
       await new Promise((resolve) => setTimeout(resolve, 2000));
       if (await checkForEvent()) {
         return;
       }
     }
-
     setMessage(
       "Transaction sent, but event not found. Please check the transaction status."
     );
