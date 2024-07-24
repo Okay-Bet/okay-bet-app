@@ -52,10 +52,9 @@ export const handleFundBet = async (
       if (events.length > 0) {
         const event = events[0];
         if (event.args && "funder" in event.args && "amount" in event.args) {
-          const funder = event.args.funder;
           const amount = event.args.amount;
           setMessage(
-            `Bet funded successfully! Funder: ${funder}, Amount: ${ethers.utils.formatEther(
+            `Bet funded successfully! Amount: ${ethers.utils.formatEther(
               amount
             )} ETH`
           );

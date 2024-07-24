@@ -45,7 +45,7 @@ export const handleCancelBet = async (
       if (events.length > 0) {
         const canceller = events[0].args?.[0]; 
         if (canceller) {
-          setMessage(`Bet cancelled successfully by ${canceller}!`);
+          setMessage(`Bet cancelled successfully!`);
           setIsAlertOpen(true);
           await fetchBetDetails(betAddress);
           await debouncedEmit(); 

@@ -53,7 +53,7 @@ export const handleResolveBet = async (
       if (events.length > 0) {
         const winner = events[0].args?.[0];
         if (winner) {
-          setMessage(`Bet resolved successfully! Winner: ${winner}`);
+          setMessage(`Bet resolved successfully! Winner Selected!!`);
           setIsAlertOpen(true);
           await fetchBetDetails(betAddress);
           await debouncedEmit();
