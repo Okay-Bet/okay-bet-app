@@ -1,6 +1,5 @@
 // components/CreateBetForm/CreateBetForm.tsx
-"use client";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Collapse } from "@mui/material";
 import AlertModal from "../Common/AlertModal";
 import { useCreateBetForm } from "@/hooks/useCreateBetForm";
@@ -33,6 +32,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
     setConditions,
     message,
     isLoading,
+    isFunding,
     isFormVisible,
     setIsFormVisible,
     isAlertOpen,
@@ -48,17 +48,6 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
     ethToUsdRate,
     convertUsdToEth,
   } = useCreateBetForm(contract);
-  const [deciderWarning, setDeciderWarning] = useState<string>("");
-
-  useEffect(() => {
-    if (decider && (decider === better1 || decider === better2)) {
-      setDeciderWarning(
-        "Warning: The decider address matches one of the betters."
-      );
-    } else {
-      setDeciderWarning("");
-    }
-  }, [decider, better1, better2]);
 
   return (
     <div className="max-w-md mx-auto bg-primary text-quaternary">
@@ -66,7 +55,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
         onClick={() => setIsFormVisible(!isFormVisible)}
         className="text-lg p-2 bg-primary text-quaternary font-bold font-heading italic rounded w-full mb-3 mt-3"
       >
-        {isFormVisible ? "NEW BET" : "NEW BET"}
+        {isFormVisible ? "CLOSE" : "NEW BET"}
       </button>
       <Collapse in={isFormVisible}>
         <form
@@ -103,7 +92,6 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             setType={setDeciderType}
             valid={deciderValid}
             loading={deciderLoading}
-            warning={deciderWarning}
           />
           <WagerInput
             wagerUSD={wagerUSD}
@@ -111,14 +99,22 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             convertUsdToEth={convertUsdToEth}
             ethToUsdRate={ethToUsdRate}
           />
-          <SubmitButton isLoading={isLoading} canSubmit={canSubmit} />
-          {message && <p className="mt-4 text-center bold">{message}</p>}
+          <SubmitButton 
+            isLoading={isLoading} 
+            isFunding={isFunding} 
+            canSubmit={canSubmit} 
+          />
         </form>
       </Collapse>
       <AlertModal
         isOpen={isAlertOpen}
         message={message}
-        onClose={() => setIsAlertOpen(false)}
+        onClose={() => {
+          setIsAlertOpen(false);
+          if (!isLoading && !isFunding) {
+            setIsFormVisible(false);
+          }
+        }}
       />
     </div>
   );

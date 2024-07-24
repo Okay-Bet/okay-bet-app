@@ -3,10 +3,16 @@ import React from "react";
 
 interface SubmitButtonProps {
   isLoading: boolean;
+  isFunding: boolean;
   canSubmit: boolean;
 }
 
-const SubmitButton: React.FC<SubmitButtonProps> = ({ isLoading, canSubmit }) => {
+const SubmitButton: React.FC<SubmitButtonProps> = ({ isLoading, isFunding, canSubmit }) => {
+  let buttonText = "MAKE BET";
+  if (isLoading) {
+    buttonText = isFunding ? "Funding Bet..." : "Creating Bet...";
+  }
+
   return (
     <button
       type="submit"
@@ -15,7 +21,7 @@ const SubmitButton: React.FC<SubmitButtonProps> = ({ isLoading, canSubmit }) => 
         canSubmit ? "hover:bg-quaternary hover:text-primary hover:italic" : ""
       }`}
     >
-      {isLoading ? "Creating Bet..." : "MAKE BET"}
+      {buttonText}
     </button>
   );
 };

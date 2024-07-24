@@ -24,20 +24,17 @@ export const useCreateBetForm = (contract: any) => {
   const [conditions, setConditions] = useState<string>("");
   const [message, setMessage] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isFunding, setIsFunding] = useState<boolean>(false);
   const [isFormVisible, setIsFormVisible] = useState<boolean>(false);
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
 
   const [needsFunding, setNeedsFunding] = useState<boolean>(false);
   const [newBetAddress, setNewBetAddress] = useState<string>("");
-  const [resolvedBetter1, setResolvedBetter1] =
-    useState<EthereumAddress | null>(null);
+  const [resolvedBetter1, setResolvedBetter1] = useState<EthereumAddress | null>(null);
 
-  const { isValid: better1Valid, isLoading: better1Loading } =
-    useValidateAddress(better1, better1Type);
-  const { isValid: better2Valid, isLoading: better2Loading } =
-    useValidateAddress(better2, better2Type);
-  const { isValid: deciderValid, isLoading: deciderLoading } =
-    useValidateAddress(decider, deciderType);
+  const { isValid: better1Valid, isLoading: better1Loading } = useValidateAddress(better1, better1Type);
+  const { isValid: better2Valid, isLoading: better2Loading } = useValidateAddress(better2, better2Type);
+  const { isValid: deciderValid, isLoading: deciderLoading } = useValidateAddress(decider, deciderType);
 
   const ethToUsdRate = useFetchEthToUsdRate();
   const { mutateAsync: sendTransaction } = useSendTransaction();
@@ -68,21 +65,13 @@ export const useCreateBetForm = (contract: any) => {
     event.preventDefault();
     setIsLoading(true);
     setMessage("");
+    setIsAlertOpen(false);
 
     try {
-      const resolvedBetter1Address = (await resolveUserAddress(
-        better1,
-        better1Type
-      )) as EthereumAddress;
+      const resolvedBetter1Address = (await resolveUserAddress(better1, better1Type)) as EthereumAddress;
       setResolvedBetter1(resolvedBetter1Address);
-      const resolvedBetter2 = (await resolveUserAddress(
-        better2,
-        better2Type
-      )) as EthereumAddress;
-      const resolvedDecider = (await resolveUserAddress(
-        decider,
-        deciderType
-      )) as EthereumAddress;
+      const resolvedBetter2 = (await resolveUserAddress(better2, better2Type)) as EthereumAddress;
+      const resolvedDecider = (await resolveUserAddress(decider, deciderType)) as EthereumAddress;
 
       const wagerInEth = (parseFloat(wagerUSD) / ethToUsdRate).toFixed(18);
       const wagerInWei = ethers.utils.parseEther(wagerInEth);
@@ -121,17 +110,8 @@ export const useCreateBetForm = (contract: any) => {
         if (events.length > 0) {
           const event = events[0];
           if (event.args) {
-            const [
-              betAddress,
-              eventBetter1,
-              eventBetter2,
-              eventDecider,
-              eventWager,
-              eventConditions,
-            ] = event.args;
+            const [betAddress] = event.args;
             newBetAddress = betAddress;
-            setMessage("Bet created successfully!");
-            setIsAlertOpen(true);
             return true;
           }
         }
@@ -153,6 +133,7 @@ export const useCreateBetForm = (contract: any) => {
         account &&
         account.address.toLowerCase() === resolvedBetter1Address.toLowerCase()
       ) {
+        setIsFunding(true);
         const isBetReady = await waitForBetReady(newBetAddress);
         if (isBetReady) {
           await handleFundBet(
@@ -175,7 +156,6 @@ export const useCreateBetForm = (contract: any) => {
       }
 
       setIsAlertOpen(true);
-
       resetForm();
     } catch (error: any) {
       console.error("Error creating or funding bet:", error);
@@ -183,6 +163,7 @@ export const useCreateBetForm = (contract: any) => {
       setIsAlertOpen(true);
     } finally {
       setIsLoading(false);
+      setIsFunding(false);
     }
   };
 
@@ -213,6 +194,7 @@ export const useCreateBetForm = (contract: any) => {
     setConditions,
     message,
     isLoading,
+    isFunding,
     isFormVisible,
     setIsFormVisible,
     isAlertOpen,
