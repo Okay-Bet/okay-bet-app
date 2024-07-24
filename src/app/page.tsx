@@ -1,18 +1,19 @@
 // app/page.tsx
 "use client";
-
+import React, { useState, lazy, Suspense } from "react";
 import { useActiveAccount } from "thirdweb/react";
 import { ThirdwebProvider } from "@thirdweb-dev/react";
 import { client, contract } from "./client";
 import CreateBetForm from "../components/CreateBetForm/CreateBetForm";
 import OpenBets from "../components/Bet/OpenBets";
 import UnfundedBets from "../components/Bet/UnfundedBets";
-import BetHistory from "../components/Metrics/BetHistory";
 import Image from "next/image";
 import logo from "@public/okay_bet.png";
 import Pitch from "@/components/Landing/Pitch";
 import ConnectWallet from "@/components/User/ConnectWallet";
 import { useBetList } from "@/hooks/useBetList";
+
+const BetHistory = lazy(() => import("../components/Metrics/BetHistory"));
 
 export default function Home() {
   const account = useActiveAccount();
@@ -33,6 +34,7 @@ export default function Home() {
               height={150}
               className="mx-auto mb-10"
               onClick={() => window.location.reload()}
+              priority
             />
           </div>
 
@@ -45,9 +47,20 @@ export default function Home() {
                 <p></p>
               ) : (
                 <div>
-                  <OpenBets betAddresses={openBets} accountAddress={account.address} />
-                  <UnfundedBets betAddresses={unfundedBets} accountAddress={account.address} />
-                  <BetHistory betAddresses={betHistory} accountAddress={account.address} />
+                  <OpenBets
+                    betAddresses={openBets}
+                    accountAddress={account.address}
+                  />
+                  <UnfundedBets
+                    betAddresses={unfundedBets}
+                    accountAddress={account.address}
+                  />
+                  <Suspense>
+                    <BetHistory
+                      betAddresses={betHistory}
+                      accountAddress={account.address}
+                    />
+                  </Suspense>
                 </div>
               )}
             </div>

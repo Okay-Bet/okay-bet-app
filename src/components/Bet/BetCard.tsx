@@ -73,7 +73,7 @@ const BetCard: React.FC<BetCardProps> = ({
       case 3:
         return "Waiting on Judge to pick winner";
       default:
-        return "Unknown Status";
+        return "Pending Status";
     }
   };
 
