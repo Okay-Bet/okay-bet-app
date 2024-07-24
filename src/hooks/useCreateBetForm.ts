@@ -148,7 +148,6 @@ export const useCreateBetForm = (contract: any) => {
 
       console.log("New bet address:", newBetAddress);
 
-      // If bet creation was successful and the current user is Better1, wait for bet to be ready then fund it
       if (
         newBetAddress &&
         account &&

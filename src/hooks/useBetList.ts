@@ -89,7 +89,6 @@ export const useBetList = ({
   useEffect(() => {
     const handleRefresh = debounce(
       () => {
-        console.log("Refresh event received in useBetList");
         fetchBetDetails();
       },
       1000,

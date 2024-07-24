@@ -34,7 +34,6 @@ export const useFetchBetHistory = (betAddresses: string[], address: string) => {
   }, []);
 
   const fetchBetDetails = useCallback(async () => {
-    console.log("Fetching bet history details");
     setLoading(true);
     const details: BetDetailsType[] = [];
     let betsWon = 0;
@@ -52,9 +51,7 @@ export const useFetchBetHistory = (betAddresses: string[], address: string) => {
         const isDecider = betDetail.decider.toLowerCase() === address.toLowerCase();
 
         if (betDetail.status === 4 || betDetail.status === 5) {
-          // Resolved or Invalid status
           if (betDetail.status === 4) {
-            // Only count resolved bets
             const wagerEth = parseFloat(betDetail.wagerEth);
             if (isWinner) {
               betsWon += 1;
@@ -77,7 +74,6 @@ export const useFetchBetHistory = (betAddresses: string[], address: string) => {
       }
     }
 
-    console.log("Fetched bet history details:", details);
     setBetDetails(details);
     setStats({ betsWon, betsLost, betsDecided, pnlEth, pnlUsd });
     setLoading(false);
@@ -135,7 +131,6 @@ export const useFetchBetHistory = (betAddresses: string[], address: string) => {
   useEffect(() => {
     const handleRefresh = debounce(
       () => {
-        console.log("Refresh event received in useFetchBetHistory");
         fetchBetDetails();
       },
       1000,

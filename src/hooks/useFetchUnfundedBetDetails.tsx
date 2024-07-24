@@ -28,7 +28,6 @@ export const useFetchUnfundedBetDetails = (betAddresses: string[]) => {
   const [loading, setLoading] = useState<boolean>(true);
 
   const fetchBetDetails = useCallback(async (betAddress: string): Promise<BetDetailsType | null> => {
-    console.log(`Fetching details for bet ${betAddress}`);
     try {
       const betContract = getContract({
         client,
@@ -64,8 +63,6 @@ export const useFetchUnfundedBetDetails = (betAddresses: string[]) => {
           winnerDisplay: winner || betData[6],
         };
 
-        console.log('Fetched bet details:', betDetail);
-
         setBetDetails(prevDetails => {
           const updatedDetails = prevDetails.map(bet => 
             bet.address === betAddress ? betDetail : bet
@@ -73,7 +70,6 @@ export const useFetchUnfundedBetDetails = (betAddresses: string[]) => {
           if (!updatedDetails.some(bet => bet.address === betAddress)) {
             updatedDetails.push(betDetail);
           }
-          console.log('Updated bet details state:', updatedDetails);
           return updatedDetails;
         });
 
@@ -86,7 +82,6 @@ export const useFetchUnfundedBetDetails = (betAddresses: string[]) => {
   }, []);
 
   const fetchAllBetDetails = useCallback(async () => {
-    console.log('Fetching all bet details');
     setLoading(true);
     const details: BetDetailsType[] = [];
     for (const betAddress of betAddresses) {
@@ -105,7 +100,6 @@ export const useFetchUnfundedBetDetails = (betAddresses: string[]) => {
 
   useEffect(() => {
     const handleRefresh = () => {
-      console.log('Refresh event received in useFetchUnfundedBetDetails');
       fetchAllBetDetails();
     };
 

@@ -32,7 +32,6 @@ export const useFetchBetDetails = (betAddresses: string[]) => {
       return fetchAllBetDetails();
     }
 
-    console.log(`Fetching details for bet ${betAddress}`);
     try {
       const betContract = getContract({
         client,
@@ -82,7 +81,6 @@ export const useFetchBetDetails = (betAddresses: string[]) => {
   }, []);
 
   const fetchAllBetDetails = useCallback(async (): Promise<BetDetailsType | null> => {
-    console.log('Fetching all bet details');
     setLoading(true);
     const details: BetDetailsType[] = [];
     for (const betAddress of betAddresses) {
@@ -102,7 +100,6 @@ export const useFetchBetDetails = (betAddresses: string[]) => {
 
   useEffect(() => {
     const handleRefresh = () => {
-      console.log('Refresh event received in useFetchBetDetails');
       fetchAllBetDetails();
     };
     eventEmitter.on('refreshOpenBets', handleRefresh);
