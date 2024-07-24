@@ -2,8 +2,8 @@
 import React from "react";
 
 export default function AlertModal({ isOpen, message, onClose }) {
-  if (!isOpen) return null;
-
+  if (!isOpen || !message || message.trim() === "") return null;
+  
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex  justify-center items-center">
       <div className="bg-tertiary text-font p-8 sm:p-10 rounded-lg opacity-90 shadow-lg w-3/4 sm:w-1/2 lg:w-1/3">

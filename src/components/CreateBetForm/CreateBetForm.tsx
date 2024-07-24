@@ -73,7 +73,10 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
           onSubmit={handleSubmit}
           className="p-6 bg-secondary text-font font-bold space-y-6"
         >
-          <ConditionsInput conditions={conditions} setConditions={setConditions} />
+          <ConditionsInput
+            conditions={conditions}
+            setConditions={setConditions}
+          />
           <UserInput
             label="Maker (Your Account)"
             value={better1}
@@ -109,7 +112,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             ethToUsdRate={ethToUsdRate}
           />
           <SubmitButton isLoading={isLoading} canSubmit={canSubmit} />
-          {message && <p className="mt-4">{message}</p>}
+          {message && <p className="mt-4 text-center bold">{message}</p>}
         </form>
       </Collapse>
       <AlertModal
