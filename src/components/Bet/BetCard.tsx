@@ -11,7 +11,6 @@ import QRCodeModal from "../Common/QRCodeModal";
 import { BetDetailsType } from "@/components/types/bet";
 import BetActions from "./BetActions";
 import CircularProgress from "@mui/material/CircularProgress";
-import eventEmitter from "@/events/eventEmitter";
 
 interface BetCardProps {
   bet: BetDetailsType;
@@ -78,23 +77,6 @@ const BetCard: React.FC<BetCardProps> = ({
     }
   };
 
-  useEffect(() => {
-    const handleRefreshStart = () => {
-      setIsRefreshing(true);
-    };
-
-    const handleRefreshComplete = () => {
-      setIsRefreshing(false);
-    };
-
-    eventEmitter.on('refreshStart', handleRefreshStart);
-    eventEmitter.on('refreshComplete', handleRefreshComplete);
-
-    return () => {
-      eventEmitter.off('refreshStart', handleRefreshStart);
-      eventEmitter.off('refreshComplete', handleRefreshComplete);
-    };
-  }, []);
 
   return (
     <div className="mb-6 relative">

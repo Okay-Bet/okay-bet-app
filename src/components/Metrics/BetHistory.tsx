@@ -5,7 +5,6 @@ import { useFetchBetHistory } from "@/hooks/useFetchBetHistory";
 import BetCard from "../Bet/BetCard";
 import BetStats from "./BetStats";
 import CollapsibleSection from "../Common/CollapsibleSection";
-import eventEmitter from "@/events/eventEmitter";
 
 interface BetHistoryProps {
   betAddresses: string[];
@@ -30,12 +29,6 @@ const BetHistory: React.FC<BetHistoryProps> = ({
     await fetchBetDetails();
   };
 
-  useEffect(() => {
-    eventEmitter.on("refreshBetHistory", handleRefresh);
-    return () => {
-      eventEmitter.off("refreshBetHistory", handleRefresh);
-    };
-  }, [fetchBetDetails]);
 
   return (
     <CollapsibleSection title="Bet History" loading={loading}>

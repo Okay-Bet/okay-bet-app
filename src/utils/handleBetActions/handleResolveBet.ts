@@ -5,6 +5,7 @@ import { resolveBet } from "@/generated/bet";
 import { ethers } from "ethers";
 import { BASE_MAINNET_RPC } from "@/constants/rpc";
 import { debouncedEmit } from "@/utils/sharedFunctions";
+import eventEmitter from "@/events/eventEmitter";
 
 export const handleResolveBet = async (
   betAddress: string,
@@ -12,9 +13,13 @@ export const handleResolveBet = async (
   sendTransaction: any,
   fetchBetDetails: (betAddress: string) => Promise<any>,
   setMessage: (message: string) => void,
-  setIsAlertOpen: (isOpen: boolean) => void
+  setIsAlertOpen: (isOpen: boolean) => void,
+  setIsActionLoading: (isLoading: boolean) => void
 ) => {
   try {
+    eventEmitter.emit("refreshStart");
+    setIsActionLoading(true);
+
     const betContract = getContract({
       client,
       address: betAddress,
@@ -51,7 +56,8 @@ export const handleResolveBet = async (
           setMessage(`Bet resolved successfully! Winner: ${winner}`);
           setIsAlertOpen(true);
           await fetchBetDetails(betAddress);
-          debouncedEmit(); 
+          await debouncedEmit();
+          setIsActionLoading(false);
           return true;
         }
       }
@@ -75,5 +81,8 @@ export const handleResolveBet = async (
       setMessage("Error resolving bet. Please try again. An unexpected error occurred.");
     }
     setIsAlertOpen(true);
+  } finally {
+    setIsActionLoading(false);
+    eventEmitter.emit("refreshComplete");
   }
 };

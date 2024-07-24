@@ -6,7 +6,6 @@ import { handleCancelBet } from "@/utils/handleBetActions/handleCancelBet";
 import { handleResolveBet } from "@/utils/handleBetActions/handleResolveBet";
 import { handleInvalidateBet } from "@/utils/handleBetActions/handleInvalidateBet";
 import CircularProgress from "@mui/material/CircularProgress";
-import eventEmitter from "@/events/eventEmitter";
 
 interface BetActionsProps {
   betDetails: BetDetailsType;
@@ -43,23 +42,11 @@ const BetActions: React.FC<BetActionsProps> = ({
     canFund
   );
 
-  useEffect(() => {
-    const handleRefreshComplete = () => {
-      setIsActionLoading(false);
-      setLocalLoading(false);
-    };
-
-    eventEmitter.on('refreshComplete', handleRefreshComplete);
-
-    return () => {
-      eventEmitter.off('refreshComplete', handleRefreshComplete);
-    };
-  }, [setLocalLoading]);
 
   const handleAction = async (action: () => Promise<void>) => {
     setIsActionLoading(true);
     setLocalLoading(true);
-    eventEmitter.emit('refreshStart');
+    fetchBetDetails(betDetails.address);
     await action();
   };
 
@@ -128,7 +115,8 @@ const BetActions: React.FC<BetActionsProps> = ({
                   sendTransaction,
                   fetchBetDetails,
                   setMessage,
-                  setIsAlertOpen
+                  setIsAlertOpen,
+                  setIsActionLoading
                 )
               )
             }
@@ -146,7 +134,8 @@ const BetActions: React.FC<BetActionsProps> = ({
                   sendTransaction,
                   fetchBetDetails,
                   setMessage,
-                  setIsAlertOpen
+                  setIsAlertOpen,
+                  setIsActionLoading
                 )
               )
             }
@@ -166,7 +155,8 @@ const BetActions: React.FC<BetActionsProps> = ({
                 sendTransaction,
                 fetchBetDetails,
                 setMessage,
-                setIsAlertOpen
+                setIsAlertOpen,
+                setIsActionLoading
               )
             )
           }

@@ -4,7 +4,6 @@ import { client, contract } from "@/app/client";
 import { fundBet } from "@/generated/bet";
 import { ethers } from "ethers";
 import { BASE_MAINNET_RPC } from "@/constants/rpc";
-import { BetStatus } from "@/utils/betStatusUtils";
 import { debouncedEmit } from "@/utils/sharedFunctions";
 import eventEmitter from "@/events/eventEmitter";
 
@@ -18,7 +17,7 @@ export const handleFundBet = async (
   setIsActionLoading: (isLoading: boolean) => void
 ) => {
   try {
-    eventEmitter.emit("refreshStart"); // Emit refreshStart event
+    eventEmitter.emit("refreshStart");
     setIsActionLoading(true);
 
     const betContract = getContract({

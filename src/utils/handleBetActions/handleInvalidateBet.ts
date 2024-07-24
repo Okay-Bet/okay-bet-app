@@ -13,7 +13,8 @@ export const handleInvalidateBet = async (
   sendTransaction: any,
   fetchBetDetails: (betAddress: string) => Promise<any>,
   setMessage: (message: string) => void,
-  setIsAlertOpen: (isOpen: boolean) => void
+  setIsAlertOpen: (isOpen: boolean) => void,
+  setIsActionLoading: (isLoading: boolean) => void
 ) => {
   try {
     const betContract = getContract({
@@ -25,7 +26,7 @@ export const handleInvalidateBet = async (
     const transaction = invalidateBet({
       contract: betContract,
     });
-
+    setIsActionLoading(true);
     const provider = new ethers.providers.JsonRpcProvider(BASE_MAINNET_RPC);
     const startBlock = await provider.getBlockNumber();
     await sendTransaction(transaction);
@@ -48,7 +49,8 @@ export const handleInvalidateBet = async (
         setMessage("Bet invalidated successfully!");
         setIsAlertOpen(true);
         await fetchBetDetails(betAddress);
-        debouncedEmit();
+        await debouncedEmit();
+        setIsActionLoading(false);
         return true;
       }
       return false;

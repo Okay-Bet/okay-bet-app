@@ -5,6 +5,7 @@ import { cancelBet } from "@/generated/bet";
 import { ethers } from "ethers";
 import { BASE_MAINNET_RPC } from "@/constants/rpc";
 import { debouncedEmit } from "@/utils/sharedFunctions";
+import eventEmitter from "@/events/eventEmitter";
 
 export const handleCancelBet = async (
   betAddress: string,
@@ -15,6 +16,9 @@ export const handleCancelBet = async (
   setIsActionLoading: (isLoading: boolean) => void
 ) => {
   try {
+    eventEmitter.emit("refreshStart");
+    setIsActionLoading(true);
+    
     const betContract = getContract({
       client,
       address: betAddress,
