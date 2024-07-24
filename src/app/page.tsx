@@ -1,21 +1,29 @@
+// app/page.tsx
 "use client";
-
+import React, { useState, lazy, Suspense } from "react";
 import { useActiveAccount } from "thirdweb/react";
-import { ThirdwebProvider } from "thirdweb/react";
+import { ThirdwebProvider } from "@thirdweb-dev/react";
 import { client, contract } from "./client";
-import CreateBetForm from "../components/CreateBetForm";
-import BetList from "../components/BetList";
+import CreateBetForm from "../components/CreateBetForm/CreateBetForm";
+import OpenBets from "../components/Bet/OpenBets";
+import UnfundedBets from "../components/Bet/UnfundedBets";
 import Image from "next/image";
 import logo from "@public/okay_bet.png";
-import FAQ from "@/components/FAQ";
-import ConnectWallet from "@/components/ConnectWallet";
-import Testimonials from "@/components/Testimonials";
+import Pitch from "@/components/Landing/Pitch";
+import ConnectWallet from "@/components/User/ConnectWallet";
+import { useBetList } from "@/hooks/useBetList";
+
+const BetHistory = lazy(() => import("../components/Metrics/BetHistory"));
 
 export default function Home() {
   const account = useActiveAccount();
+  const { openBets, unfundedBets, betHistory, isLoading } = useBetList({
+    contract,
+    accountAddress: account?.address || "",
+  });
 
   return (
-    <ThirdwebProvider>
+    <ThirdwebProvider clientId={process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID}>
       <main className="min-h-screen flex flex-col items-center justify-center">
         <div className="py-10 text-center">
           <div className="m-3">
@@ -26,6 +34,7 @@ export default function Home() {
               height={150}
               className="mx-auto mb-10"
               onClick={() => window.location.reload()}
+              priority
             />
           </div>
 
@@ -34,7 +43,26 @@ export default function Home() {
           {account ? (
             <div>
               <CreateBetForm contract={contract} />
-              <BetList contract={contract} accountAddress={account.address} />
+              {isLoading ? (
+                <p></p>
+              ) : (
+                <div>
+                  <OpenBets
+                    betAddresses={openBets}
+                    accountAddress={account.address}
+                  />
+                  <UnfundedBets
+                    betAddresses={unfundedBets}
+                    accountAddress={account.address}
+                  />
+                  <Suspense>
+                    <BetHistory
+                      betAddresses={betHistory}
+                      accountAddress={account.address}
+                    />
+                  </Suspense>
+                </div>
+              )}
             </div>
           ) : (
             <Pitch />
@@ -42,62 +70,5 @@ export default function Home() {
         </div>
       </main>
     </ThirdwebProvider>
-  );
-}
-
-function Pitch() {
-  return (
-    <div className="max-w-md mx-auto">
-      <section className="flex flex-col items-center justify-center  bg-secondary p-10 text-center">
-        <h1 className="text-3xl md:text-4xl font-heading text-quaternary tracking-tighter italic mb-4">
-          GAMBLING FOR YOUR GROUPCHAT
-        </h1>
-        <p className="text-lg md:text-xl text-quaternary mb-8">
-          Make a bet on anything you can think of with your friend and have the
-          winner decided by another friend.
-        </p>
-
-        <h1 className="text-3xl md:text-4xl font-heading text-font tracking-tighter italic mb-10">
-          HOW IT WORKS
-        </h1>
-        <div className="flex flex-col md:flex-row justify-center items-center space-y-6 md:space-y-0 md:space-x-2 mb-6">
-          <div className="text-center">
-            <img
-              src="/better1.png"
-              alt="Better 1"
-              className="w-28 h-28  mx-auto mb-2"
-            />
-            <p className="text-lg md:text-xl font-bold text-font">Maker</p>
-            <p className=" md:text-base text-font">
-              Creates bet, picks an opponent and decider
-            </p>
-          </div>
-          <div className="text-center">
-            <img
-              src="/better2.png"
-              alt="Better 2"
-              className="w-28 h-28  mx-auto mb-2"
-            />
-            <p className="text-lg md:text-xl font-bold text-font">Taker</p>
-            <p className=" md:text-base text-font">
-              Accepts the terms and funds their side of it or rejects the bet
-            </p>
-          </div>
-          <div className="text-center">
-            <img
-              src="/decider.png"
-              alt="Decider"
-              className="w-28 h-28  mx-auto mb-2"
-            />
-            <p className="text-lg md:text-xl font-bold text-font">Judge</p>
-            <p className=" md:text-base text-font">
-              Chooses who wins, or if it should be cancelled
-            </p>
-          </div>
-        </div>
-      </section>
-      <FAQ />
-      <Testimonials />
-    </div>
   );
 }

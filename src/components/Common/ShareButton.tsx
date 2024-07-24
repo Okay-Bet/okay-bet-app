@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import IosShareIcon from '@mui/icons-material/IosShare';
+import IosShareIcon from "@mui/icons-material/IosShare";
 
 interface ShareButtonProps {
   better1Display: string;
@@ -11,7 +11,7 @@ interface ShareButtonProps {
   status: number;
   conditions: string;
   ethToUsdRate: number;
-  address: string; 
+  address: string;
 }
 
 const ShareButton: React.FC<ShareButtonProps> = ({
@@ -26,15 +26,29 @@ const ShareButton: React.FC<ShareButtonProps> = ({
 }) => {
   const [isCopied, setIsCopied] = useState(false);
 
-  const shortenAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`;
+  const shortenAddress = (address: string) =>
+    `${address.slice(0, 6)}...${address.slice(-4)}`;
   const wagerInUsd = (parseFloat(wagerEth) * ethToUsdRate).toFixed(2);
-  const statusText = status === 4 ? "Resolved" : status === 5 ? "Invalidated" : "Open";
+  const statusText =
+    status === 4 ? "Resolved" : status === 5 ? "Invalidated" : "Open";
 
   const shareText = `Okay Bet Alert
 Conditions: ${conditions}
-Bettor 1: ${better1Display.endsWith('.eth') ? better1Display : shortenAddress(better1Display)}
-Bettor 2: ${better2Display.endsWith('.eth') ? better2Display : shortenAddress(better2Display)}
-Judge: ${deciderDisplay.endsWith('.eth') ? deciderDisplay : shortenAddress(deciderDisplay)}
+Bettor 1: ${
+    better1Display.endsWith(".eth")
+      ? better1Display
+      : shortenAddress(better1Display)
+  }
+Bettor 2: ${
+    better2Display.endsWith(".eth")
+      ? better2Display
+      : shortenAddress(better2Display)
+  }
+Judge: ${
+    deciderDisplay.endsWith(".eth")
+      ? deciderDisplay
+      : shortenAddress(deciderDisplay)
+  }
 Wager: $${wagerInUsd} USD (${wagerEth} ETH)
 Status: ${statusText}
 https://www.okaybet.fun/bet/${address}
@@ -44,7 +58,7 @@ https://www.okaybet.fun/bet/${address}
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Okay Bet',
+          title: "Okay Bet",
           text: shareText,
         });
       } catch (error) {
@@ -63,10 +77,12 @@ https://www.okaybet.fun/bet/${address}
 
   return (
     <div className="flex items-center">
-            {isCopied && <p className="mt-1 mr-2 text-font">Copied! Paste in your groupchat</p>}
-      <IosShareIcon 
-        onClick={handleShare} 
-        className="text-primary hover:text-quaternary cursor-pointer" 
+      {isCopied && (
+        <p className="mt-1 mr-2 text-font">Copied! Paste in your groupchat</p>
+      )}
+      <IosShareIcon
+        onClick={handleShare}
+        className="text-primary hover:text-quaternary cursor-pointer"
       />
     </div>
   );

@@ -1,5 +1,9 @@
-/** @type {import('next').NextConfig} */
 import withPWA from 'next-pwa';
+import withBundleAnalyzer from '@next/bundle-analyzer';
+
+const withBundleAnalyzerConfig = withBundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+});
 
 const nextConfig = {
   // fixes wallet connect dependency issue https://docs.walletconnect.com/web3modal/nextjs/about#extra-configuration
@@ -16,4 +20,4 @@ const config = withPWA({
   skipWaiting: true,
 })(nextConfig);
 
-export default config;
+export default withBundleAnalyzerConfig(config);
