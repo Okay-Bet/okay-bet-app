@@ -11,11 +11,11 @@ const FAQ = () => {
     },
     {
       question: "How do I get paid when I win?",
-      answer: "The money is automatically sent to your wallet when the judge settles the bet.",
+      answer: "The money is sent to your wallet when the judge settles the bet.",
     },
     {
-      question: "Can a bet get cancelled?",
-      answer: "If a bet is not yet fully funded, then any of the 3 parties may cancel it. If a bet is fully funded, then only the Decider may cancel and refund the bettors.",
+      question: "Can a bet be cancelled?",
+      answer: "If a bet is not yet fully funded, then any of the 3 parties may cancel it. If a bet is fully funded, then only the judge may cancel and refund the bettors.",
     },
     {
       question: "Who should be the Judge?",

@@ -48,7 +48,7 @@ const Testimonials = () => {
   return (
     <section className="py-10 bg-primary text-quaternary">
       <div className="container mx-auto px-6">
-        <Slider {...settings} className="mb-8">
+        {/* <Slider {...settings} className="mb-8">
           {testimonials.map((testimonial, index) => (
             <div key={index} className="text-center">
               <img
@@ -60,7 +60,7 @@ const Testimonials = () => {
               <p className="text-lg">{testimonial.testimonial}</p>
             </div>
           ))}
-        </Slider>
+        </Slider> */}
         <div className="flex justify-end items-right space-x-6">
           {partners.map((partner, index) => (
             <a
