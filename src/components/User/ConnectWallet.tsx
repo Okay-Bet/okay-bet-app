@@ -28,7 +28,7 @@ const ConnectWallet = () => {
           url: "https://okaybet.fun",
         }}
         connectButton={{
-          label: "CONNECT WALLET",
+          label: "SIGN IN",
           className: "bg-secondary text-font px-4 py-2 rounded-lg",
         }}
       />

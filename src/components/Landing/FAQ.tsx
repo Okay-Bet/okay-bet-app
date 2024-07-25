@@ -7,7 +7,7 @@ const FAQ = () => {
   const faqs = [
     {
       question: "Where does my money go when I bet?",
-      answer: "The money is held in an escrow smart contract, only the judge may control which better gets the pot, but they are not able to keep the money for themselves.",
+      answer: "The money is held in an escrow smart contract. Only the judge may control which bettor gets the pot, but they are not able to keep the money for themselves.",
     },
     {
       question: "How do I get paid when I win?",
@@ -15,21 +15,22 @@ const FAQ = () => {
     },
     {
       question: "Can a bet get cancelled?",
-      answer: "If a bet is not yet fully funded then any of the 3 parties may cancel it. If a bet is fully funded then only the Decider may cancel and refund the betters.",
+      answer: "If a bet is not yet fully funded, then any of the 3 parties may cancel it. If a bet is fully funded, then only the Decider may cancel and refund the bettors.",
     },
     {
-      question: "Who should be Judge?",
-      answer: "The judge is someone that both parties trust to be fair. This could be one of the betters for simplicitiy, or a mutual friend. Be careful who you pick, thier decision is final!",
+      question: "Who should be the Judge?",
+      answer: "The judge is someone that both parties trust to be fair. This could be one of the bettors for simplicity, or a mutual friend. Be careful who you pick, their decision is final!",
     },
     {
       question: "What money is the bet in?",
-      answer: "The bet is made in Ether (ETH) on the Base Ethereum network, because of this the USD value of the bet may change due to the volatility of the market.",
+      answer: "The bet is made in Ether (ETH) on the Base Ethereum network. Because of this, the USD value of the bet may change due to the volatility of the market.",
     },
     {
       question: "Is this safe?",
-      answer: "While the contracts are extensively tested, there is always a risk when using smart contracts. Please only bet what you can afford to lose, this is for fun not investment.",
+      answer: "While the contracts are extensively tested, there is always a risk when using smart contracts. Please only bet what you can afford to lose. This is for fun, not investment.",
     },
   ];
+  
 
   const toggleAnswer = (index: number) => {
     if (openIndex === index) {
