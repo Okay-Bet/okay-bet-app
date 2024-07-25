@@ -26,7 +26,7 @@ const Pitch: React.FC = () => {
             />
             <p className="text-lg md:text-xl font-bold text-font">Maker</p>
             <p className=" md:text-base text-font">
-              Creates bet, picks an opponent and decider
+              Creates bet, picks an opponent and judge
             </p>
           </div>
           <div className="text-center">
