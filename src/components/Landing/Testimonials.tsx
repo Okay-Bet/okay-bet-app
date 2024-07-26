@@ -3,8 +3,9 @@ import React, { useState } from "react";
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
-import TwitterIcon from "@mui/icons-material/Twitter";
-import GitHubIcon from "@mui/icons-material/GitHub";
+
+import { FaTwitter, FaGithub, FaDiscord } from "react-icons/fa"; 
+
 
 const testimonials = [
   {
@@ -22,11 +23,15 @@ const testimonials = [
 
 const partners = [
   {
-    icon: <TwitterIcon style={{ fontSize: 40 }} />,
+    icon: <FaDiscord style={{ fontSize: 40 }} />, // Add Discord icon here
+    link: "https://discord.gg/y7wM5YSpmm",
+  },
+  {
+    icon: <FaTwitter style={{ fontSize: 40 }} />,
     link: "https://x.com/okay_bet_app",
   },
   {
-    icon: <GitHubIcon style={{ fontSize: 40 }} />,
+    icon: <FaGithub style={{ fontSize: 40 }} />,
     link: "https://github.com/Okay-Bet/okay-bet-contracts",
   },
 ];
