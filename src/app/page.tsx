@@ -24,7 +24,7 @@ export default function Home() {
 
   return (
     <ThirdwebProvider clientId={process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID}>
-      <main className="min-h-screen flex flex-col items-center justify-center">
+      <main className="min-h-screen width-full flex-col items-center justify-center max-w-4xl mx-auto px-4">
         <div className="py-10 text-center">
           <div className="m-3">
             <Image
@@ -41,7 +41,7 @@ export default function Home() {
           <ConnectWallet />
 
           {account ? (
-            <div>
+            <div className="w-full max-w-md mx-auto">
               <CreateBetForm contract={contract} />
               {isLoading ? (
                 <p></p>
