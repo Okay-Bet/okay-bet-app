@@ -55,7 +55,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
         onClick={() => setIsFormVisible(!isFormVisible)}
         className="text-lg p-2 bg-primary text-quaternary font-bold font-heading italic rounded w-full mb-3 mt-3"
       >
-        {isFormVisible ? "CLOSE" : "NEW BET"}
+        {isFormVisible ? "NEW BET" : "NEW BET"}
       </button>
       <Collapse in={isFormVisible}>
         <form

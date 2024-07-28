@@ -42,13 +42,21 @@ const BetActions: React.FC<BetActionsProps> = ({
     canFund
   );
 
-
   const handleAction = async (action: () => Promise<void>) => {
     setIsActionLoading(true);
     setLocalLoading(true);
     fetchBetDetails(betDetails.address);
     await action();
   };
+
+  const buttonClass = (color: string) => `
+    w-full p-2 bg-${color}-500 text-font font-heading rounded-lg mt-2 
+    ${
+      isActionLoading || isLoading
+        ? "cursor-not-allowed opacity-50"
+        : `hover:bg-tertiary hover:italic transition-colors`
+    }
+  `;
 
   return (
     <div>
@@ -72,8 +80,8 @@ const BetActions: React.FC<BetActionsProps> = ({
               )
             )
           }
-          className="w-full p-2 bg-green-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
-          disabled={isActionLoading}
+          className={buttonClass("green")}
+          disabled={isActionLoading || isLoading}
         >
           {isActionLoading ? <CircularProgress size={24} /> : "Fund Bet"}
         </button>
@@ -92,10 +100,10 @@ const BetActions: React.FC<BetActionsProps> = ({
               )
             )
           }
-          className="w-full p-2 mb-2 bg-red-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
-          disabled={isActionLoading}
-           >
-          {isLoading ? <CircularProgress size={24} /> : "Cancel Bet"}
+          className={buttonClass("red")}
+          disabled={isActionLoading || isLoading}
+        >
+          {isActionLoading ? <CircularProgress size={24} /> : "Cancel Bet"}
         </button>
       )}
       {!canFund && !userIsDecider && (
@@ -120,10 +128,14 @@ const BetActions: React.FC<BetActionsProps> = ({
                 )
               )
             }
-            className="w-full p-2 bg-blue-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
-            disabled={isLoading}
+            className={buttonClass("blue")}
+            disabled={isActionLoading || isLoading}
           >
-            {isLoading ? <CircularProgress size={24} /> : "Declare Better 1 as Winner"}
+            {isActionLoading ? (
+              <CircularProgress size={24} />
+            ) : (
+              "Declare Better 1 as Winner"
+            )}
           </button>
           <button
             onClick={() =>
@@ -139,10 +151,14 @@ const BetActions: React.FC<BetActionsProps> = ({
                 )
               )
             }
-            className="w-full p-2 bg-blue-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
-            disabled={isLoading}
+            className={buttonClass("blue")}
+            disabled={isActionLoading || isLoading}
           >
-            {isLoading ? <CircularProgress size={24} /> : "Declare Better 2 as Winner"}
+            {isActionLoading ? (
+              <CircularProgress size={24} />
+            ) : (
+              "Declare Better 2 as Winner"
+            )}
           </button>
         </>
       )}
@@ -160,10 +176,10 @@ const BetActions: React.FC<BetActionsProps> = ({
               )
             )
           }
-          className="w-full p-2 mb-2 bg-yellow-500 text-font font-heading rounded-lg mt-2 hover:bg-tertiary hover:italic transition-colors"
-          disabled={isLoading}
+          className={buttonClass("yellow")}
+          disabled={isActionLoading || isLoading}
         >
-          {isLoading ? <CircularProgress size={24} /> : "Invalidate Bet"}
+          {isActionLoading ? <CircularProgress size={24} /> : "Invalidate Bet"}
         </button>
       )}
     </div>
@@ -212,4 +228,4 @@ const getAvailableActions = (
     }
   });
   return Array.from(actions);
-}
+};

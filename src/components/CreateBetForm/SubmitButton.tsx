@@ -13,13 +13,18 @@ const SubmitButton: React.FC<SubmitButtonProps> = ({ isLoading, isFunding, canSu
     buttonText = isFunding ? "Funding Bet..." : "Creating Bet...";
   }
 
+  const isDisabled = isLoading || !canSubmit;
+
   return (
     <button
       type="submit"
-      disabled={isLoading || !canSubmit}
-      className={`w-full p-4 bg-tertiary text-font font-heading rounded-lg transition-colors ${
-        canSubmit ? "hover:bg-quaternary hover:text-primary hover:italic" : ""
-      }`}
+      disabled={isDisabled}
+      className={`
+        w-full p-4 bg-tertiary text-font font-heading rounded-lg transition-colors
+        ${isDisabled 
+          ? "cursor-not-allowed opacity-50" 
+          : "hover:bg-quaternary hover:text-primary hover:italic"}
+      `}
     >
       {buttonText}
     </button>
