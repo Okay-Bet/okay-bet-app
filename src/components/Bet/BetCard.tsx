@@ -85,7 +85,7 @@ const BetCard: React.FC<BetCardProps> = ({
   const displayParticipantInfo = (address: string, displayName: string) => {
     return (
       <Tooltip title={address} arrow placement="top">
-        <span className="cursor-help">{displayName}</span>
+        <span className="cursor-help break-all">{displayName}</span>
       </Tooltip>
     );
   };
@@ -101,7 +101,7 @@ const BetCard: React.FC<BetCardProps> = ({
         className={`p-6 ${bgColorClass} text-font cursor-pointer`}
         onClick={() => !disableCollapse && setIsOpen(!isOpen)}
       >
-        <h4 className="text-2xl font-bold">{bet.conditions}</h4>
+        <h4 className="text-2xl font-bold break-words">{bet.conditions}</h4>
       </div>
       <Collapse in={isOpen}>
         <div className={`p-6 ${bgColorClass} text-font`}>
