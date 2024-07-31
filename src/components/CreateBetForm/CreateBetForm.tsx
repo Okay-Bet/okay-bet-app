@@ -20,6 +20,9 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
     setBetter2,
     decider,
     setDecider,
+    better1DisplayName,
+    better2DisplayName,
+    deciderDisplayName,
     wagerUSD,
     setWagerUSD,
     conditions,
@@ -49,7 +52,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
         onClick={() => setIsFormVisible(!isFormVisible)}
         className="text-lg p-2 bg-primary text-quaternary font-bold font-heading italic rounded w-full mb-3 mt-3"
       >
-        {isFormVisible ? "CLOSE" : "NEW BET"}
+        {isFormVisible ? "NEW BET" : "NEW BET"}
       </button>
       <Collapse in={isFormVisible}>
         <form
@@ -63,6 +66,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
           <UserInput
             label="Maker (Your Account)"
             value={better1}
+            displayValue={better1DisplayName}
             setValue={setBetter1}
             valid={better1Valid}
             loading={better1Loading}
@@ -70,6 +74,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
           <UserInput
             label="Taker"
             value={better2}
+            displayValue={better2DisplayName}
             setValue={setBetter2}
             valid={better2Valid}
             loading={better2Loading}
@@ -77,6 +82,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
           <UserInput
             label="Judge"
             value={decider}
+            displayValue={deciderDisplayName}
             setValue={setDecider}
             valid={deciderValid}
             loading={deciderLoading}

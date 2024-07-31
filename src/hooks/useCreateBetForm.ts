@@ -1,5 +1,5 @@
 // hooks/useCreateBetForm.ts
-import { useState, useEffect, FormEvent } from "react";
+import { useState, useEffect, useCallback, FormEvent } from "react";
 import { useSendTransaction, useActiveAccount } from "thirdweb/react";
 import { ethers } from "ethers";
 import { useFetchEthToUsdRate } from "./useFetchEthToUsdRate";
@@ -8,6 +8,7 @@ import { handleFundBet } from "@/utils/handleBetActions/handleFundBet";
 import { waitForBetReady } from "@/utils/waitForBetReady";
 import { createBet } from "@/generated/betFactory";
 import { BASE_MAINNET_RPC } from "@/constants/rpc";
+import debounce from 'lodash/debounce';
 
 type EthereumAddress = `0x${string}`;
 
@@ -36,6 +37,10 @@ export const useCreateBetForm = (contract: any) => {
   const [resolvedBetter2, setResolvedBetter2] = useState<EthereumAddress | null>(null);
   const [resolvedDecider, setResolvedDecider] = useState<EthereumAddress | null>(null);
 
+  const [better1DisplayName, setBetter1DisplayName] = useState<string>("");
+  const [better2DisplayName, setBetter2DisplayName] = useState<string>("");
+  const [deciderDisplayName, setDeciderDisplayName] = useState<string>("");
+
   const ethToUsdRate = useFetchEthToUsdRate();
   const { mutateAsync: sendTransaction } = useSendTransaction();
   const account = useActiveAccount();
@@ -49,43 +54,90 @@ export const useCreateBetForm = (contract: any) => {
     setIsFormVisible(false);
   };
 
-  const validateAndResolveAddress = async (
+  const validateAndResolveAddress = useCallback(async (
     value: string,
     setValid: (valid: boolean) => void,
     setLoading: (loading: boolean) => void,
-    setResolvedAddress: (address: EthereumAddress | null) => void
+    setResolvedAddress: (address: EthereumAddress | null) => void,
+    setDisplayName: (name: string) => void
   ) => {
     setLoading(true);
     try {
-      const resolvedAddress = await resolveUserAddress(value);
-      setValid(!!resolvedAddress);
-      setResolvedAddress(resolvedAddress as EthereumAddress | null);
+      const { address, displayName } = await resolveUserAddress(value);
+      setValid(!!address);
+      setResolvedAddress(address as EthereumAddress | null);
+      setDisplayName(displayName);
     } catch (error) {
       console.error("Error resolving address:", error);
       setValid(false);
       setResolvedAddress(null);
+      setDisplayName(value);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const debouncedValidateAndResolveAddress = useCallback(
+    debounce(validateAndResolveAddress, 500),
+    [validateAndResolveAddress]
+  );
 
   useEffect(() => {
-    if (account) {
-      setBetter1(account.address);
-    }
+    const initializeBetter1 = async () => {
+      if (account) {
+        setBetter1Loading(true);
+        try {
+          const { address, displayName } = await resolveUserAddress(account.address);
+          setBetter1(displayName);
+          setBetter1DisplayName(displayName);
+          setResolvedBetter1(address as EthereumAddress);
+          setBetter1Valid(true);
+        } catch (error) {
+          console.error("Error initializing better1:", error);
+          setBetter1(account.address);
+          setBetter1DisplayName(account.address);
+          setResolvedBetter1(account.address as EthereumAddress);
+          setBetter1Valid(true);
+        } finally {
+          setBetter1Loading(false);
+        }
+      }
+    };
+
+    initializeBetter1();
   }, [account]);
 
   useEffect(() => {
-    validateAndResolveAddress(better1, setBetter1Valid, setBetter1Loading, setResolvedBetter1);
-  }, [better1]);
+    if (better1 !== better1DisplayName) {
+      debouncedValidateAndResolveAddress(
+        better1,
+        setBetter1Valid,
+        setBetter1Loading,
+        setResolvedBetter1,
+        setBetter1DisplayName
+      );
+    }
+  }, [better1, better1DisplayName, debouncedValidateAndResolveAddress]);
 
   useEffect(() => {
-    validateAndResolveAddress(better2, setBetter2Valid, setBetter2Loading, setResolvedBetter2);
-  }, [better2]);
+    debouncedValidateAndResolveAddress(
+      better2,
+      setBetter2Valid,
+      setBetter2Loading,
+      setResolvedBetter2,
+      setBetter2DisplayName
+    );
+  }, [better2, debouncedValidateAndResolveAddress]);
 
   useEffect(() => {
-    validateAndResolveAddress(decider, setDeciderValid, setDeciderLoading, setResolvedDecider);
-  }, [decider]);
+    debouncedValidateAndResolveAddress(
+      decider,
+      setDeciderValid,
+      setDeciderLoading,
+      setResolvedDecider,
+      setDeciderDisplayName
+    );
+  }, [decider, debouncedValidateAndResolveAddress]);
 
   const convertUsdToEth = (usdAmount: string): string => {
     if (!usdAmount || !ethToUsdRate) return "0";
@@ -240,5 +292,8 @@ export const useCreateBetForm = (contract: any) => {
     handleFundingComplete,
     setNeedsFunding,
     resetForm,
+    better1DisplayName,
+    better2DisplayName,
+    deciderDisplayName,
   };
 };

@@ -8,6 +8,7 @@ import WarningIcon from "@mui/icons-material/Warning";
 interface UserInputProps {
   label: string;
   value: string;
+  displayValue: string;
   setValue: (value: string) => void;
   valid: boolean;
   loading: boolean;
@@ -17,6 +18,7 @@ interface UserInputProps {
 const UserInput: React.FC<UserInputProps> = ({
   label,
   value,
+  displayValue,
   setValue,
   valid,
   loading,
@@ -65,6 +67,9 @@ const UserInput: React.FC<UserInputProps> = ({
         />
         {renderValidationIcon()}
       </div>
+      {displayValue && displayValue !== value && (
+        <p className="text-xs mt-1">Resolved: {displayValue}</p>
+      )}
       {warning && (
         <p className="text-font flex items-center mt-2">
           <WarningIcon fontSize="small" className="mr-1" />
