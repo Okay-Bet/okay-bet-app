@@ -1,6 +1,4 @@
-// app/bet/[slug]/page.tsx
 "use client";
-
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useActiveAccount } from "thirdweb/react";
@@ -16,8 +14,7 @@ const BetDetails = () => {
   const slug = pathname.split("/").pop() || null;
   const ethToUsdRate = useFetchEthToUsdRate();
   const { betDetails, loading, fetchBetDetails } = useFetchSingleBetDetails(slug);
-  const account = useActiveAccount(); // Get the active account
-
+  const account = useActiveAccount();
   const [message, setMessage] = useState<string>("");
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
 
@@ -29,6 +26,13 @@ const BetDetails = () => {
     return <p>No bet found</p>;
   }
 
+  const handleAlertClose = () => {
+    setIsAlertOpen(false);
+  };
+
+  // Dummy function to satisfy the onProceed prop requirement
+  const dummyProceed = () => {};
+
   return (
     <div className="max-w-md mx-auto p-4 text-center min-h-screen">
       <Navbar />
@@ -37,7 +41,7 @@ const BetDetails = () => {
         <BetCard
           bet={betDetails}
           ethToUsdRate={ethToUsdRate}
-          accountAddress={account?.address || ""} // Use the account address here
+          accountAddress={account?.address || ""}
           fetchBetDetails={fetchBetDetails}
           setMessage={setMessage}
           setIsAlertOpen={setIsAlertOpen}
@@ -49,7 +53,9 @@ const BetDetails = () => {
       <AlertModal
         isOpen={isAlertOpen}
         message={message}
-        onClose={() => setIsAlertOpen(false)}
+        onClose={handleAlertClose}
+        onProceed={dummyProceed}
+        showProceed={false}
       />
     </div>
   );

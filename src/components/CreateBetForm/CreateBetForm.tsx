@@ -1,4 +1,3 @@
-// components/CreateBetForm/CreateBetForm.tsx
 import React from "react";
 import { Collapse } from "@mui/material";
 import AlertModal from "../Common/AlertModal";
@@ -49,6 +48,12 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
     canSubmit,
   } = useCreateBetForm(contract);
 
+  // Dummy function for onProceed
+  const dummyProceed = () => {};
+
+  // Convert canSubmit to boolean
+  const isSubmittable = Boolean(canSubmit);
+
   return (
     <div className="max-w-md mx-auto bg-primary text-quaternary">
       <button
@@ -73,14 +78,13 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             setValue={setBetter1}
             valid={better1Valid}
             loading={better1Loading}
-            resolvedAddress={better1Address}
+            resolvedAddress={better1Address || undefined}
             resolvedUsername={
               better1DisplayName !== better1Address
                 ? better1DisplayName
                 : undefined
             }
           />
-
           <UserInput
             label="Taker"
             value={better2}
@@ -88,14 +92,13 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             setValue={setBetter2}
             valid={better2Valid}
             loading={better2Loading}
-            resolvedAddress={better2Address}
+            resolvedAddress={better2Address || undefined}
             resolvedUsername={
               better2DisplayName !== better2Address
                 ? better2DisplayName
                 : undefined
             }
           />
-
           <UserInput
             label="Judge"
             value={decider}
@@ -103,7 +106,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             setValue={setDecider}
             valid={deciderValid}
             loading={deciderLoading}
-            resolvedAddress={deciderAddress}
+            resolvedAddress={deciderAddress || undefined}
             resolvedUsername={
               deciderDisplayName !== deciderAddress
                 ? deciderDisplayName
@@ -119,7 +122,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
           <SubmitButton
             isLoading={isLoading}
             isFunding={isFunding}
-            canSubmit={canSubmit}
+            canSubmit={isSubmittable}
           />
         </form>
       </Collapse>
@@ -132,6 +135,8 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             setIsFormVisible(false);
           }
         }}
+        onProceed={dummyProceed}
+        showProceed={false}
       />
     </div>
   );

@@ -1,5 +1,4 @@
-// components/User/Username.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { useActiveAccount } from 'thirdweb/react';
 import UsernameRegistryABI from '@/constants/UsernameRegistryABI.json';
@@ -18,16 +17,7 @@ const Username = () => {
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
 
-  useEffect(() => {
-    if (account) {
-      checkUsername();
-    } else {
-      setCurrentUsername('');
-      setIsChecking(false);
-    }
-  }, [account]);
-
-  const checkUsername = async () => {
+  const checkUsername = useCallback(async () => {
     if (!account) return;
     setIsChecking(true);
     const provider = new ethers.providers.Web3Provider(window.ethereum);
@@ -45,7 +35,16 @@ const Username = () => {
     } finally {
       setIsChecking(false);
     }
-  };
+  }, [account]);
+
+  useEffect(() => {
+    if (account) {
+      checkUsername();
+    } else {
+      setCurrentUsername('');
+      setIsChecking(false);
+    }
+  }, [account, checkUsername]);
 
   const isValidUsername = (input: string) => {
     return /^[a-z0-9]{1,24}$/.test(input);
@@ -112,7 +111,7 @@ const Username = () => {
           <p className="mb-4 text-primary">
             Choose a unique username to identify yourself to others. 
             Usernames are permanently linked to your account.
-            <span className='font-bold'> You can't change it later!</span>
+            <span className='font-bold'> You can&apos;t change it later!</span>
           </p>
           <div className="mb-4">
             <input

@@ -1,4 +1,3 @@
-// hooks/useResolveUserAddress.ts
 import { client } from "@/app/client";
 import { resolveAddress, resolveName } from "thirdweb/extensions/ens";
 import { ethers } from "ethers";
@@ -24,7 +23,12 @@ export const resolveUserAddress = async (identifier: string): Promise<{ address:
 
     // If no username, try to get ENS name for the address
     try {
-      const ensName = await resolveName({ client, address: identifier });
+      // Ensure the identifier is of the correct type for resolveName
+      const formattedAddress = identifier.toLowerCase().startsWith('0x') 
+        ? identifier as `0x${string}` 
+        : `0x${identifier}` as `0x${string}`;
+      
+      const ensName = await resolveName({ client, address: formattedAddress });
       if (ensName) {
         return { address: identifier, displayName: ensName };
       }

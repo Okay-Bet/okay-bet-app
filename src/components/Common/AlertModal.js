@@ -15,7 +15,7 @@ export default function AlertModal({ isOpen, message, onClose, onProceed, showPr
           >
             {showProceed ? 'Nevermind, close' : 'Close'}
           </button>
-          {showProceed && (
+          {showProceed && onProceed && (
             <button
               className="py-2 px-4 bg-primary text-quaternary font-bold rounded hover:bg-secondary transition-colors"
               onClick={onProceed}
