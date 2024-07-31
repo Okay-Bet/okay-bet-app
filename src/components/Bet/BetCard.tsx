@@ -1,8 +1,8 @@
 // components/Bet/BetCard.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Collapse } from "@mui/material";
+import React, { useState } from "react";
+import { Collapse, Tooltip } from "@mui/material";
 import { useSendTransaction } from "thirdweb/react";
 import ShareButton from "../Common/ShareButton";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
@@ -38,6 +38,8 @@ const BetCard: React.FC<BetCardProps> = ({
   const { mutateAsync: sendTransaction } = useSendTransaction();
   const [localLoading, setLocalLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isOpen, setIsOpen] = useState(initialOpen);
+
   const userIsBetter1 =
     accountAddress.toLowerCase() === bet.better1.toLowerCase();
   const userIsBetter2 =
@@ -46,10 +48,7 @@ const BetCard: React.FC<BetCardProps> = ({
     accountAddress.toLowerCase() === bet.decider.toLowerCase();
   const canFund =
     (userIsBetter1 && bet.status !== 1) || (userIsBetter2 && bet.status !== 2);
-  const [isOpen, setIsOpen] = useState(initialOpen);
 
-  const shortenAddress = (address: string) =>
-    `${address.slice(0, 6)}...${address.slice(-4)}`;
   const wagerInUsd = (parseFloat(bet.wagerEth) * ethToUsdRate).toFixed(2);
 
   let bgColorClass = "bg-secondary";
@@ -72,19 +71,23 @@ const BetCard: React.FC<BetCardProps> = ({
         return `Partially Funded (${bet.better2Display} has funded)`;
       case 3:
         return "Waiting on Judge to pick winner";
+      case 4:
+        return "Resolved";
+      case 5:
+        return "Cancelled";
+      case 6:
+        return "Cancelled";
       default:
         return "Pending Status";
     }
   };
 
-  const displayName = (name: string) => {
-    if (name.includes('.eth')) {
-      return name;
-    }
-    if (name.startsWith('0x')) {
-      return shortenAddress(name);
-    }
-    return name; // This will be the username
+  const displayParticipantInfo = (address: string, displayName: string) => {
+    return (
+      <Tooltip title={address} arrow placement="top">
+        <span className="cursor-help">{displayName}</span>
+      </Tooltip>
+    );
   };
 
   return (
@@ -104,13 +107,13 @@ const BetCard: React.FC<BetCardProps> = ({
         <div className={`p-6 ${bgColorClass} text-font`}>
           <div className="grid grid-cols-1 gap-4 mb-2">
             <div className="p-4 bg-tertiary text-font">
-              <span>Bettor 1: {displayName(bet.better1Display)}</span>
+              <span>Maker: {displayParticipantInfo(bet.better1, bet.better1Display)}</span>
             </div>
             <div className="p-4 bg-tertiary text-font">
-              <span>Bettor 2: {displayName(bet.better2Display)}</span>
+              <span>Taker: {displayParticipantInfo(bet.better2, bet.better2Display)}</span>
             </div>
             <div className="p-4 bg-tertiary text-font">
-              <span>Decider: {displayName(bet.deciderDisplay)}</span>
+              <span>Judge: {displayParticipantInfo(bet.decider, bet.deciderDisplay)}</span>
             </div>
           </div>
           <div className="inline-block px-4 py-2 bg-blue-500 text-font rounded-full">
