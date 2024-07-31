@@ -13,6 +13,8 @@ interface UserInputProps {
   valid: boolean;
   loading: boolean;
   warning?: string;
+  resolvedAddress?: string;
+  resolvedUsername?: string;
 }
 
 const UserInput: React.FC<UserInputProps> = ({
@@ -23,6 +25,8 @@ const UserInput: React.FC<UserInputProps> = ({
   valid,
   loading,
   warning,
+  resolvedAddress,
+  resolvedUsername,
 }) => {
   const renderValidationIcon = () => {
     if (loading) {
@@ -51,6 +55,15 @@ const UserInput: React.FC<UserInputProps> = ({
     return null;
   };
 
+  const renderAdditionalInfo = () => {
+    if (resolvedUsername && resolvedUsername !== value) {
+      return <p className="text-xs mt-1">Username: {resolvedUsername}</p>;
+    } else if (resolvedAddress && resolvedAddress !== value) {
+      return <p className="text-xs mt-1 text-white">Address: {resolvedAddress}</p>;
+    }
+    return null;
+  };
+
   return (
     <div>
       <label htmlFor={label.toLowerCase()} className="block mb-2 font-heading">
@@ -67,9 +80,7 @@ const UserInput: React.FC<UserInputProps> = ({
         />
         {renderValidationIcon()}
       </div>
-      {displayValue && displayValue !== value && (
-        <p className="text-xs mt-1">Resolved: {displayValue}</p>
-      )}
+      {renderAdditionalInfo()}
       {warning && (
         <p className="text-font flex items-center mt-2">
           <WarningIcon fontSize="small" className="mr-1" />

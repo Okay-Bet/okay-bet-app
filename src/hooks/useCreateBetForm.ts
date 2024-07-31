@@ -41,6 +41,10 @@ export const useCreateBetForm = (contract: any) => {
   const [better2DisplayName, setBetter2DisplayName] = useState<string>("");
   const [deciderDisplayName, setDeciderDisplayName] = useState<string>("");
 
+  const [better1Address, setBetter1Address] = useState<string | null>(null);
+  const [better2Address, setBetter2Address] = useState<string | null>(null);
+  const [deciderAddress, setDeciderAddress] = useState<string | null>(null);
+
   const ethToUsdRate = useFetchEthToUsdRate();
   const { mutateAsync: sendTransaction } = useSendTransaction();
   const account = useActiveAccount();
@@ -59,7 +63,8 @@ export const useCreateBetForm = (contract: any) => {
     setValid: (valid: boolean) => void,
     setLoading: (loading: boolean) => void,
     setResolvedAddress: (address: EthereumAddress | null) => void,
-    setDisplayName: (name: string) => void
+    setDisplayName: (name: string) => void,
+    setWalletAddress: (address: string | null) => void
   ) => {
     setLoading(true);
     try {
@@ -67,11 +72,13 @@ export const useCreateBetForm = (contract: any) => {
       setValid(!!address);
       setResolvedAddress(address as EthereumAddress | null);
       setDisplayName(displayName);
+      setWalletAddress(address);
     } catch (error) {
       console.error("Error resolving address:", error);
       setValid(false);
       setResolvedAddress(null);
       setDisplayName(value);
+      setWalletAddress(null);
     } finally {
       setLoading(false);
     }
@@ -92,12 +99,14 @@ export const useCreateBetForm = (contract: any) => {
           setBetter1DisplayName(displayName);
           setResolvedBetter1(address as EthereumAddress);
           setBetter1Valid(true);
+          setBetter1Address(address);
         } catch (error) {
           console.error("Error initializing better1:", error);
           setBetter1(account.address);
           setBetter1DisplayName(account.address);
           setResolvedBetter1(account.address as EthereumAddress);
           setBetter1Valid(true);
+          setBetter1Address(account.address);
         } finally {
           setBetter1Loading(false);
         }
@@ -114,7 +123,8 @@ export const useCreateBetForm = (contract: any) => {
         setBetter1Valid,
         setBetter1Loading,
         setResolvedBetter1,
-        setBetter1DisplayName
+        setBetter1DisplayName,
+        setBetter1Address
       );
     }
   }, [better1, better1DisplayName, debouncedValidateAndResolveAddress]);
@@ -125,7 +135,8 @@ export const useCreateBetForm = (contract: any) => {
       setBetter2Valid,
       setBetter2Loading,
       setResolvedBetter2,
-      setBetter2DisplayName
+      setBetter2DisplayName,
+      setBetter2Address
     );
   }, [better2, debouncedValidateAndResolveAddress]);
 
@@ -135,7 +146,8 @@ export const useCreateBetForm = (contract: any) => {
       setDeciderValid,
       setDeciderLoading,
       setResolvedDecider,
-      setDeciderDisplayName
+      setDeciderDisplayName,
+      setDeciderAddress
     );
   }, [decider, debouncedValidateAndResolveAddress]);
 
@@ -295,5 +307,8 @@ export const useCreateBetForm = (contract: any) => {
     better1DisplayName,
     better2DisplayName,
     deciderDisplayName,
+    better1Address,
+    better2Address,
+    deciderAddress,
   };
 };

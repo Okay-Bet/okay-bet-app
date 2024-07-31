@@ -23,6 +23,9 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
     better1DisplayName,
     better2DisplayName,
     deciderDisplayName,
+    better1Address,
+    better2Address,
+    deciderAddress,
     wagerUSD,
     setWagerUSD,
     conditions,
@@ -70,7 +73,14 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             setValue={setBetter1}
             valid={better1Valid}
             loading={better1Loading}
+            resolvedAddress={better1Address}
+            resolvedUsername={
+              better1DisplayName !== better1Address
+                ? better1DisplayName
+                : undefined
+            }
           />
+
           <UserInput
             label="Taker"
             value={better2}
@@ -78,7 +88,14 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             setValue={setBetter2}
             valid={better2Valid}
             loading={better2Loading}
+            resolvedAddress={better2Address}
+            resolvedUsername={
+              better2DisplayName !== better2Address
+                ? better2DisplayName
+                : undefined
+            }
           />
+
           <UserInput
             label="Judge"
             value={decider}
@@ -86,6 +103,12 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             setValue={setDecider}
             valid={deciderValid}
             loading={deciderLoading}
+            resolvedAddress={deciderAddress}
+            resolvedUsername={
+              deciderDisplayName !== deciderAddress
+                ? deciderDisplayName
+                : undefined
+            }
           />
           <WagerInput
             wagerUSD={wagerUSD}
