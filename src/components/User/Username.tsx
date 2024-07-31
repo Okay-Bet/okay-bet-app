@@ -96,7 +96,7 @@ const Username = () => {
 
   if (!account) return null;
   if (isChecking) return <div className="text-center text-primary">Checking username...</div>;
-  if (currentUsername) return <div className="text-center text-xl font-heading font-italic text-primary">Betting as {currentUsername}</div>;
+  if (currentUsername) return <div className="text-center text-xl font-heading font-italic text-primary">Betting as <span className='italic'>{currentUsername} </span> </div>;
 
   return (
     <div className="max-w-md mx-auto p-6 mb-2">
