@@ -12,40 +12,36 @@ const BetDetails: React.FC<BetDetailsProps> = ({ bet, ethToUsdRate, address }) =
     `${address.slice(0, 6)}...${address.slice(-4)}`;
   const wagerInUsd = (parseFloat(bet.wagerEth) * ethToUsdRate).toFixed(2);
 
+  const displayName = (name: string) => {
+    if (name.includes('.eth')) {
+      return name;
+    }
+    if (name.startsWith('0x')) {
+      return shortenAddress(name);
+    }
+    return name; // This will be the username
+  };
+
   return (
     <div>
       <div className="flex justify-between mb-4">
         <div>
           <span className="block font-semibold">Bettor 1:</span>
-          <span>
-            {bet.better1Display.endsWith(".eth")
-              ? bet.better1Display
-              : shortenAddress(bet.better1Display)}
-          </span>
+          <span>{displayName(bet.better1Display)}</span>
         </div>
         <div>
           <span className="block font-semibold">Bettor 2:</span>
-          <span>
-            {bet.better2Display.endsWith(".eth")
-              ? bet.better2Display
-              : shortenAddress(bet.better2Display)}
-          </span>
+          <span>{displayName(bet.better2Display)}</span>
         </div>
       </div>
       <div className="flex justify-between mb-4">
         <div>
           <span className="block font-semibold">Judge:</span>
-          <span>
-            {bet.deciderDisplay.endsWith(".eth")
-              ? bet.deciderDisplay
-              : shortenAddress(bet.deciderDisplay)}
-          </span>
+          <span>{displayName(bet.deciderDisplay)}</span>
         </div>
         <div>
           <span className="block font-semibold">Wager:</span>
-          <span>
-            ${wagerInUsd} USD ({bet.wagerEth} ETH)
-          </span>
+          <span>${wagerInUsd} USD ({bet.wagerEth} ETH)</span>
         </div>
       </div>
       <div className="flex justify-between mb-4">
@@ -55,13 +51,7 @@ const BetDetails: React.FC<BetDetailsProps> = ({ bet, ethToUsdRate, address }) =
         </div>
         <div>
           <span className="block font-semibold">Winner:</span>
-          <span>
-            {bet.winnerDisplay
-              ? bet.winnerDisplay.endsWith(".eth")
-                ? bet.winnerDisplay
-                : shortenAddress(bet.winnerDisplay)
-              : "N/A"}
-          </span>
+          <span>{bet.winnerDisplay ? displayName(bet.winnerDisplay) : "N/A"}</span>
         </div>
       </div>
     </div>

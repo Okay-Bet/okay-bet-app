@@ -1,4 +1,3 @@
-// components/Bet/UnfundedBets.tsx
 "use client";
 import React, { useState, useEffect } from "react";
 import { useFetchUnfundedBetDetails } from "@/hooks/useFetchUnfundedBetDetails";
@@ -35,8 +34,16 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
     };
   }, [fetchBetDetails, betAddresses]);
 
+  const handleAlertClose = () => {
+    setIsAlertOpen(false);
+    handleRefresh();
+  };
+
+  // Dummy function for onProceed
+  const dummyProceed = () => {};
+
   return (
-    <CollapsibleSection title="Unfunded Bets" loading={loading} >
+    <CollapsibleSection title="Unfunded Bets" loading={loading}>
       {betDetails.length > 0 ? (
         betDetails.map((bet, index) => (
           <BetCard
@@ -56,10 +63,9 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
       <AlertModal
         isOpen={isAlertOpen}
         message={message}
-        onClose={() => {
-          setIsAlertOpen(false);
-          handleRefresh();
-        }}
+        onClose={handleAlertClose}
+        onProceed={dummyProceed}
+        showProceed={false}
       />
     </CollapsibleSection>
   );

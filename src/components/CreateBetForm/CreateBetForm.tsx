@@ -1,4 +1,3 @@
-// components/CreateBetForm/CreateBetForm.tsx
 import React from "react";
 import { Collapse } from "@mui/material";
 import AlertModal from "../Common/AlertModal";
@@ -20,12 +19,12 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
     setBetter2,
     decider,
     setDecider,
-    better1Type,
-    setBetter1Type,
-    better2Type,
-    setBetter2Type,
-    deciderType,
-    setDeciderType,
+    better1DisplayName,
+    better2DisplayName,
+    deciderDisplayName,
+    better1Address,
+    better2Address,
+    deciderAddress,
     wagerUSD,
     setWagerUSD,
     conditions,
@@ -41,13 +40,19 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
     better1Valid,
     better2Valid,
     deciderValid,
+    ethToUsdRate,
+    convertUsdToEth,
     better1Loading,
     better2Loading,
     deciderLoading,
     canSubmit,
-    ethToUsdRate,
-    convertUsdToEth,
   } = useCreateBetForm(contract);
+
+  // Dummy function for onProceed
+  const dummyProceed = () => {};
+
+  // Convert canSubmit to boolean
+  const isSubmittable = Boolean(canSubmit);
 
   return (
     <div className="max-w-md mx-auto bg-primary text-quaternary">
@@ -69,29 +74,44 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
           <UserInput
             label="Maker (Your Account)"
             value={better1}
+            displayValue={better1DisplayName}
             setValue={setBetter1}
-            type={better1Type}
-            setType={setBetter1Type}
             valid={better1Valid}
             loading={better1Loading}
+            resolvedAddress={better1Address || undefined}
+            resolvedUsername={
+              better1DisplayName !== better1Address
+                ? better1DisplayName
+                : undefined
+            }
           />
           <UserInput
             label="Taker"
             value={better2}
+            displayValue={better2DisplayName}
             setValue={setBetter2}
-            type={better2Type}
-            setType={setBetter2Type}
             valid={better2Valid}
             loading={better2Loading}
+            resolvedAddress={better2Address || undefined}
+            resolvedUsername={
+              better2DisplayName !== better2Address
+                ? better2DisplayName
+                : undefined
+            }
           />
           <UserInput
             label="Judge"
             value={decider}
+            displayValue={deciderDisplayName}
             setValue={setDecider}
-            type={deciderType}
-            setType={setDeciderType}
             valid={deciderValid}
             loading={deciderLoading}
+            resolvedAddress={deciderAddress || undefined}
+            resolvedUsername={
+              deciderDisplayName !== deciderAddress
+                ? deciderDisplayName
+                : undefined
+            }
           />
           <WagerInput
             wagerUSD={wagerUSD}
@@ -99,10 +119,10 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             convertUsdToEth={convertUsdToEth}
             ethToUsdRate={ethToUsdRate}
           />
-          <SubmitButton 
-            isLoading={isLoading} 
-            isFunding={isFunding} 
-            canSubmit={canSubmit} 
+          <SubmitButton
+            isLoading={isLoading}
+            isFunding={isFunding}
+            canSubmit={isSubmittable}
           />
         </form>
       </Collapse>
@@ -115,6 +135,8 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             setIsFormVisible(false);
           }
         }}
+        onProceed={dummyProceed}
+        showProceed={false}
       />
     </div>
   );

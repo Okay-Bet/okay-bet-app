@@ -1,4 +1,3 @@
-// components/Bet/OpenBets.tsx
 "use client";
 import React, { useState, useEffect } from "react";
 import AlertModal from "../Common/AlertModal";
@@ -35,6 +34,14 @@ const OpenBets: React.FC<OpenBetsProps> = ({
     };
   }, [fetchBetDetails, betAddresses]);
 
+  const handleAlertClose = () => {
+    setIsAlertOpen(false);
+    handleRefresh(); // Refresh details when the alert is closed
+  };
+
+  // Dummy function for onProceed
+  const dummyProceed = () => {};
+
   return (
     <CollapsibleSection title="Open Bets" loading={loading}>
       {Array.isArray(betDetails) && betDetails.length > 0 ? (
@@ -56,10 +63,9 @@ const OpenBets: React.FC<OpenBetsProps> = ({
       <AlertModal
         isOpen={isAlertOpen}
         message={message}
-        onClose={() => {
-          setIsAlertOpen(false);
-          handleRefresh(); // Refresh details when the alert is closed
-        }}
+        onClose={handleAlertClose}
+        onProceed={dummyProceed}
+        showProceed={false}
       />
     </CollapsibleSection>
   );

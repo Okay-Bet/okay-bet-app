@@ -4,10 +4,10 @@ import { getContract } from "thirdweb";
 import { ethers } from "ethers";
 import { client, contract } from "@/app/client";
 import { bet } from "@/generated/bet";
-import { resolveName } from "thirdweb/extensions/ens";
 import { BetDetailsType } from "@/components/types/bet";
 import debounce from "lodash/debounce";
 import eventEmitter from "@/events/eventEmitter";
+import { resolveUserAddress } from "./useResolveUserAddress"; // Import the new function
 
 export const useFetchBetHistory = (betAddresses: string[], address: string) => {
   const [betDetails, setBetDetails] = useState<BetDetailsType[]>([]);
@@ -91,28 +91,28 @@ export const useFetchBetHistory = (betAddresses: string[], address: string) => {
 
       if (betData) {
         const [better1, better2, decider, winner] = await Promise.all([
-          resolveName({ client, address: betData[0] }).catch(() => null),
-          resolveName({ client, address: betData[1] }).catch(() => null),
-          resolveName({ client, address: betData[2] }).catch(() => null),
+          resolveUserAddress(betData[0]),
+          resolveUserAddress(betData[1]),
+          resolveUserAddress(betData[2]),
           betData[6] !== "0x0000000000000000000000000000000000000000"
-            ? resolveName({ client, address: betData[6] }).catch(() => betData[6])
-            : null,
+            ? resolveUserAddress(betData[6])
+            : { address: null, displayName: null },
         ]);
 
         const betDetail: BetDetailsType = {
           address: betAddress,
           better1: betData[0],
-          better1Display: better1 || betData[0],
+          better1Display: better1.displayName,
           better2: betData[1],
-          better2Display: better2 || betData[1],
+          better2Display: better2.displayName,
           decider: betData[2],
-          deciderDisplay: decider || betData[2],
+          deciderDisplay: decider.displayName,
           wagerWei: betData[3].toString(),
           wagerEth: parseFloat(ethers.utils.formatEther(betData[3])).toFixed(4),
           conditions: betData[4],
           status: betData[5],
           winner: betData[6] !== "0x0000000000000000000000000000000000000000" ? betData[6] : null,
-          winnerDisplay: winner || betData[6] || null,
+          winnerDisplay: winner.displayName,
         };
 
         return betDetail;
