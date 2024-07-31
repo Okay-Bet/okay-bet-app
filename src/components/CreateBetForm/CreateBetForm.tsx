@@ -20,12 +20,6 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
     setBetter2,
     decider,
     setDecider,
-    better1Type,
-    setBetter1Type,
-    better2Type,
-    setBetter2Type,
-    deciderType,
-    setDeciderType,
     wagerUSD,
     setWagerUSD,
     conditions,
@@ -41,12 +35,12 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
     better1Valid,
     better2Valid,
     deciderValid,
+    ethToUsdRate,
+    convertUsdToEth,
     better1Loading,
     better2Loading,
     deciderLoading,
     canSubmit,
-    ethToUsdRate,
-    convertUsdToEth,
   } = useCreateBetForm(contract);
 
   return (
@@ -55,7 +49,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
         onClick={() => setIsFormVisible(!isFormVisible)}
         className="text-lg p-2 bg-primary text-quaternary font-bold font-heading italic rounded w-full mb-3 mt-3"
       >
-        {isFormVisible ? "NEW BET" : "NEW BET"}
+        {isFormVisible ? "CLOSE" : "NEW BET"}
       </button>
       <Collapse in={isFormVisible}>
         <form
@@ -70,8 +64,6 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             label="Maker (Your Account)"
             value={better1}
             setValue={setBetter1}
-            type={better1Type}
-            setType={setBetter1Type}
             valid={better1Valid}
             loading={better1Loading}
           />
@@ -79,8 +71,6 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             label="Taker"
             value={better2}
             setValue={setBetter2}
-            type={better2Type}
-            setType={setBetter2Type}
             valid={better2Valid}
             loading={better2Loading}
           />
@@ -88,8 +78,6 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             label="Judge"
             value={decider}
             setValue={setDecider}
-            type={deciderType}
-            setType={setDeciderType}
             valid={deciderValid}
             loading={deciderLoading}
           />
@@ -99,10 +87,10 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             convertUsdToEth={convertUsdToEth}
             ethToUsdRate={ethToUsdRate}
           />
-          <SubmitButton 
-            isLoading={isLoading} 
-            isFunding={isFunding} 
-            canSubmit={canSubmit} 
+          <SubmitButton
+            isLoading={isLoading}
+            isFunding={isFunding}
+            canSubmit={canSubmit}
           />
         </form>
       </Collapse>

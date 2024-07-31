@@ -3,23 +3,18 @@ import { useState, useEffect, FormEvent } from "react";
 import { useSendTransaction, useActiveAccount } from "thirdweb/react";
 import { ethers } from "ethers";
 import { useFetchEthToUsdRate } from "./useFetchEthToUsdRate";
-import { useValidateAddress } from "./useValidateAddress";
 import { resolveUserAddress } from "./useResolveUserAddress";
 import { handleFundBet } from "@/utils/handleBetActions/handleFundBet";
 import { waitForBetReady } from "@/utils/waitForBetReady";
 import { createBet } from "@/generated/betFactory";
 import { BASE_MAINNET_RPC } from "@/constants/rpc";
 
-// Define the type for Ethereum address
 type EthereumAddress = `0x${string}`;
 
 export const useCreateBetForm = (contract: any) => {
   const [better1, setBetter1] = useState<string>("");
   const [better2, setBetter2] = useState<string>("");
   const [decider, setDecider] = useState<string>("");
-  const [better1Type, setBetter1Type] = useState<string>("wallet");
-  const [better2Type, setBetter2Type] = useState<string>("wallet");
-  const [deciderType, setDeciderType] = useState<string>("wallet");
   const [wagerUSD, setWagerUSD] = useState<string>("");
   const [conditions, setConditions] = useState<string>("");
   const [message, setMessage] = useState<string>("");
@@ -28,13 +23,18 @@ export const useCreateBetForm = (contract: any) => {
   const [isFormVisible, setIsFormVisible] = useState<boolean>(false);
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
 
+  const [better1Valid, setBetter1Valid] = useState<boolean>(false);
+  const [better2Valid, setBetter2Valid] = useState<boolean>(false);
+  const [deciderValid, setDeciderValid] = useState<boolean>(false);
+  const [better1Loading, setBetter1Loading] = useState<boolean>(false);
+  const [better2Loading, setBetter2Loading] = useState<boolean>(false);
+  const [deciderLoading, setDeciderLoading] = useState<boolean>(false);
+
   const [needsFunding, setNeedsFunding] = useState<boolean>(false);
   const [newBetAddress, setNewBetAddress] = useState<string>("");
   const [resolvedBetter1, setResolvedBetter1] = useState<EthereumAddress | null>(null);
-
-  const { isValid: better1Valid, isLoading: better1Loading } = useValidateAddress(better1, better1Type);
-  const { isValid: better2Valid, isLoading: better2Loading } = useValidateAddress(better2, better2Type);
-  const { isValid: deciderValid, isLoading: deciderLoading } = useValidateAddress(decider, deciderType);
+  const [resolvedBetter2, setResolvedBetter2] = useState<EthereumAddress | null>(null);
+  const [resolvedDecider, setResolvedDecider] = useState<EthereumAddress | null>(null);
 
   const ethToUsdRate = useFetchEthToUsdRate();
   const { mutateAsync: sendTransaction } = useSendTransaction();
@@ -49,11 +49,43 @@ export const useCreateBetForm = (contract: any) => {
     setIsFormVisible(false);
   };
 
+  const validateAndResolveAddress = async (
+    value: string,
+    setValid: (valid: boolean) => void,
+    setLoading: (loading: boolean) => void,
+    setResolvedAddress: (address: EthereumAddress | null) => void
+  ) => {
+    setLoading(true);
+    try {
+      const resolvedAddress = await resolveUserAddress(value);
+      setValid(!!resolvedAddress);
+      setResolvedAddress(resolvedAddress as EthereumAddress | null);
+    } catch (error) {
+      console.error("Error resolving address:", error);
+      setValid(false);
+      setResolvedAddress(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (account) {
       setBetter1(account.address);
     }
   }, [account]);
+
+  useEffect(() => {
+    validateAndResolveAddress(better1, setBetter1Valid, setBetter1Loading, setResolvedBetter1);
+  }, [better1]);
+
+  useEffect(() => {
+    validateAndResolveAddress(better2, setBetter2Valid, setBetter2Loading, setResolvedBetter2);
+  }, [better2]);
+
+  useEffect(() => {
+    validateAndResolveAddress(decider, setDeciderValid, setDeciderLoading, setResolvedDecider);
+  }, [decider]);
 
   const convertUsdToEth = (usdAmount: string): string => {
     if (!usdAmount || !ethToUsdRate) return "0";
@@ -68,17 +100,16 @@ export const useCreateBetForm = (contract: any) => {
     setIsAlertOpen(false);
 
     try {
-      const resolvedBetter1Address = (await resolveUserAddress(better1, better1Type)) as EthereumAddress;
-      setResolvedBetter1(resolvedBetter1Address);
-      const resolvedBetter2 = (await resolveUserAddress(better2, better2Type)) as EthereumAddress;
-      const resolvedDecider = (await resolveUserAddress(decider, deciderType)) as EthereumAddress;
+      if (!resolvedBetter1 || !resolvedBetter2 || !resolvedDecider) {
+        throw new Error("Failed to resolve one or more addresses");
+      }
 
       const wagerInEth = (parseFloat(wagerUSD) / ethToUsdRate).toFixed(18);
       const wagerInWei = ethers.utils.parseEther(wagerInEth);
 
       const transaction = createBet({
         contract,
-        better1: resolvedBetter1Address,
+        better1: resolvedBetter1,
         better2: resolvedBetter2,
         decider: resolvedDecider,
         wager: BigInt(wagerInWei.toString()),
@@ -131,7 +162,7 @@ export const useCreateBetForm = (contract: any) => {
       if (
         newBetAddress &&
         account &&
-        account.address.toLowerCase() === resolvedBetter1Address.toLowerCase()
+        account.address.toLowerCase() === resolvedBetter1.toLowerCase()
       ) {
         setIsFunding(true);
         const isBetReady = await waitForBetReady(newBetAddress);
@@ -173,7 +204,7 @@ export const useCreateBetForm = (contract: any) => {
     setResolvedBetter1(null);
   };
 
-  const canSubmit = better1Valid && better2Valid && deciderValid;
+  const canSubmit = better1Valid && better2Valid && deciderValid && wagerUSD && conditions;
 
   return {
     better1,
@@ -182,12 +213,6 @@ export const useCreateBetForm = (contract: any) => {
     setBetter2,
     decider,
     setDecider,
-    better1Type,
-    setBetter1Type,
-    better2Type,
-    setBetter2Type,
-    deciderType,
-    setDeciderType,
     wagerUSD,
     setWagerUSD,
     conditions,
