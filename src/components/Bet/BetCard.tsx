@@ -11,6 +11,7 @@ import QRCodeModal from "../Common/QRCodeModal";
 import { BetDetailsType } from "@/components/types/bet";
 import BetActions from "./BetActions";
 import CircularProgress from "@mui/material/CircularProgress";
+import { useResolveAddressToUsername } from "@/hooks/useResolveAddressToUsername";
 
 interface BetCardProps {
   bet: BetDetailsType;

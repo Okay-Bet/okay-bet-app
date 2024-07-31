@@ -11,6 +11,7 @@ import OpenBets from "../components/Bet/OpenBets";
 import UnfundedBets from "../components/Bet/UnfundedBets";
 import Pitch from "@/components/Landing/Pitch";
 import ConnectWallet from "@/components/User/ConnectWallet";
+import Username from "@/components/User/Username";
 import { useBetList } from "@/hooks/useBetList";
 import { contract } from "./client";
 
@@ -57,6 +58,7 @@ function HomeContent() {
         </div>
 
         <ConnectWallet />
+        <Username />
 
         {account ? (
           <div className="w-full max-w-md mx-auto">
