@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import IosShareIcon from "@mui/icons-material/IosShare";
 
@@ -27,28 +26,19 @@ const ShareButton: React.FC<ShareButtonProps> = ({
   const [isCopied, setIsCopied] = useState(false);
 
   const shortenAddress = (address: string) =>
-    `${address.slice(0, 6)}...${address.slice(-4)}`;
+    address.startsWith("0x")
+      ? `${address.slice(0, 6)}...${address.slice(-4)}`
+      : address;
+
   const wagerInUsd = (parseFloat(wagerEth) * ethToUsdRate).toFixed(2);
   const statusText =
     status === 4 ? "Resolved" : status === 5 ? "Invalidated" : "Open";
 
   const shareText = `Okay Bet Alert
 Conditions: ${conditions}
-Bettor 1: ${
-    better1Display.endsWith(".eth")
-      ? better1Display
-      : shortenAddress(better1Display)
-  }
-Bettor 2: ${
-    better2Display.endsWith(".eth")
-      ? better2Display
-      : shortenAddress(better2Display)
-  }
-Judge: ${
-    deciderDisplay.endsWith(".eth")
-      ? deciderDisplay
-      : shortenAddress(deciderDisplay)
-  }
+Bettor 1: ${shortenAddress(better1Display)}
+Bettor 2: ${shortenAddress(better2Display)}
+Judge: ${shortenAddress(deciderDisplay)}
 Wager: $${wagerInUsd} USD (${wagerEth} ETH)
 Status: ${statusText}
 https://www.okaybet.fun/bet/${address}
