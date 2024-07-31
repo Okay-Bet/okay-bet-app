@@ -11,7 +11,6 @@ import QRCodeModal from "../Common/QRCodeModal";
 import { BetDetailsType } from "@/components/types/bet";
 import BetActions from "./BetActions";
 import CircularProgress from "@mui/material/CircularProgress";
-import { useResolveAddressToUsername } from "@/hooks/useResolveAddressToUsername";
 
 interface BetCardProps {
   bet: BetDetailsType;
@@ -78,6 +77,15 @@ const BetCard: React.FC<BetCardProps> = ({
     }
   };
 
+  const displayName = (name: string) => {
+    if (name.includes('.eth')) {
+      return name;
+    }
+    if (name.startsWith('0x')) {
+      return shortenAddress(name);
+    }
+    return name; // This will be the username
+  };
 
   return (
     <div className="mb-6 relative">
@@ -96,28 +104,13 @@ const BetCard: React.FC<BetCardProps> = ({
         <div className={`p-6 ${bgColorClass} text-font`}>
           <div className="grid grid-cols-1 gap-4 mb-2">
             <div className="p-4 bg-tertiary text-font">
-              <span>
-                Bettor 1:{" "}
-                {bet.better1Display.endsWith(".eth")
-                  ? bet.better1Display
-                  : shortenAddress(bet.better1Display)}
-              </span>
+              <span>Bettor 1: {displayName(bet.better1Display)}</span>
             </div>
             <div className="p-4 bg-tertiary text-font">
-              <span>
-                Bettor 2:{" "}
-                {bet.better2Display.endsWith(".eth")
-                  ? bet.better2Display
-                  : shortenAddress(bet.better2Display)}
-              </span>
+              <span>Bettor 2: {displayName(bet.better2Display)}</span>
             </div>
             <div className="p-4 bg-tertiary text-font">
-              <span>
-                Decider:{" "}
-                {bet.deciderDisplay.endsWith(".eth")
-                  ? bet.deciderDisplay
-                  : shortenAddress(bet.deciderDisplay)}
-              </span>
+              <span>Decider: {displayName(bet.deciderDisplay)}</span>
             </div>
           </div>
           <div className="inline-block px-4 py-2 bg-blue-500 text-font rounded-full">
@@ -135,7 +128,7 @@ const BetCard: React.FC<BetCardProps> = ({
               canFund={canFund}
               userIsDecider={userIsDecider}
               betStatusText={getBetStatusText()}
-              setLocalLoading={setLocalLoading} // Pass the setLocalLoading function
+              setLocalLoading={setLocalLoading}
             />
           </div>
           <div className="flex justify-end items-center space-x-4 mt-4">
