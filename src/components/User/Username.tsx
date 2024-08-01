@@ -1,13 +1,18 @@
+// components/Username.tsx
+
 import React, { useState, useEffect, useCallback } from 'react';
-import { ethers } from 'ethers';
-import { useActiveAccount } from 'thirdweb/react';
-import UsernameRegistryABI from '@/constants/UsernameRegistryABI.json';
+import { useActiveAccount, useSendTransaction } from 'thirdweb/react';
+import { getContract } from "thirdweb";
+import { client, contract as contractConfig } from "@/app/client";
 import AlertModal from '@/components/Common/AlertModal';
+import { getUsernameByAddress } from '@/generated/usernameRegistry';
+import { handleRegisterUsername } from '@/utils/handleUsernameActions/handleRegisterUsername';
 
 const UsernameRegistryAddress = "0x93e7E62ffEBc3FD586EEf177Fc094225868c7Df4";
 
 const Username = () => {
   const account = useActiveAccount();
+  const { mutateAsync: sendTransaction } = useSendTransaction();
   const [username, setUsername] = useState('');
   const [currentUsername, setCurrentUsername] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
@@ -17,25 +22,31 @@ const Username = () => {
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
 
+  const getUsernameRegistryContract = useCallback(() => {
+    return getContract({
+      client,
+      address: UsernameRegistryAddress,
+      chain: contractConfig.chain,
+    });
+  }, []);
+
   const checkUsername = useCallback(async () => {
     if (!account) return;
     setIsChecking(true);
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
-    const contract = new ethers.Contract(UsernameRegistryAddress, UsernameRegistryABI, provider);
     try {
-      const existingUsername = await contract.getUsernameByAddress(account.address);
-      if (existingUsername) {
-        setCurrentUsername(existingUsername);
-      } else {
-        setCurrentUsername('');
-      }
+      const contract = getUsernameRegistryContract();
+      const existingUsername = await getUsernameByAddress({
+        contract,
+        user: account.address,
+      });
+      setCurrentUsername(existingUsername || '');
     } catch (error) {
       console.error("Error checking username:", error);
       setCurrentUsername('');
     } finally {
       setIsChecking(false);
     }
-  }, [account]);
+  }, [account, getUsernameRegistryContract]);
 
   useEffect(() => {
     if (account) {
@@ -63,26 +74,17 @@ const Username = () => {
     setAlertOpen(false);
   };
 
-  const registerUsername = async () => {
+  const handleRegisterUsernameClick = async () => {
     setAlertOpen(false);
-    setIsRegistering(true);
-    setFeedback('');
-    try {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
-      const contract = new ethers.Contract(UsernameRegistryAddress, UsernameRegistryABI, signer);
-      const tx = await contract.registerUsername(username.toLowerCase());
-      await tx.wait();
-      setFeedback('Username registered successfully!');
-      setCurrentUsername(username.toLowerCase());
-      setUsername('');
-      setShowForm(false);
-    } catch (error) {
-      console.error("Error registering username:", error);
-      setFeedback('Error registering username. Please try again.');
-    } finally {
-      setIsRegistering(false);
-    }
+    await handleRegisterUsername(
+      UsernameRegistryAddress,
+      username,
+      sendTransaction,
+      setFeedback,
+      setAlertOpen,
+      setIsRegistering
+    );
+    await checkUsername();
   };
 
   const toggleForm = () => {
@@ -158,7 +160,7 @@ const Username = () => {
         isOpen={alertOpen}
         message={alertMessage}
         onClose={handleAlertClose}
-        onProceed={registerUsername}
+        onProceed={handleRegisterUsernameClick}
         showProceed={true}
       />
     </div>
