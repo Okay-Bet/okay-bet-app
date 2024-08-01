@@ -11,6 +11,11 @@ const wallets = [
     auth: {
       options: ["google", "facebook", "apple", "phone", "email"],
     },
+    // UNCOMMENT WHEN YOU ARE READY TO RELEASE THE BEAST
+    // smartAccount: {
+    //   chain: base,
+    //   sponsorGas: true,
+    // },
   }),
 ];
 
