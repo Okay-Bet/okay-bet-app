@@ -13,7 +13,7 @@ import UnfundedBets from "../components/Bet/UnfundedBets";
 import Pitch from "@/components/Landing/Pitch";
 import ConnectWallet from "@/components/User/ConnectWallet";
 import Username from "@/components/User/Username";
-import { useBetList } from "@/hooks/useBetList";
+import { useActiveBets } from "@/hooks/useActiveBets";
 import { contract } from "./client";
 
 const queryClient = new QueryClient({
@@ -36,7 +36,7 @@ export default function Home() {
 
 function HomeContent() {
   const account = useActiveAccount();
-  const { openBets, unfundedBets, betHistory, isLoading } = useBetList({
+  const { openBets, unfundedBets, isLoading } = useActiveBets({
     contract,
     accountAddress: account?.address || "",
   });
@@ -55,10 +55,8 @@ function HomeContent() {
             priority
           />
         </div>
-
         <ConnectWallet />
         <Username />
-
         {account ? (
           <div className="w-full max-w-md mx-auto">
             <CreateBetForm contract={contract} />

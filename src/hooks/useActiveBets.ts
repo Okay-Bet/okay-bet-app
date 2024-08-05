@@ -1,4 +1,4 @@
-// hooks/useBetList.ts
+// hooks/useActiveBets.ts
 import { useState, useEffect, useCallback } from "react";
 import { getContract } from "thirdweb";
 import { client } from "@/app/client";
@@ -27,15 +27,14 @@ const GET_USER_BETS = gql`
   }
 `;
 
-interface UseBetListProps {
+interface UseActiveBetsProps {
   contract: any;
   accountAddress: string;
 }
 
-interface BetListData {
+interface ActiveBetsData {
   openBets: string[];
   unfundedBets: string[];
-  betHistory: string[];
   isLoading: boolean;
 }
 
@@ -43,13 +42,12 @@ interface SubgraphResponse {
   betCreateds: { betAddress: string }[];
 }
 
-export const useBetList = ({
+export const useActiveBets = ({
   contract,
   accountAddress,
-}: UseBetListProps): BetListData => {
+}: UseActiveBetsProps): ActiveBetsData => {
   const [openBets, setOpenBets] = useState<string[]>([]);
   const [unfundedBets, setUnfundedBets] = useState<string[]>([]);
-  const [betHistory, setBetHistory] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const { data: subgraphData, isLoading: isLoadingSubgraph, refetch, isError } = useQuery({
@@ -68,7 +66,6 @@ export const useBetList = ({
     setIsLoading(true);
     const open: string[] = [];
     const unfunded: string[] = [];
-    const history: string[] = [];
 
     for (const betAddress of betAddresses) {
       try {
@@ -89,8 +86,6 @@ export const useBetList = ({
               unfunded.push(betAddress);
             } else if (status === 3) {
               open.push(betAddress);
-            } else {
-              history.push(betAddress);
             }
           }
         }
@@ -101,7 +96,6 @@ export const useBetList = ({
 
     setOpenBets(open);
     setUnfundedBets(unfunded);
-    setBetHistory(history);
     setIsLoading(false);
   }, [accountAddress, contract.chain]);
 
@@ -133,7 +127,6 @@ export const useBetList = ({
   return {
     openBets,
     unfundedBets,
-    betHistory,
     isLoading: isLoadingSubgraph || isLoading,
   };
 };
