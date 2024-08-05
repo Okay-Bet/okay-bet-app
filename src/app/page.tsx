@@ -1,10 +1,11 @@
 // app/page.tsx
 "use client";
-import React, { lazy, Suspense } from "react";
+import React from "react";
 import { useActiveAccount } from "thirdweb/react";
 import { ThirdwebProvider } from "@thirdweb-dev/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Image from "next/image";
+import Link from "next/link";
 import logo from "@public/okay_bet.png";
 import CreateBetForm from "../components/CreateBetForm/CreateBetForm";
 import OpenBets from "../components/Bet/OpenBets";
@@ -14,8 +15,6 @@ import ConnectWallet from "@/components/User/ConnectWallet";
 import Username from "@/components/User/Username";
 import { useBetList } from "@/hooks/useBetList";
 import { contract } from "./client";
-
-const BetHistory = lazy(() => import("../components/Metrics/BetHistory"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -75,12 +74,9 @@ function HomeContent() {
                   betAddresses={unfundedBets}
                   accountAddress={account.address}
                 />
-                <Suspense fallback={<p>Loading bet history...</p>}>
-                  <BetHistory
-                    betAddresses={betHistory}
-                    accountAddress={account.address}
-                  />
-                </Suspense>
+                <Link href="/bet-history" className="btn btn-primary mt-4">
+                  View Bet History
+                </Link>
               </div>
             )}
           </div>
