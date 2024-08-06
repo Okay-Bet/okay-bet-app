@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback } from "react";
 import { getContract } from "thirdweb";
 import { client } from "@/app/client";
 import { bet } from "@/generated/bet";
-import { useReadContract } from "thirdweb/react";
 import debounce from 'lodash/debounce';
 import eventEmitter from "@/events/eventEmitter";
 import { useQuery } from "@tanstack/react-query";
@@ -13,16 +12,18 @@ const SUBGRAPH_URL = "https://api.studio.thegraph.com/query/85117/okaybet/versio
 
 const GET_USER_BETS = gql`
   query GetUserBets($userAddress: String!) {
-    betCreateds(
+    bets(
       where: {
         or: [
-          { better1: $userAddress }
-          { better2: $userAddress }
-          { decider: $userAddress }
+          {better1: $userAddress},
+          {better2: $userAddress},
+          {decider: $userAddress}
         ]
       }
     ) {
+      id
       betAddress
+      status
     }
   }
 `;
@@ -38,8 +39,19 @@ interface ActiveBetsData {
   isLoading: boolean;
 }
 
+interface SubgraphBet {
+  id: string;
+  betAddress: string;
+  status: number;
+  better1: string;
+  better2: string;
+  decider: string;
+  wager: string;
+  conditions: string;
+}
+
 interface SubgraphResponse {
-  betCreateds: { betAddress: string }[];
+  bets: SubgraphBet[];
 }
 
 export const useActiveBets = ({
@@ -57,21 +69,24 @@ export const useActiveBets = ({
       const response = await request<SubgraphResponse>(SUBGRAPH_URL, GET_USER_BETS, {
         userAddress: accountAddress.toLowerCase(),
       });
-      return response.betCreateds.map((bet) => bet.betAddress);
+      return response.bets;
     },
     enabled: !!accountAddress,
   });
 
-  const fetchBetDetails = useCallback(async (betAddresses: string[]) => {
+  const fetchBetDetails = useCallback(async (bets: SubgraphBet[]) => {
     setIsLoading(true);
     const open: string[] = [];
     const unfunded: string[] = [];
 
-    for (const betAddress of betAddresses) {
+    // Filter out closed bets (status >= 4)
+    const activeBets = bets.filter(bet => bet.status < 4);
+
+    for (const subgraphBet of activeBets) {
       try {
         const betContract = getContract({
           client,
-          address: betAddress,
+          address: subgraphBet.betAddress,
           chain: contract.chain,
         });
         const betData = await bet({ contract: betContract });
@@ -83,14 +98,14 @@ export const useActiveBets = ({
             accountAddress.toLowerCase() === decider.toLowerCase()
           ) {
             if (status === 0 || status === 1 || status === 2) {
-              unfunded.push(betAddress);
+              unfunded.push(subgraphBet.betAddress);
             } else if (status === 3) {
-              open.push(betAddress);
+              open.push(subgraphBet.betAddress);
             }
           }
         }
       } catch (error) {
-        console.error(`Error fetching bet details for ${betAddress}:`, error);
+        console.error(`Error fetching bet details for ${subgraphBet.betAddress}:`, error);
       }
     }
 
@@ -108,12 +123,7 @@ export const useActiveBets = ({
   useEffect(() => {
     const handleRefresh = debounce(
       async () => {
-        // Refetch subgraph data
         await refetch();
-        // Then fetch updated bet details
-        if (subgraphData) {
-          fetchBetDetails(subgraphData);
-        }
       },
       1000,
       { leading: true, trailing: false }
@@ -122,7 +132,7 @@ export const useActiveBets = ({
     return () => {
       eventEmitter.off("refreshBets", handleRefresh);
     };
-  }, [refetch, fetchBetDetails, subgraphData]);
+  }, [refetch]);
 
   return {
     openBets,
