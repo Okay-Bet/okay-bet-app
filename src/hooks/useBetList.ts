@@ -1,4 +1,4 @@
-// hooks/useActiveBets.ts
+// hooks/useBetList.ts
 import { useState, useEffect, useCallback } from "react";
 import debounce from 'lodash/debounce';
 import eventEmitter from "@/events/eventEmitter";
@@ -28,13 +28,14 @@ const GET_USER_BETS = gql`
   }
 `;
 
-interface UseActiveBetsProps {
+interface UseBetListProps {
   accountAddress: string;
 }
 
-interface ActiveBetsData {
+interface BetListData {
   openBets: string[];
   unfundedBets: string[];
+  betHistory: string[];
   isLoading: boolean;
 }
 
@@ -51,11 +52,12 @@ interface SubgraphResponse {
   bets: SubgraphBet[];
 }
 
-export const useActiveBets = ({
+export const useBetList = ({
   accountAddress,
-}: UseActiveBetsProps): ActiveBetsData => {
+}: UseBetListProps): BetListData => {
   const [openBets, setOpenBets] = useState<string[]>([]);
   const [unfundedBets, setUnfundedBets] = useState<string[]>([]);
+  const [betHistory, setBetHistory] = useState<string[]>([]);
 
   const { data: subgraphData, isLoading, refetch, isError } = useQuery({
     queryKey: ["userBets", accountAddress],
@@ -72,6 +74,7 @@ export const useActiveBets = ({
   const processBets = useCallback((bets: SubgraphBet[]) => {
     const open: string[] = [];
     const unfunded: string[] = [];
+    const history: string[] = [];
 
     bets.forEach(bet => {
       if (
@@ -83,12 +86,15 @@ export const useActiveBets = ({
           unfunded.push(bet.betAddress);
         } else if (bet.status === 3) {
           open.push(bet.betAddress);
+        } else if (bet.status === 4 || bet.status === 5) {
+          history.push(bet.betAddress);
         }
       }
     });
 
     setOpenBets(open);
     setUnfundedBets(unfunded);
+    setBetHistory(history);
   }, [accountAddress]);
 
   useEffect(() => {
@@ -105,7 +111,9 @@ export const useActiveBets = ({
       1000,
       { leading: true, trailing: false }
     );
+
     eventEmitter.on("refreshBets", handleRefresh);
+
     return () => {
       eventEmitter.off("refreshBets", handleRefresh);
     };
@@ -114,6 +122,7 @@ export const useActiveBets = ({
   return {
     openBets,
     unfundedBets,
+    betHistory,
     isLoading,
   };
 };

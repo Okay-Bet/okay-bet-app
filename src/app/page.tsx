@@ -13,8 +13,9 @@ import UnfundedBets from "../components/Bet/UnfundedBets";
 import Pitch from "@/components/Landing/Pitch";
 import ConnectWallet from "@/components/User/ConnectWallet";
 import Username from "@/components/User/Username";
-import { useActiveBets } from "@/hooks/useActiveBets";
+import { useBetList } from "@/hooks/useBetList";
 import { contract } from "./client";
+import BetHistory from "@/components/Metrics/BetHistory";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,8 +37,7 @@ export default function Home() {
 
 function HomeContent() {
   const account = useActiveAccount();
-  const { openBets, unfundedBets, isLoading } = useActiveBets({
-    contract,
+  const { openBets, unfundedBets, betHistory, isLoading } = useBetList({
     accountAddress: account?.address || "",
   });
 
@@ -72,9 +72,10 @@ function HomeContent() {
                   betAddresses={unfundedBets}
                   accountAddress={account.address}
                 />
-                <Link href="/bet-history" className="btn btn-primary mt-4">
-                  View Bet History
-                </Link>
+                <BetHistory
+                betAddresses={betHistory}
+                accountAddress={account.address}
+                />
               </div>
             )}
           </div>
