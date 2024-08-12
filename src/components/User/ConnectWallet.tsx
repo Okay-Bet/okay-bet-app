@@ -28,6 +28,10 @@ const ConnectWallet = () => {
         chain={defineChain(base)}
         theme={"dark"}
         connectModal={{ size: "wide" }}
+        accountAbstraction={{
+          chain: base, 
+          sponsorGas: true,
+        }}
         appMetadata={{
           name: "Okay Bet",
           url: "https://okaybet.fun",
