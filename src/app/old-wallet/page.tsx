@@ -3,17 +3,14 @@
 
 import React from "react";
 import { ConnectButton } from "thirdweb/react";
-import { inAppWallet } from "thirdweb/wallets";
+import { createWallet } from "thirdweb/wallets";
 import { base, defineChain } from "thirdweb/chains";
 import { client } from "@/app/client";
 import Link from "next/link";
 
 const wallets = [
-  inAppWallet({
-    auth: {
-      options: ["google", "facebook", "apple", "phone", "email"],
-    },
-    }),
+  createWallet("com.coinbase.wallet"),
+  // Add other wallet options if needed, but exclude the inAppWallet with account abstraction
 ];
 
 const OldWalletPage: React.FC = () => {
@@ -22,7 +19,7 @@ const OldWalletPage: React.FC = () => {
       <h1 className="text-3xl font-bold mb-6">Access Your Old Wallet</h1>
       
       <p className="text-lg mb-8 text-center">
-        This page allows you to connect to your old in-app wallet. Use this to access and transfer any funds from your previous wallet that haven't been migrated to the new account abstraction system. The new system pays for all your gas. 
+        This page allows you to connect to your old in-app wallet. Use this to access and transfer any funds from your previous wallet that haven&apos;t been migrated to the new account abstraction system. The new system pays for all of your transactions. 
       </p>
 
       <div className="mb-8">
@@ -44,7 +41,7 @@ const OldWalletPage: React.FC = () => {
       </div>
 
       <p className="text-sm text-gray-500 mb-4">
-        After connecting, you'll be able to view and transfer your old wallet balance or export your private key.
+        After connecting, you&apos;ll be able to view and transfer your old wallet balance.
       </p>
 
       <Link href="/" className="text-blue-500 hover:underline">
