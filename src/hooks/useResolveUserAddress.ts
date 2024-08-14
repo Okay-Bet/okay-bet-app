@@ -6,7 +6,7 @@ import UsernameRegistryABI from "@/constants/UsernameRegistryABI.json";
 const UsernameRegistryAddress = "0x93e7E62ffEBc3FD586EEf177Fc094225868c7Df4";
 
 export const resolveUserAddress = async (identifier: string): Promise<{ address: string | null; displayName: string }> => {
-  const provider = new ethers.providers.Web3Provider(window.ethereum);
+  const provider = new ethers.providers.JsonRpcProvider(process.env.NEXT_PUBLIC_BASE_MAINNET_RPC);
   const contract = new ethers.Contract(UsernameRegistryAddress, UsernameRegistryABI, provider);
 
   // Check if it's a valid Ethereum address
