@@ -1,30 +1,29 @@
 "use client";
-
-import { ConnectButton, useActiveAccount } from "thirdweb/react";
+import { ConnectButton } from "thirdweb/react";
 import { createWallet, inAppWallet } from "thirdweb/wallets";
 import { base, defineChain } from "thirdweb/chains";
 import { client } from "@/app/client";
 
-const wallets = [
+const externalWallets = [
   createWallet("com.coinbase.wallet"),
-  inAppWallet({
-    auth: {
-      options: ["google", "facebook", "apple", "phone", "email"],
-    },
-    // UNCOMMENT WHEN YOU ARE READY TO RELEASE THE BEAST
-    // smartAccount: {
-    //   chain: base,
-    //   sponsorGas: true,
-    // },
-  }),
 ];
+
+const inAppWalletOption = inAppWallet({
+  auth: {
+    options: ["google", "facebook", "apple", "phone", "email"],
+  },
+  smartAccount: {
+    chain: base,
+    sponsorGas: true,
+  },
+});
 
 const ConnectWallet = () => {
   return (
     <div className="justify-center mb-10 font-heading">
       <ConnectButton
         client={client}
-        wallets={wallets}
+        wallets={[...externalWallets, inAppWalletOption]}
         chain={defineChain(base)}
         theme={"dark"}
         connectModal={{ size: "wide" }}

@@ -26,11 +26,11 @@ const BetDetails: React.FC<BetDetailsProps> = ({ bet, ethToUsdRate, address }) =
     <div>
       <div className="flex justify-between mb-4">
         <div>
-          <span className="block font-semibold">Bettor 1:</span>
+          <span className="block font-semibold">Maker:</span>
           <span>{displayName(bet.better1Display)}</span>
         </div>
         <div>
-          <span className="block font-semibold">Bettor 2:</span>
+          <span className="block font-semibold">Taker:</span>
           <span>{displayName(bet.better2Display)}</span>
         </div>
       </div>

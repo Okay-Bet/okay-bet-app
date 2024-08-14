@@ -134,7 +134,7 @@ const BetActions: React.FC<BetActionsProps> = ({
             {isActionLoading ? (
               <CircularProgress size={24} />
             ) : (
-              "Declare Better 1 as Winner"
+              "Declare Maker as Winner"
             )}
           </button>
           <button
@@ -157,7 +157,7 @@ const BetActions: React.FC<BetActionsProps> = ({
             {isActionLoading ? (
               <CircularProgress size={24} />
             ) : (
-              "Declare Better 2 as Winner"
+              "Declare Taker as Winner"
             )}
           </button>
         </>

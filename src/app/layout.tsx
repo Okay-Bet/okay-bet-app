@@ -6,7 +6,7 @@ import { Analytics } from "@vercel/analytics/react";
 export const metadata: Metadata = {
   title: "Okay Bet",
   description:
-    "Make onchain bets with your friends. Connect your wallet to get started.",
+    "P2P PvP Betting Platform",
   manifest: "/manifest.json",
 };
 

@@ -20,7 +20,7 @@ const BetInfo: React.FC<BetInfoProps> = ({ betDetails, wagerInUsd }) => {
       <div className="grid grid-cols-1 gap-4 mb-2">
         <div className="p-4 bg-tertiary text-font shadow-md">
           <span>
-            Better 1:{" "}
+            Maker:{" "}
             {betDetails.better1Display.endsWith(".eth")
               ? betDetails.better1Display
               : shortenAddress(betDetails.better1Display)}
@@ -28,7 +28,7 @@ const BetInfo: React.FC<BetInfoProps> = ({ betDetails, wagerInUsd }) => {
         </div>
         <div className="p-4 bg-tertiary text-font shadow-md">
           <span>
-            Better 2:{" "}
+            Taker:{" "}
             {betDetails.better2Display.endsWith(".eth")
               ? betDetails.better2Display
               : shortenAddress(betDetails.better2Display)}
@@ -36,7 +36,7 @@ const BetInfo: React.FC<BetInfoProps> = ({ betDetails, wagerInUsd }) => {
         </div>
         <div className="p-4 bg-tertiary text-font shadow-md">
           <span>
-            Decider:{" "}
+            Judge:{" "}
             {betDetails.deciderDisplay.endsWith(".eth")
               ? betDetails.deciderDisplay
               : shortenAddress(betDetails.deciderDisplay)}

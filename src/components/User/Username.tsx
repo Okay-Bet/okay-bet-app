@@ -8,7 +8,7 @@ import AlertModal from '@/components/Common/AlertModal';
 import { getUsernameByAddress } from '@/generated/usernameRegistry';
 import { handleRegisterUsername } from '@/utils/handleUsernameActions/handleRegisterUsername';
 
-const UsernameRegistryAddress = "0x93e7E62ffEBc3FD586EEf177Fc094225868c7Df4";
+const UsernameRegistryAddress = "0xE027571Fc847DC41205EABb6F3c7BbF887D373E2";
 
 const Username = () => {
   const account = useActiveAccount();
