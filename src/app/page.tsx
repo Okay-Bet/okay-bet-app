@@ -2,7 +2,6 @@
 "use client";
 import React from "react";
 import { useActiveAccount } from "thirdweb/react";
-import { ThirdwebProvider } from "@thirdweb-dev/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
@@ -27,11 +26,9 @@ const queryClient = new QueryClient({
 
 export default function Home() {
   return (
-    <ThirdwebProvider clientId={process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID}>
-      <QueryClientProvider client={queryClient}>
-        <HomeContent />
-      </QueryClientProvider>
-    </ThirdwebProvider>
+    <QueryClientProvider client={queryClient}>
+      <HomeContent />
+    </QueryClientProvider>
   );
 }
 
@@ -73,8 +70,8 @@ function HomeContent() {
                   accountAddress={account.address}
                 />
                 <BetHistory
-                betAddresses={betHistory}
-                accountAddress={account.address}
+                  betAddresses={betHistory}
+                  accountAddress={account.address}
                 />
               </div>
             )}
