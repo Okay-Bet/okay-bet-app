@@ -3,7 +3,7 @@ import { resolveAddress, resolveName } from "thirdweb/extensions/ens";
 import { ethers } from "ethers";
 import UsernameRegistryABI from "@/constants/UsernameRegistryABI.json";
 
-const UsernameRegistryAddress = "0x93e7E62ffEBc3FD586EEf177Fc094225868c7Df4";
+const UsernameRegistryAddress = "0xE027571Fc847DC41205EABb6F3c7BbF887D373E2";
 
 export const resolveUserAddress = async (identifier: string): Promise<{ address: string | null; displayName: string }> => {
   const provider = new ethers.providers.JsonRpcProvider(process.env.NEXT_PUBLIC_BASE_MAINNET_RPC);
