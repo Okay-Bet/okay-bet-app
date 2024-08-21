@@ -15,6 +15,7 @@ import Username from "@/components/User/Username";
 import { useBetList } from "@/hooks/useBetList";
 import { contract } from "./client";
 import BetHistory from "@/components/Metrics/BetHistory";
+import Testimonials from "@/components/Landing/Testimonials";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -73,6 +74,7 @@ function HomeContent() {
                   betAddresses={betHistory}
                   accountAddress={account.address}
                 />
+                <Testimonials />
               </div>
             )}
           </div>
