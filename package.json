@@ -32,6 +32,7 @@
     "react-qrcode-logo": "^3.0.0",
     "react-slick": "^0.30.2",
     "slick-carousel": "^1.8.1",
+    "socket.io": "^4.7.5",
     "tailwindcss-bg-patterns": "^0.3.0",
     "thirdweb": "^5.45.1",
     "viem": "^2.16.4",
