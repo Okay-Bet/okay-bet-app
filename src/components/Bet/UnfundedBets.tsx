@@ -5,7 +5,7 @@ import BetCard from "./BetCard";
 import AlertModal from "../Common/AlertModal";
 import { useFetchEthToUsdRate } from "@/hooks/useFetchEthToUsdRate";
 import CollapsibleSection from "../Common/CollapsibleSection";
-import eventEmitter from "@/events/eventEmitter";
+import useWebSocket from "@/hooks/useWebSocket";
 
 interface UnfundedBetsProps {
   betAddresses: string[];
@@ -20,6 +20,7 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
   const ethToUsdRate = useFetchEthToUsdRate();
   const [message, setMessage] = useState<string>("");
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
+  const { lastEvent } = useWebSocket();
 
   const handleRefresh = async () => {
     for (const betAddress of betAddresses) {
@@ -28,19 +29,15 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
   };
 
   useEffect(() => {
-    eventEmitter.on('refreshUnfundedBets', handleRefresh);
-    return () => {
-      eventEmitter.off('refreshUnfundedBets', handleRefresh);
-    };
-  }, [fetchBetDetails, betAddresses]);
+    if (lastEvent && (lastEvent.type === 'BetFunded' || lastEvent.type === 'BetCancelled')) {
+      handleRefresh();
+    }
+  }, [lastEvent]);
 
   const handleAlertClose = () => {
     setIsAlertOpen(false);
     handleRefresh();
   };
-
-  // Dummy function for onProceed
-  const dummyProceed = () => {};
 
   return (
     <CollapsibleSection title="Unfunded Bets" loading={loading}>
@@ -64,7 +61,7 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
         isOpen={isAlertOpen}
         message={message}
         onClose={handleAlertClose}
-        onProceed={dummyProceed}
+        onProceed={() => {}}
         showProceed={false}
       />
     </CollapsibleSection>

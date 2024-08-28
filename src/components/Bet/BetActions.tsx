@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { BetDetailsType } from "@/components/types/bet";
 import { handleFundBet } from "@/utils/handleBetActions/handleFundBet";
-import { handleCancelBet } from "@/utils/handleBetActions/handleCancelBet";
+import { useCancelBet } from "@/hooks/useCancelBet";
 import { handleResolveBet } from "@/utils/handleBetActions/handleResolveBet";
 import { handleInvalidateBet } from "@/utils/handleBetActions/handleInvalidateBet";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -41,6 +41,8 @@ const BetActions: React.FC<BetActionsProps> = ({
     betDetails.status,
     canFund
   );
+
+  const handleCancelBet = useCancelBet();
 
   const handleAction = async (action: () => Promise<void>) => {
     setIsActionLoading(true);

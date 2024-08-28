@@ -5,7 +5,7 @@ import { useFetchBetDetails } from "@/hooks/useFetchBetDetails";
 import { useFetchEthToUsdRate } from "@/hooks/useFetchEthToUsdRate";
 import CollapsibleSection from "../Common/CollapsibleSection";
 import BetCard from "./BetCard";
-import eventEmitter from "@/events/eventEmitter";
+import useWebSocket from "@/hooks/useWebSocket";
 
 interface OpenBetsProps {
   betAddresses: string[];
@@ -20,6 +20,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({
   const ethToUsdRate = useFetchEthToUsdRate();
   const [message, setMessage] = useState<string>("");
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
+  const { lastEvent } = useWebSocket();
 
   const handleRefresh = async () => {
     for (const betAddress of betAddresses) {
@@ -28,11 +29,10 @@ const OpenBets: React.FC<OpenBetsProps> = ({
   };
 
   useEffect(() => {
-    eventEmitter.on("refreshOpenBets", handleRefresh);
-    return () => {
-      eventEmitter.off("refreshOpenBets", handleRefresh);
-    };
-  }, [fetchBetDetails, betAddresses]);
+    if (lastEvent && lastEvent.type === 'BetCancelled') {
+      handleRefresh();
+    }
+  }, [lastEvent]);
 
   const handleAlertClose = () => {
     setIsAlertOpen(false);

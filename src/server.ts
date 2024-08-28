@@ -11,7 +11,6 @@ const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
   console.log("Next.js app prepared");
-
   const server = createServer((req, res) => {
     const parsedUrl = parse(req.url!, true);
     handle(req, res, parsedUrl);
@@ -25,11 +24,19 @@ app.prepare().then(() => {
 
   io.on("connection", (socket) => {
     console.log("New client connected", socket.id);
+
     socket.on("disconnect", () => {
       console.log("Client disconnected", socket.id);
     });
+
     socket.on("error", (error) => {
       console.error("Socket error:", error);
+    });
+
+    // Handle betCancelled event from client
+    socket.on("betCancelled", ({ betAddress }) => {
+      console.log(`Bet cancellation initiated for address: ${betAddress}`);
+      // You might want to perform additional actions here
     });
   });
 
@@ -37,6 +44,7 @@ app.prepare().then(() => {
   const provider = new ethers.providers.WebSocketProvider(
     process.env.ALCHEMY_BASE_WSS!
   );
+
   const contract = new ethers.Contract(
     "0xA32DbbA5427fEE87D3CC6CbF85Cd42A75E2F413C",
     betABI,
