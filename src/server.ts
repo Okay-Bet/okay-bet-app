@@ -1,42 +1,53 @@
-import { createServer } from 'http';
-import { parse } from 'url';
-import next from 'next';
-import { Server } from 'socket.io';
-import { ethers } from 'ethers';
+import { createServer } from "http";
+import { parse } from "url";
+import next from "next";
+import { Server } from "socket.io";
+import { ethers } from "ethers";
+import betABI from "./constants/betABI.json";
 
-const dev = process.env.NODE_ENV !== 'production';
+const dev = process.env.NODE_ENV !== "production";
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
+  console.log("Next.js app prepared");
+
   const server = createServer((req, res) => {
     const parsedUrl = parse(req.url!, true);
     handle(req, res, parsedUrl);
   });
 
-  const io = new Server(server);
+  const io = new Server(server, {
+    path: "/api/socketio",
+  });
 
-  io.on('connection', (socket) => {
-    console.log('New client connected');
+  console.log("Socket.IO server created");
 
-    socket.on('disconnect', () => {
-      console.log('Client disconnected');
+  io.on("connection", (socket) => {
+    console.log("New client connected", socket.id);
+    socket.on("disconnect", () => {
+      console.log("Client disconnected", socket.id);
+    });
+    socket.on("error", (error) => {
+      console.error("Socket error:", error);
     });
   });
 
   // Setup contract event listener
-  const provider = new ethers.providers.WebSocketProvider(process.env.ETHEREUM_WEBSOCKET_URL!);
+  const provider = new ethers.providers.WebSocketProvider(
+    process.env.ALCHEMY_BASE_WSS!
+  );
   const contract = new ethers.Contract(
-    process.env.CONTRACT_ADDRESS!,
-    process.env.CONTRACT_ABI!,
+    "0xA32DbbA5427fEE87D3CC6CbF85Cd42A75E2F413C",
+    betABI,
     provider
   );
 
   contract.on("*", (event) => {
-    console.log('Contract event:', event);
-    io.emit('contractEvent', {
+    console.log("Contract event:", event);
+    io.emit("contractEvent", {
       type: event.event,
-      data: event.args
+      data: event.args,
     });
   });
 

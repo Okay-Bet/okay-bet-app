@@ -1,21 +1,36 @@
-import withPWA from 'next-pwa';
-import withBundleAnalyzer from '@next/bundle-analyzer';
+import withPWA from "next-pwa";
+import withBundleAnalyzer from "@next/bundle-analyzer";
 
 const withBundleAnalyzerConfig = withBundleAnalyzer({
-  enabled: process.env.ANALYZE === 'true',
+  enabled: process.env.ANALYZE === "true",
 });
 
 const nextConfig = {
-  // fixes wallet connect dependency issue https://docs.walletconnect.com/web3modal/nextjs/about#extra-configuration
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     config.externals.push("pino-pretty", "lokijs", "encoding");
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        net: false,
+        tls: false,
+        fs: false,
+      };
+    }
     return config;
+  },
+  async rewrites() {
+    return [
+      {
+        source: '/api/socketio',
+        destination: '/api/socketio',
+      },
+    ];
   },
 };
 
 const config = withPWA({
-  dest: 'public',
-  disable: process.env.NODE_ENV === 'development',
+  dest: "public",
+  disable: process.env.NODE_ENV === "development",
   register: true,
   skipWaiting: true,
 })(nextConfig);
