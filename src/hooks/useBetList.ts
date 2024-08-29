@@ -1,18 +1,19 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { gql, request } from "graphql-request";
-import useWebSocket from "@/hooks/useWebSocket"; 
+import useWebSocket from "@/hooks/useWebSocket";
 
-const SUBGRAPH_URL = "https://api.studio.thegraph.com/query/85117/okaybet/version/latest";
+const SUBGRAPH_URL =
+  "https://api.studio.thegraph.com/query/85117/okaybet/version/latest";
 
 const GET_USER_BETS = gql`
   query GetUserBets($userAddress: String!) {
     bets(
       where: {
         or: [
-          {better1: $userAddress},
-          {better2: $userAddress},
-          {decider: $userAddress}
+          { better1: $userAddress }
+          { better2: $userAddress }
+          { decider: $userAddress }
         ]
       }
     ) {
@@ -56,46 +57,57 @@ export const useBetList = ({
   const [openBets, setOpenBets] = useState<string[]>([]);
   const [unfundedBets, setUnfundedBets] = useState<string[]>([]);
   const [betHistory, setBetHistory] = useState<string[]>([]);
+  const { isConnected, lastEvent } = useWebSocket();
 
-  const { lastEvent } = useWebSocket();
-
-  const { data: subgraphData, isLoading, refetch, isError } = useQuery({
+  const {
+    data: subgraphData,
+    isLoading,
+    refetch,
+    isError,
+  } = useQuery({
     queryKey: ["userBets", accountAddress],
     queryFn: async () => {
       if (!accountAddress) return null;
-      const response = await request<SubgraphResponse>(SUBGRAPH_URL, GET_USER_BETS, {
-        userAddress: accountAddress.toLowerCase(),
-      });
+      const response = await request<SubgraphResponse>(
+        SUBGRAPH_URL,
+        GET_USER_BETS,
+        {
+          userAddress: accountAddress.toLowerCase(),
+        }
+      );
       return response.bets;
     },
     enabled: !!accountAddress,
   });
 
-  const processBets = useCallback((bets: SubgraphBet[]) => {
-    const open: string[] = [];
-    const unfunded: string[] = [];
-    const history: string[] = [];
+  const processBets = useCallback(
+    (bets: SubgraphBet[]) => {
+      const open: string[] = [];
+      const unfunded: string[] = [];
+      const history: string[] = [];
 
-    bets.forEach(bet => {
-      if (
-        accountAddress.toLowerCase() === bet.better1.toLowerCase() ||
-        accountAddress.toLowerCase() === bet.better2.toLowerCase() ||
-        accountAddress.toLowerCase() === bet.decider.toLowerCase()
-      ) {
-        if (bet.status === 0 || bet.status === 1 || bet.status === 2) {
-          unfunded.push(bet.betAddress);
-        } else if (bet.status === 3) {
-          open.push(bet.betAddress);
-        } else if (bet.status === 4 || bet.status === 5) {
-          history.push(bet.betAddress);
+      bets.forEach((bet) => {
+        if (
+          accountAddress.toLowerCase() === bet.better1.toLowerCase() ||
+          accountAddress.toLowerCase() === bet.better2.toLowerCase() ||
+          accountAddress.toLowerCase() === bet.decider.toLowerCase()
+        ) {
+          if (bet.status === 0 || bet.status === 1 || bet.status === 2) {
+            unfunded.push(bet.betAddress);
+          } else if (bet.status === 3) {
+            open.push(bet.betAddress);
+          } else if (bet.status === 4 || bet.status === 5) {
+            history.push(bet.betAddress);
+          }
         }
-      }
-    });
+      });
 
-    setOpenBets(open);
-    setUnfundedBets(unfunded);
-    setBetHistory(history);
-  }, [accountAddress]);
+      setOpenBets(open);
+      setUnfundedBets(unfunded);
+      setBetHistory(history);
+    },
+    [accountAddress]
+  );
 
   useEffect(() => {
     if (!isLoading && !isError && subgraphData) {
@@ -104,13 +116,39 @@ export const useBetList = ({
   }, [processBets, isLoading, isError, subgraphData]);
 
   useEffect(() => {
-    if (lastEvent && lastEvent.type) {
-      const eventTypes = ['BetCreated', 'BetFunded', 'BetCancelled', 'BetResolved', 'BetInvalidated'];
-      if (eventTypes.includes(lastEvent.type)) {
-        refetch();
+    if (isConnected && lastEvent) {
+      console.log("WebSocket event received:", lastEvent);
+      const { type, data } = lastEvent;
+
+      switch (type) {
+        case "BetCreated":
+          setUnfundedBets((prev) => [...prev, data.betAddress]);
+          break;
+        case "BetFunded":
+          setUnfundedBets((prev) =>
+            prev.filter((address) => address !== data.betAddress)
+          );
+          setOpenBets((prev) => [...prev, data.betAddress]);
+          break;
+        case "BetCancelled":
+        case "BetResolved":
+        case "BetInvalidated":
+          setUnfundedBets((prev) =>
+            prev.filter((address) => address !== data.betAddress)
+          );
+          setOpenBets((prev) =>
+            prev.filter((address) => address !== data.betAddress)
+          );
+          setBetHistory((prev) => [...prev, data.betAddress]);
+          break;
+        default:
+          console.log("Unknown event type:", type);
       }
+
+      // Refetch to ensure consistency with the subgraph
+      refetch();
     }
-  }, [lastEvent, refetch]);
+  }, [isConnected, lastEvent, refetch]);
 
   return {
     openBets,

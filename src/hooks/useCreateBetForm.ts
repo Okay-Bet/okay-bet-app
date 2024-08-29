@@ -4,7 +4,7 @@ import { useSendTransaction, useActiveAccount } from "thirdweb/react";
 import { ethers } from "ethers";
 import { useFetchEthToUsdRate } from "./useFetchEthToUsdRate";
 import { resolveUserAddress } from "./useResolveUserAddress";
-import { handleFundBet } from "@/utils/handleBetActions/handleFundBet";
+import { useFundBet } from "@/hooks/useFundBet";
 import { waitForBetReady } from "@/utils/waitForBetReady";
 import { createBet } from "@/generated/betFactory";
 import { BASE_MAINNET_RPC } from "@/constants/rpc";
@@ -57,6 +57,8 @@ export const useCreateBetForm = (contract: any) => {
     setConditions("");
     setIsFormVisible(false);
   };
+
+  const handleFundBet = useFundBet();
 
   const validateAndResolveAddress = useCallback(async (
     value: string,

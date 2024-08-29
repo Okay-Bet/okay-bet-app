@@ -1,10 +1,10 @@
 // components/Bet/BetActions.tsx
 import React, { useState, useEffect } from "react";
 import { BetDetailsType } from "@/components/types/bet";
-import { handleFundBet } from "@/utils/handleBetActions/handleFundBet";
+import { useFundBet } from "@/hooks/useFundBet";
 import { useCancelBet } from "@/hooks/useCancelBet";
-import { handleResolveBet } from "@/utils/handleBetActions/handleResolveBet";
-import { handleInvalidateBet } from "@/utils/handleBetActions/handleInvalidateBet";
+import { useResolveBet } from "@/hooks/useResolveBet";
+import { useInvalidateBet } from "@/hooks/useInvalidateBet";
 import CircularProgress from "@mui/material/CircularProgress";
 
 interface BetActionsProps {
@@ -43,6 +43,10 @@ const BetActions: React.FC<BetActionsProps> = ({
   );
 
   const handleCancelBet = useCancelBet();
+  const handleFundBet = useFundBet();
+  const handleInvalidateBet = useInvalidateBet();
+  const handleResolveBet = useResolveBet();
+
 
   const handleAction = async (action: () => Promise<void>) => {
     setIsActionLoading(true);
