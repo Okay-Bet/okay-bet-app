@@ -1,9 +1,7 @@
-// hooks/useBetList.ts
 import { useState, useEffect, useCallback } from "react";
-import debounce from 'lodash/debounce';
-import eventEmitter from "@/events/eventEmitter";
 import { useQuery } from "@tanstack/react-query";
 import { gql, request } from "graphql-request";
+import useWebSocket from "@/hooks/useWebSocket"; 
 
 const SUBGRAPH_URL = "https://api.studio.thegraph.com/query/85117/okaybet/version/latest";
 
@@ -59,6 +57,8 @@ export const useBetList = ({
   const [unfundedBets, setUnfundedBets] = useState<string[]>([]);
   const [betHistory, setBetHistory] = useState<string[]>([]);
 
+  const { lastEvent } = useWebSocket();
+
   const { data: subgraphData, isLoading, refetch, isError } = useQuery({
     queryKey: ["userBets", accountAddress],
     queryFn: async () => {
@@ -104,20 +104,13 @@ export const useBetList = ({
   }, [processBets, isLoading, isError, subgraphData]);
 
   useEffect(() => {
-    const handleRefresh = debounce(
-      async () => {
-        await refetch();
-      },
-      1000,
-      { leading: true, trailing: false }
-    );
-
-    eventEmitter.on("refreshBets", handleRefresh);
-
-    return () => {
-      eventEmitter.off("refreshBets", handleRefresh);
-    };
-  }, [refetch]);
+    if (lastEvent && lastEvent.type) {
+      const eventTypes = ['BetCreated', 'BetFunded', 'BetCancelled', 'BetResolved', 'BetInvalidated'];
+      if (eventTypes.includes(lastEvent.type)) {
+        refetch();
+      }
+    }
+  }, [lastEvent, refetch]);
 
   return {
     openBets,

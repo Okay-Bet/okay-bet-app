@@ -1,25 +1,33 @@
-// components/Common/AlertModal.js
 import React from "react";
 
-export default function AlertModal({ isOpen, message, onClose, onProceed, showProceed = false }) {
+export default function AlertModal({
+  isOpen,
+  message,
+  onClose,
+  onProceed,
+  showProceed = false,
+}) {
   if (!isOpen) return null;
-
-  // Preserve existing behavior for falsy messages
-  if (!message) return null;
 
   let displayMessage = message;
 
-  // Only apply toString() if message is not already a string
-  if (typeof message !== 'string') {
-    console.warn('AlertModal received a non-string message. Converting to string.');
+  // Handle boolean messages
+  if (typeof message === "boolean") {
+    console.warn(
+      "AlertModal received a boolean message. Using default message."
+    );
+    displayMessage = message ? "Operation successful" : "Operation failed";
+  } else if (typeof message !== "string") {
+    console.warn(
+      "AlertModal received a non-string message. Converting to string."
+    );
     displayMessage = String(message);
   }
 
-  // Trim the message only if it's a string
-  const trimmedMessage = typeof displayMessage === 'string' ? displayMessage.trim() : displayMessage;
+  const trimmedMessage =
+    typeof displayMessage === "string" ? displayMessage.trim() : displayMessage;
 
-  // Preserve existing behavior: don't render if trimmed message is empty
-  if (trimmedMessage === "") return null;
+  if (!trimmedMessage) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
@@ -30,7 +38,7 @@ export default function AlertModal({ isOpen, message, onClose, onProceed, showPr
             className="py-2 px-4 bg-primary text-quaternary font-bold rounded hover:bg-secondary transition-colors"
             onClick={onClose}
           >
-            {showProceed ? 'Nevermind, close' : 'Close'}
+            {showProceed ? "Nevermind, close" : "Close"}
           </button>
           {showProceed && onProceed && (
             <button
