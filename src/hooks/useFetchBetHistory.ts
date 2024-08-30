@@ -5,9 +5,8 @@ import { ethers } from "ethers";
 import { client, contract } from "@/app/client";
 import { bet } from "@/generated/bet";
 import { BetDetailsType } from "@/components/types/bet";
-import debounce from "lodash/debounce";
-import eventEmitter from "@/events/eventEmitter";
-import { resolveUserAddress } from "./useResolveUserAddress"; // Import the new function
+import { resolveUserAddress } from "./useResolveUserAddress";
+import useWebSocket from "@/hooks/useWebSocket";
 
 export const useFetchBetHistory = (betAddresses: string[], address: string) => {
   const [betDetails, setBetDetails] = useState<BetDetailsType[]>([]);
@@ -20,6 +19,7 @@ export const useFetchBetHistory = (betAddresses: string[], address: string) => {
   });
   const [ethToUsdRate, setEthToUsdRate] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
+  const { lastEvent } = useWebSocket();
 
   const fetchEthToUsdRate = useCallback(async () => {
     try {
@@ -47,8 +47,11 @@ export const useFetchBetHistory = (betAddresses: string[], address: string) => {
       if (betDetail) {
         details.push(betDetail);
 
-        const isWinner = betDetail.winner && betDetail.winner.toLowerCase() === address.toLowerCase();
-        const isDecider = betDetail.decider.toLowerCase() === address.toLowerCase();
+        const isWinner =
+          betDetail.winner &&
+          betDetail.winner.toLowerCase() === address.toLowerCase();
+        const isDecider =
+          betDetail.decider.toLowerCase() === address.toLowerCase();
 
         if (betDetail.status === 4 || betDetail.status === 5) {
           if (betDetail.status === 4) {
@@ -79,49 +82,57 @@ export const useFetchBetHistory = (betAddresses: string[], address: string) => {
     setLoading(false);
   }, [betAddresses, address, ethToUsdRate]);
 
-  const fetchSingleBetDetails = useCallback(async (betAddress: string): Promise<BetDetailsType | null> => {
-    try {
-      const betContract = getContract({
-        client,
-        address: betAddress,
-        chain: contract.chain,
-      });
-
-      const betData = await bet({ contract: betContract });
-
-      if (betData) {
-        const [better1, better2, decider, winner] = await Promise.all([
-          resolveUserAddress(betData[0]),
-          resolveUserAddress(betData[1]),
-          resolveUserAddress(betData[2]),
-          betData[6] !== "0x0000000000000000000000000000000000000000"
-            ? resolveUserAddress(betData[6])
-            : { address: null, displayName: null },
-        ]);
-
-        const betDetail: BetDetailsType = {
+  const fetchSingleBetDetails = useCallback(
+    async (betAddress: string): Promise<BetDetailsType | null> => {
+      try {
+        const betContract = getContract({
+          client,
           address: betAddress,
-          better1: betData[0],
-          better1Display: better1.displayName,
-          better2: betData[1],
-          better2Display: better2.displayName,
-          decider: betData[2],
-          deciderDisplay: decider.displayName,
-          wagerWei: betData[3].toString(),
-          wagerEth: parseFloat(ethers.utils.formatEther(betData[3])).toFixed(4),
-          conditions: betData[4],
-          status: betData[5],
-          winner: betData[6] !== "0x0000000000000000000000000000000000000000" ? betData[6] : null,
-          winnerDisplay: winner.displayName,
-        };
+          chain: contract.chain,
+        });
 
-        return betDetail;
+        const betData = await bet({ contract: betContract });
+
+        if (betData) {
+          const [better1, better2, decider, winner] = await Promise.all([
+            resolveUserAddress(betData[0]),
+            resolveUserAddress(betData[1]),
+            resolveUserAddress(betData[2]),
+            betData[6] !== "0x0000000000000000000000000000000000000000"
+              ? resolveUserAddress(betData[6])
+              : { address: null, displayName: null },
+          ]);
+
+          const betDetail: BetDetailsType = {
+            address: betAddress,
+            better1: betData[0],
+            better1Display: better1.displayName,
+            better2: betData[1],
+            better2Display: better2.displayName,
+            decider: betData[2],
+            deciderDisplay: decider.displayName,
+            wagerWei: betData[3].toString(),
+            wagerEth: parseFloat(ethers.utils.formatEther(betData[3])).toFixed(
+              4
+            ),
+            conditions: betData[4],
+            status: betData[5],
+            winner:
+              betData[6] !== "0x0000000000000000000000000000000000000000"
+                ? betData[6]
+                : null,
+            winnerDisplay: winner.displayName,
+          };
+
+          return betDetail;
+        }
+      } catch (error) {
+        console.error(`Error fetching bet details for ${betAddress}:`, error);
       }
-    } catch (error) {
-      console.error(`Error fetching bet details for ${betAddress}:`, error);
-    }
-    return null;
-  }, []);
+      return null;
+    },
+    []
+  );
 
   useEffect(() => {
     fetchEthToUsdRate();
@@ -129,20 +140,28 @@ export const useFetchBetHistory = (betAddresses: string[], address: string) => {
   }, [fetchEthToUsdRate, fetchBetDetails]);
 
   useEffect(() => {
-    const handleRefresh = debounce(
-      () => {
-        fetchBetDetails();
-      },
-      1000,
-      { leading: true, trailing: false }
-    );
+    if (
+      lastEvent &&
+      (lastEvent.type === "betCancelled" ||
+        lastEvent.type === "betResolved" ||
+        lastEvent.type === "betInvalidated")
+    ) {
+      const updatedBetAddress = lastEvent.betAddress;
+      if (betAddresses.includes(updatedBetAddress)) {
+        fetchSingleBetDetails(updatedBetAddress).then((updatedBetDetail) => {
+          if (updatedBetDetail) {
+            setBetDetails((prevDetails) =>
+              prevDetails.map((detail) =>
+                detail.address === updatedBetAddress ? updatedBetDetail : detail
+              )
+            );
+            // Recalculate stats
+            fetchBetDetails();
+          }
+        });
+      }
+    }
+  }, [lastEvent, fetchSingleBetDetails, fetchBetDetails, betAddresses]);
 
-    eventEmitter.on("refreshBets", handleRefresh);
-
-    return () => {
-      eventEmitter.off("refreshBets", handleRefresh);
-    };
-  }, [fetchBetDetails]);
-
-  return { betDetails, stats, ethToUsdRate, loading, fetchBetDetails, fetchSingleBetDetails };
+  return { betDetails, stats, ethToUsdRate, loading, fetchSingleBetDetails };
 };
