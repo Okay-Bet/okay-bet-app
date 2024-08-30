@@ -1,7 +1,13 @@
+import React, { useEffect } from 'react';
 import useWebSocket from '../hooks/useWebSocket';
 
 const ContractEvents = () => {
-  const { isConnected, lastEvent } = useWebSocket();
+  const { isConnected, lastEvent, emitEvent } = useWebSocket();
+
+  useEffect(() => {
+    console.log('WebSocket connection status:', isConnected);
+  }, [isConnected]);
+
 
   return (
     <div>

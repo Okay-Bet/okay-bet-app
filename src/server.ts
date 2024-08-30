@@ -24,7 +24,7 @@ app.prepare().then(() => {
 
   io.on("connection", (socket) => {
     console.log("New client connected", socket.id);
-
+    
     socket.on("disconnect", () => {
       console.log("Client disconnected", socket.id);
     });
@@ -44,7 +44,6 @@ app.prepare().then(() => {
   const provider = new ethers.providers.WebSocketProvider(
     process.env.ALCHEMY_BASE_WSS!
   );
-
   const contract = new ethers.Contract(
     "0xA32DbbA5427fEE87D3CC6CbF85Cd42A75E2F413C",
     betABI,
@@ -62,5 +61,6 @@ app.prepare().then(() => {
   const port = process.env.PORT || 3000;
   server.listen(port, () => {
     console.log(`> Ready on http://localhost:${port}`);
+    console.log(`> Socket.IO server running on the same port`);
   });
 });
