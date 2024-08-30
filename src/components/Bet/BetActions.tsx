@@ -1,15 +1,14 @@
-// components/Bet/BetActions.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { BetDetailsType } from "@/components/types/bet";
 import { useFundBet } from "@/hooks/useFundBet";
 import { useCancelBet } from "@/hooks/useCancelBet";
 import { useResolveBet } from "@/hooks/useResolveBet";
 import { useInvalidateBet } from "@/hooks/useInvalidateBet";
 import CircularProgress from "@mui/material/CircularProgress";
+import useWebSocket from "@/hooks/useWebSocket";
 
 interface BetActionsProps {
   betDetails: BetDetailsType;
-  fetchBetDetails: (betAddress: string) => Promise<BetDetailsType | null>;
   setMessage: (message: string) => void;
   setIsAlertOpen: (isOpen: boolean) => void;
   isLoading: boolean;
@@ -23,7 +22,6 @@ interface BetActionsProps {
 
 const BetActions: React.FC<BetActionsProps> = ({
   betDetails,
-  fetchBetDetails,
   setMessage,
   setIsAlertOpen,
   isLoading,
@@ -35,6 +33,7 @@ const BetActions: React.FC<BetActionsProps> = ({
   setLocalLoading,
 }) => {
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const { emitEvent } = useWebSocket();
   const userRoles = getUserRoles(accountAddress, betDetails);
   const availableActions = getAvailableActions(
     userRoles,
@@ -47,12 +46,8 @@ const BetActions: React.FC<BetActionsProps> = ({
   const handleInvalidateBet = useInvalidateBet();
   const handleResolveBet = useResolveBet();
 
-
-  const handleAction = async (action: () => Promise<void>) => {
-    setIsActionLoading(true);
-    setLocalLoading(true);
-    fetchBetDetails(betDetails.address);
-    await action();
+  const fetchBetDetails = async (betAddress: string) => {
+    emitEvent("requestBetUpdate", { betAddress });
   };
 
   const buttonClass = (color: string) => `
@@ -74,16 +69,14 @@ const BetActions: React.FC<BetActionsProps> = ({
       {availableActions.includes("fundBet") && canFund && (
         <button
           onClick={() =>
-            handleAction(() =>
-              handleFundBet(
-                betDetails.address,
-                betDetails.wagerWei,
-                sendTransaction,
-                fetchBetDetails,
-                setMessage,
-                setIsAlertOpen,
-                setIsActionLoading
-              )
+            handleFundBet(
+              betDetails.address,
+              betDetails.wagerWei,
+              sendTransaction,
+              fetchBetDetails,
+              setMessage,
+              setIsAlertOpen,
+              setIsActionLoading
             )
           }
           className={buttonClass("green")}
@@ -95,15 +88,13 @@ const BetActions: React.FC<BetActionsProps> = ({
       {availableActions.includes("cancelBet") && (
         <button
           onClick={() =>
-            handleAction(() =>
-              handleCancelBet(
-                betDetails.address,
-                sendTransaction,
-                fetchBetDetails,
-                setMessage,
-                setIsAlertOpen,
-                setIsActionLoading
-              )
+            handleCancelBet(
+              betDetails.address,
+              sendTransaction,
+              fetchBetDetails,
+              setMessage,
+              setIsAlertOpen,
+              setIsActionLoading
             )
           }
           className={buttonClass("red")}
@@ -122,16 +113,14 @@ const BetActions: React.FC<BetActionsProps> = ({
         <>
           <button
             onClick={() =>
-              handleAction(() =>
-                handleResolveBet(
-                  betDetails.address,
-                  betDetails.better1,
-                  sendTransaction,
-                  fetchBetDetails,
-                  setMessage,
-                  setIsAlertOpen,
-                  setIsActionLoading
-                )
+              handleResolveBet(
+                betDetails.address,
+                betDetails.better1,
+                sendTransaction,
+                fetchBetDetails,
+                setMessage,
+                setIsAlertOpen,
+                setIsActionLoading
               )
             }
             className={buttonClass("blue")}
@@ -145,16 +134,14 @@ const BetActions: React.FC<BetActionsProps> = ({
           </button>
           <button
             onClick={() =>
-              handleAction(() =>
-                handleResolveBet(
-                  betDetails.address,
-                  betDetails.better2,
-                  sendTransaction,
-                  fetchBetDetails,
-                  setMessage,
-                  setIsAlertOpen,
-                  setIsActionLoading
-                )
+              handleResolveBet(
+                betDetails.address,
+                betDetails.better2,
+                sendTransaction,
+                fetchBetDetails,
+                setMessage,
+                setIsAlertOpen,
+                setIsActionLoading
               )
             }
             className={buttonClass("blue")}
@@ -171,15 +158,13 @@ const BetActions: React.FC<BetActionsProps> = ({
       {availableActions.includes("invalidateBet") && (
         <button
           onClick={() =>
-            handleAction(() =>
-              handleInvalidateBet(
-                betDetails.address,
-                sendTransaction,
-                fetchBetDetails,
-                setMessage,
-                setIsAlertOpen,
-                setIsActionLoading
-              )
+            handleInvalidateBet(
+              betDetails.address,
+              sendTransaction,
+              fetchBetDetails,
+              setMessage,
+              setIsAlertOpen,
+              setIsActionLoading
             )
           }
           className={buttonClass("yellow")}

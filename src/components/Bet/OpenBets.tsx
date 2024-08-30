@@ -16,15 +16,15 @@ const OpenBets: React.FC<OpenBetsProps> = ({
   betAddresses,
   accountAddress,
 }) => {
-  const { betDetails, fetchBetDetails, loading } = useFetchBetDetails(betAddresses);
+  const { betDetails, loading } = useFetchBetDetails(betAddresses);
   const ethToUsdRate = useFetchEthToUsdRate();
   const [message, setMessage] = useState<string>("");
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
-  const { lastEvent } = useWebSocket();
+  const { lastEvent, emitEvent } = useWebSocket();
 
-  const handleRefresh = async () => {
+  const handleRefresh = () => {
     for (const betAddress of betAddresses) {
-      await fetchBetDetails(betAddress);
+      emitEvent('requestBetUpdate', { betAddress });
     }
   };
 
@@ -51,7 +51,6 @@ const OpenBets: React.FC<OpenBetsProps> = ({
             bet={bet}
             ethToUsdRate={ethToUsdRate}
             accountAddress={accountAddress}
-            fetchBetDetails={fetchBetDetails}
             setMessage={setMessage}
             setIsAlertOpen={setIsAlertOpen}
             isLoading={loading}

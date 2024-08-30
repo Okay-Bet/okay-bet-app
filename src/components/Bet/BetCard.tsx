@@ -11,12 +11,12 @@ import QRCodeModal from "../Common/QRCodeModal";
 import { BetDetailsType } from "@/components/types/bet";
 import BetActions from "./BetActions";
 import CircularProgress from "@mui/material/CircularProgress";
+import useWebSocket from "@/hooks/useWebSocket";
 
 interface BetCardProps {
   bet: BetDetailsType;
   ethToUsdRate: number;
   accountAddress: string;
-  fetchBetDetails: (betAddress: string) => Promise<BetDetailsType | null>;
   setMessage: (message: string) => void;
   setIsAlertOpen: (isOpen: boolean) => void;
   isLoading: boolean;
@@ -28,7 +28,6 @@ const BetCard: React.FC<BetCardProps> = ({
   bet,
   ethToUsdRate,
   accountAddress,
-  fetchBetDetails,
   setMessage,
   setIsAlertOpen,
   isLoading,
@@ -39,6 +38,7 @@ const BetCard: React.FC<BetCardProps> = ({
   const [localLoading, setLocalLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isOpen, setIsOpen] = useState(initialOpen);
+  const { emitEvent } = useWebSocket();
 
   const userIsBetter1 =
     accountAddress.toLowerCase() === bet.better1.toLowerCase();
@@ -90,6 +90,14 @@ const BetCard: React.FC<BetCardProps> = ({
     );
   };
 
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    emitEvent('requestBetUpdate', { betAddress: bet.address });
+    // You might want to add a timeout to set isRefreshing back to false
+    // in case the update event is not received
+    setTimeout(() => setIsRefreshing(false), 5000);
+  };
+
   return (
     <div className="mb-6 relative">
       {isRefreshing && (
@@ -122,7 +130,6 @@ const BetCard: React.FC<BetCardProps> = ({
           <div className="justify-end items-center mt-4">
             <BetActions
               betDetails={bet}
-              fetchBetDetails={fetchBetDetails}
               setMessage={setMessage}
               setIsAlertOpen={setIsAlertOpen}
               isLoading={localLoading}

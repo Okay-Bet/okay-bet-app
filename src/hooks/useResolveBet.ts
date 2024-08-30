@@ -30,11 +30,16 @@ export const useResolveBet = () => {
           chain: contract.chain,
         });
 
-        const formattedWinnerAddress = ethers.utils.getAddress(winnerAddress) as `0x${string}`;
+        const formattedWinnerAddress = ethers.utils.getAddress(
+          winnerAddress
+        ) as `0x${string}`;
         const transaction = resolveBet({
           contract: betContract,
           winner: formattedWinnerAddress,
         });
+
+        console.log("Bet Address:", betAddress);
+        console.log("Winner Address:", formattedWinnerAddress);
 
         const provider = new ethers.providers.JsonRpcProvider(BASE_MAINNET_RPC);
         const startBlock = await provider.getBlockNumber();
@@ -70,20 +75,28 @@ export const useResolveBet = () => {
         };
 
         for (let i = 0; i < 15; i++) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await new Promise((resolve) => setTimeout(resolve, 2000));
           if (await checkForEvent()) {
             return;
           }
         }
 
-        setMessage("Transaction sent, but event not found. Please check the transaction status.");
+        setMessage(
+          "Transaction sent, but event not found. Please check the transaction status."
+        );
         setIsAlertOpen(true);
       } catch (error: unknown) {
         console.error("Error resolving bet:", error);
         if (error instanceof Error) {
-          setMessage(`Error resolving bet. Please try again. Details: ${error.message}`);
+          console.error("Error details:", error);
+          setMessage(
+            `Error resolving bet. Please try again. Details: ${error.message}`
+          );
         } else {
-          setMessage("Error resolving bet. Please try again. An unexpected error occurred.");
+          console.error("Unexpected error:", error);
+          setMessage(
+            "Error resolving bet. Please try again. An unexpected error occurred."
+          );
         }
         setIsAlertOpen(true);
       } finally {
