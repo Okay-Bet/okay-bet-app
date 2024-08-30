@@ -17,28 +17,35 @@ interface BetCardProps {
   bet: BetDetailsType;
   ethToUsdRate: number;
   accountAddress: string;
+  fetchBetDetails?: (betAddress: string) => Promise<BetDetailsType | null>;
   setMessage: (message: string) => void;
   setIsAlertOpen: (isOpen: boolean) => void;
   isLoading: boolean;
-  initialOpen?: boolean;
+  sendTransactionProp?: any; // Make this prop optional
   disableCollapse?: boolean;
+  initialOpen?: boolean;
 }
 
 const BetCard: React.FC<BetCardProps> = ({
   bet,
   ethToUsdRate,
   accountAddress,
+  fetchBetDetails,
   setMessage,
   setIsAlertOpen,
   isLoading,
-  initialOpen = false,
+  sendTransactionProp, // This is now optional
   disableCollapse = false,
+  initialOpen = false
 }) => {
   const { mutateAsync: sendTransaction } = useSendTransaction();
   const [localLoading, setLocalLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isOpen, setIsOpen] = useState(initialOpen);
   const { emitEvent } = useWebSocket();
+
+  // Use sendTransactionProp if provided, otherwise use the hook
+  const actualSendTransaction = sendTransactionProp || sendTransaction;
 
   const userIsBetter1 =
     accountAddress.toLowerCase() === bet.better1.toLowerCase();
@@ -134,7 +141,7 @@ const BetCard: React.FC<BetCardProps> = ({
               setIsAlertOpen={setIsAlertOpen}
               isLoading={localLoading}
               accountAddress={accountAddress}
-              sendTransaction={sendTransaction}
+              sendTransaction={actualSendTransaction}
               canFund={canFund}
               userIsDecider={userIsDecider}
               betStatusText={getBetStatusText()}

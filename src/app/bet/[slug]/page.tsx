@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { useActiveAccount } from "thirdweb/react";
+import { useActiveAccount, useSendTransaction } from "thirdweb/react";
 import Navbar from "@/components/Common/Navbar";
 import ConnectWallet from "@/components/User/ConnectWallet";
 import AlertModal from "@/components/Common/AlertModal";
@@ -17,6 +17,7 @@ const BetDetails = () => {
   const account = useActiveAccount();
   const [message, setMessage] = useState<string>("");
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
+  const { mutateAsync: sendTransaction } = useSendTransaction();
 
   if (loading) {
     return <p>Loading...</p>;
@@ -46,6 +47,7 @@ const BetDetails = () => {
           setMessage={setMessage}
           setIsAlertOpen={setIsAlertOpen}
           isLoading={loading}
+          sendTransactionProp={sendTransaction}
           initialOpen={true}
           disableCollapse={true}
         />

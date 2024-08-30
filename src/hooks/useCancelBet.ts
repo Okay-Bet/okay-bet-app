@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { getContract } from "thirdweb";
-import { contract } from "@/app/client";
+import { client, contract } from "@/app/client"; // Make sure this import is correct
 import { cancelBet } from "@/generated/bet";
 import useWebSocket from "./useWebSocket";
 import { useActiveAccount } from "thirdweb/react";
@@ -55,6 +55,7 @@ export const useCancelBet = () => {
         }
 
         const betContract = getContract({
+          client, // Add this line
           address: betAddress,
           chain: contract.chain
         });

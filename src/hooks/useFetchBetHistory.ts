@@ -163,5 +163,12 @@ export const useFetchBetHistory = (betAddresses: string[], address: string) => {
     }
   }, [lastEvent, fetchSingleBetDetails, fetchBetDetails, betAddresses]);
 
-  return { betDetails, stats, ethToUsdRate, loading, fetchSingleBetDetails };
+  return { 
+    betDetails, 
+    stats, 
+    ethToUsdRate, 
+    loading, 
+    fetchSingleBetDetails,
+    fetchBetDetails
+  };
 };

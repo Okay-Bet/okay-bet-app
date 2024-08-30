@@ -1,1 +1,0 @@
-self.addEventListener("push",(function(i){const n=i.data.json(),t={body:n.body,icon:"/icons/icon-192x192.png",badge:"/icons/icon-192x192.png"};i.waitUntil(self.registration.showNotification(n.title,t))})),self.addEventListener("notificationclick",(function(i){i.notification.close(),i.waitUntil(clients.openWindow("/"))}));
