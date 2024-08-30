@@ -28,11 +28,15 @@ const nextConfig = {
   },
 };
 
-const config = withPWA({
+const pwaConfig = {
   dest: "public",
   disable: process.env.NODE_ENV === "development",
   register: true,
   skipWaiting: true,
-})(nextConfig);
+  sw: 'sw.js',
+  customWorkerDir: 'worker',
+};
 
-export default withBundleAnalyzerConfig(config);
+const configWithPWA = withPWA(pwaConfig)(nextConfig);
+
+export default withBundleAnalyzerConfig(configWithPWA);
