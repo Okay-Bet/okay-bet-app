@@ -15,21 +15,20 @@ webpush.setVapidDetails(
 export async function POST(request: Request) {
   const subscription = await request.json();
   
-  // Here you would typically store the subscription in your database
   console.log('Received subscription:', subscription);
 
-  // Optional: Send a test notification
   const payload = JSON.stringify({
-    title: 'Test Notification',
-    body: 'This is a test push notification from Okay Bet',
+    title: 'Welcome to Okay Bet!',
+    body: 'You have successfully subscribed to push notifications.',
   });
 
   try {
-    await webpush.sendNotification(subscription, payload);
-    console.log('Test notification sent successfully');
+    console.log('Sending welcome notification...');
+    const result = await webpush.sendNotification(subscription, payload);
+    console.log('Welcome notification sent successfully', result);
+    return NextResponse.json({ status: 'success' }, { status: 201 });
   } catch (error) {
-    console.error('Error sending test notification:', error);
+    console.error('Error sending welcome notification:', error);
+    return NextResponse.json({ status: 'error', message: 'Failed to send welcome notification', error: error.toString() }, { status: 500 });
   }
-
-  return NextResponse.json({ status: 'success' }, { status: 201 });
 }

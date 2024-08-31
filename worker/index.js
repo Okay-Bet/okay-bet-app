@@ -1,3 +1,7 @@
+import { precacheAndRoute } from 'workbox-precaching';
+
+precacheAndRoute(self.__WB_MANIFEST);
+
 self.addEventListener('push', function(event) {
     const data = event.data.json();
     const options = {
@@ -14,6 +18,6 @@ self.addEventListener('push', function(event) {
   self.addEventListener('notificationclick', function(event) {
     event.notification.close();
     event.waitUntil(
-      clients.openWindow('/')
+      clients.openWindow('https://www.okaybet.fun')
     );
   });

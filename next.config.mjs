@@ -33,8 +33,7 @@ const pwaConfig = {
   disable: process.env.NODE_ENV === "development",
   register: true,
   skipWaiting: true,
-  sw: 'sw.js',
-  customWorkerDir: 'worker',
+  sw: '/sw.js',
 };
 
 const configWithPWA = withPWA(pwaConfig)(nextConfig);
