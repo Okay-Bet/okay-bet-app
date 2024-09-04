@@ -5,7 +5,7 @@ import eventEmitter from "@/events/eventEmitter";
 import { useQuery } from "@tanstack/react-query";
 import { gql, request } from "graphql-request";
 
-const SUBGRAPH_URL = "https://api.studio.thegraph.com/query/85117/okaybet/version/latest";
+const SUBGRAPH_URL = "https://api.studio.thegraph.com/query/85117/okaybet/v0.0.2";
 
 const GET_USER_BETS = gql`
   query GetUserBets($userAddress: String!) {
