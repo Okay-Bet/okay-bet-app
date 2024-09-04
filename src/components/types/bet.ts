@@ -1,16 +1,18 @@
 export interface BetDetailsType {
-    address: string;
-    better1: string;
-    better1Display: string;
-    better2: string;
-    better2Display: string;
-    decider: string;
-    deciderDisplay: string;
-    wagerWei: string;
-    wagerEth: string;
-    conditions: string;
-    status: number;
-    winner: string | null;
-    winnerDisplay: string | null;
-  }
-  
+  address: string;
+  maker: string;
+  makerDisplay: string;
+  taker: string;
+  takerDisplay: string;
+  judge: string;
+  judgeDisplay: string;
+  wagerWei: string;
+  wagerEth: string;
+  wagerCurrency: string;
+  conditions: string;
+  status: number;
+  winner: string | null;
+  winnerDisplay: string | null;
+  expirationBlock: number;
+  wagerRatio: number;
+}

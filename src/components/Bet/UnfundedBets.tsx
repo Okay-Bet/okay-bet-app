@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { useFetchUnfundedBetDetails } from "@/hooks/useFetchUnfundedBetDetails";
+import { useFetchBetDetails, BetDetailsType } from "@/hooks/useFetchBetDetails";
 import BetCard from "./BetCard";
 import AlertModal from "../Common/AlertModal";
 import { useFetchEthToUsdRate } from "@/hooks/useFetchEthToUsdRate";
@@ -16,35 +16,46 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
   betAddresses,
   accountAddress,
 }) => {
-  const { betDetails, fetchBetDetails, loading } = useFetchUnfundedBetDetails(betAddresses);
+  console.log("UnfundedBets component rendered with addresses:", betAddresses);
+  const { betDetails, loading, fetchBetDetails, refetchAll } =
+    useFetchBetDetails(betAddresses, true);
   const ethToUsdRate = useFetchEthToUsdRate();
   const [message, setMessage] = useState<string>("");
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
   const { lastEvent } = useWebSocket();
 
-  const handleRefresh = async () => {
-    for (const betAddress of betAddresses) {
-      fetchBetDetails(betAddress);
-    }
-  };
+  console.log("Bet details received in UnfundedBets:", betDetails);
+  console.log("Loading state:", loading);
 
   useEffect(() => {
-    if (lastEvent && (lastEvent.type === 'BetFunded' || lastEvent.type === 'BetCancelled')) {
-      handleRefresh();
+    if (
+      lastEvent &&
+      (lastEvent.type === "BetFunded" || lastEvent.type === "BetCancelled")
+    ) {
+      console.log("Refetching due to event:", lastEvent);
+      refetchAll();
     }
-  }, [lastEvent]);
+  }, [lastEvent, refetchAll]);
 
   const handleAlertClose = () => {
     setIsAlertOpen(false);
-    handleRefresh();
+    refetchAll();
   };
+
+  console.log("All bet details:", betDetails);
+  const unfundedBets = betDetails.filter(
+    (bet) => bet.status === 0 || bet.status === 1
+  );
+  console.log("Filtered unfunded bets:", unfundedBets);
 
   return (
     <CollapsibleSection title="Unfunded Bets" loading={loading}>
-      {betDetails.length > 0 ? (
-        betDetails.map((bet, index) => (
+      {loading ? (
+        <div>Loading...</div>
+      ) : unfundedBets.length > 0 ? (
+        unfundedBets.map((bet, index) => (
           <BetCard
-            key={index}
+            key={bet.address || index}
             bet={bet}
             ethToUsdRate={ethToUsdRate}
             accountAddress={accountAddress}

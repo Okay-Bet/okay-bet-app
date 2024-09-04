@@ -13,6 +13,7 @@ export const useFundBet = () => {
     async (
       betAddress: string,
       wagerWei: string,
+      wagerCurrency: string,
       sendTransaction: any,
       fetchBetDetails: (betAddress: string) => Promise<any>,
       setMessage: (message: string) => void,
@@ -37,11 +38,25 @@ export const useFundBet = () => {
         const provider = new ethers.providers.JsonRpcProvider(BASE_MAINNET_RPC);
         const startBlock = await provider.getBlockNumber();
 
-        await sendTransaction({ ...transaction, value: wagerWeiBigInt });
+        // If wagerCurrency is not the zero address (ETH), we need to approve the token transfer first
+        if (wagerCurrency !== ethers.constants.AddressZero) {
+          const tokenContract = new ethers.Contract(
+            wagerCurrency,
+            ["function approve(address spender, uint256 amount) public returns (bool)"],
+            provider
+          );
+          await tokenContract.approve(betAddress, wagerWeiBigInt);
+        }
+
+        // Send the transaction
+        await sendTransaction({ 
+          ...transaction, 
+          value: wagerCurrency === ethers.constants.AddressZero ? wagerWeiBigInt : 0 
+        });
 
         const ethersBetContract = new ethers.Contract(
           betAddress,
-          ["event BetFunded(address funder, uint256 amount)"],
+          ["event BetFunded(address indexed betAddress, address indexed funder, uint256 amount, uint8 newStatus)"],
           provider
         );
 
@@ -52,19 +67,18 @@ export const useFundBet = () => {
             startBlock,
             currentBlock
           );
-
           if (events.length > 0) {
             const event = events[0];
             if (event.args && "funder" in event.args && "amount" in event.args) {
               const amount = event.args.amount;
+              const tokenSymbol = wagerCurrency === ethers.constants.AddressZero ? "ETH" : "tokens";
               setMessage(
-                `Bet funded successfully! Amount: ${ethers.utils.formatEther(
-                  amount
-                )} ETH`
+                `Bet funded successfully! Amount: ${ethers.utils.formatEther(amount)} ${tokenSymbol}`
               );
               setIsAlertOpen(true);
               await fetchBetDetails(betAddress);
-              emitEvent("betFunded", { betAddress, amount: wagerWeiBigInt.toString() });              setIsActionLoading(false);
+              emitEvent("betFunded", { betAddress, amount: wagerWeiBigInt.toString() });
+              setIsActionLoading(false);
               return true;
             }
           }

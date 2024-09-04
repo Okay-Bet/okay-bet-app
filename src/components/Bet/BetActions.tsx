@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { BetDetailsType } from "@/components/types/bet";
 import { useFundBet } from "@/hooks/useFundBet";
-import { useCancelBet } from "@/hooks/useCancelBet";
 import { useResolveBet } from "@/hooks/useResolveBet";
 import { useInvalidateBet } from "@/hooks/useInvalidateBet";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -41,7 +40,6 @@ const BetActions: React.FC<BetActionsProps> = ({
     canFund
   );
 
-  const handleCancelBet = useCancelBet();
   const handleFundBet = useFundBet();
   const handleInvalidateBet = useInvalidateBet();
   const handleResolveBet = useResolveBet();
@@ -85,24 +83,6 @@ const BetActions: React.FC<BetActionsProps> = ({
           {isActionLoading ? <CircularProgress size={24} /> : "Fund Bet"}
         </button>
       )}
-      {availableActions.includes("cancelBet") && (
-        <button
-          onClick={() =>
-            handleCancelBet(
-              betDetails.address,
-              sendTransaction,
-              fetchBetDetails,
-              setMessage,
-              setIsAlertOpen,
-              setIsActionLoading
-            )
-          }
-          className={buttonClass("red")}
-          disabled={isActionLoading || isLoading}
-        >
-          {isActionLoading ? <CircularProgress size={24} /> : "Cancel Bet"}
-        </button>
-      )}
       {!canFund && !userIsDecider && (
         <p className="text-font">You have already funded this bet.</p>
       )}
@@ -115,7 +95,7 @@ const BetActions: React.FC<BetActionsProps> = ({
             onClick={() =>
               handleResolveBet(
                 betDetails.address,
-                betDetails.better1,
+                betDetails.maker,
                 sendTransaction,
                 fetchBetDetails,
                 setMessage,
@@ -136,7 +116,7 @@ const BetActions: React.FC<BetActionsProps> = ({
             onClick={() =>
               handleResolveBet(
                 betDetails.address,
-                betDetails.better2,
+                betDetails.taker,
                 sendTransaction,
                 fetchBetDetails,
                 setMessage,
@@ -186,9 +166,9 @@ const getUserRoles = (
   const address = accountAddress.toLowerCase();
   const roles = [];
 
-  if (address === betDetails.better1.toLowerCase()) roles.push("better1");
-  if (address === betDetails.better2.toLowerCase()) roles.push("better2");
-  if (address === betDetails.decider.toLowerCase()) roles.push("decider");
+  if (address === betDetails.maker.toLowerCase()) roles.push("maker");
+  if (address === betDetails.taker.toLowerCase()) roles.push("taker");
+  if (address === betDetails.judge.toLowerCase()) roles.push("judge");
 
   return roles.length > 0 ? roles : ["other"];
 };
@@ -201,17 +181,17 @@ const getAvailableActions = (
   const actions = new Set<string>();
 
   userRoles.forEach((role) => {
-    if ((role === "better1" || role === "better2") && canFund) {
+    if ((role === "maker" || role === "taker") && canFund) {
       if (betStatus === 0 || betStatus === 1 || betStatus === 2) {
         actions.add("fundBet");
       }
     }
-    if (role === "better1" || role === "better2" || role === "decider") {
+    if (role === "maker" || role === "taker" || role === "judge") {
       if (betStatus === 0 || betStatus === 1 || betStatus === 2) {
-        actions.add("cancelBet");
+        actions.add("invalidateBet");
       }
     }
-    if (role === "decider") {
+    if (role === "judge") {
       if (betStatus === 3) {
         actions.add("resolveBet");
         actions.add("invalidateBet");

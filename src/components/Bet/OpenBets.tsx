@@ -16,41 +16,34 @@ const OpenBets: React.FC<OpenBetsProps> = ({
   betAddresses,
   accountAddress,
 }) => {
-  const { betDetails, loading } = useFetchBetDetails(betAddresses);
+  const { betDetails, loading, fetchBetDetails, refetchAll } =
+    useFetchBetDetails(betAddresses);
   const ethToUsdRate = useFetchEthToUsdRate();
   const [message, setMessage] = useState<string>("");
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
   const { lastEvent, emitEvent } = useWebSocket();
 
-  const handleRefresh = () => {
-    for (const betAddress of betAddresses) {
-      emitEvent('requestBetUpdate', { betAddress });
-    }
-  };
-
   useEffect(() => {
-    if (lastEvent && lastEvent.type === 'BetCancelled') {
-      handleRefresh();
+    if (lastEvent && lastEvent.type === "BetCancelled") {
+      refetchAll();
     }
-  }, [lastEvent]);
+  }, [lastEvent, refetchAll]);
 
   const handleAlertClose = () => {
     setIsAlertOpen(false);
-    handleRefresh(); // Refresh details when the alert is closed
+    refetchAll();
   };
-
-  // Dummy function for onProceed
-  const dummyProceed = () => {};
 
   return (
     <CollapsibleSection title="Open Bets" loading={loading}>
       {Array.isArray(betDetails) && betDetails.length > 0 ? (
         betDetails.map((bet, index) => (
           <BetCard
-            key={index}
+            key={bet.address || index}
             bet={bet}
             ethToUsdRate={ethToUsdRate}
             accountAddress={accountAddress}
+            fetchBetDetails={fetchBetDetails}
             setMessage={setMessage}
             setIsAlertOpen={setIsAlertOpen}
             isLoading={loading}
@@ -63,7 +56,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({
         isOpen={isAlertOpen}
         message={message}
         onClose={handleAlertClose}
-        onProceed={dummyProceed}
+        onProceed={() => {}}
         showProceed={false}
       />
     </CollapsibleSection>

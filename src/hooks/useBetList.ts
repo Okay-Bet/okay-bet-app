@@ -11,18 +11,26 @@ const GET_USER_BETS = gql`
     bets(
       where: {
         or: [
-          { better1: $userAddress }
-          { better2: $userAddress }
-          { decider: $userAddress }
+          { maker: $userAddress }
+          { taker: $userAddress }
+          { judge: $userAddress }
         ]
       }
     ) {
       id
       betAddress
       status
-      better1
-      better2
-      decider
+      maker
+      taker
+      judge
+      totalWager
+      wagerRatio
+      conditions
+      expirationBlock
+      finalized
+      wagerCurrency
+      createdAt
+      updatedAt
     }
   }
 `;
@@ -41,10 +49,18 @@ interface BetListData {
 interface SubgraphBet {
   id: string;
   betAddress: string;
-  status: number;
-  better1: string;
-  better2: string;
-  decider: string;
+  status: string;
+  maker: string;
+  taker: string;
+  judge: string;
+  totalWager: string;
+  wagerRatio: number;
+  conditions: string;
+  expirationBlock: string;
+  finalized: boolean;
+  wagerCurrency: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface SubgraphResponse {
@@ -59,6 +75,8 @@ export const useBetList = ({
   const [betHistory, setBetHistory] = useState<string[]>([]);
   const { isConnected, lastEvent } = useWebSocket();
 
+  console.log("useBetList: accountAddress", accountAddress);
+
   const {
     data: subgraphData,
     isLoading,
@@ -68,6 +86,7 @@ export const useBetList = ({
     queryKey: ["userBets", accountAddress],
     queryFn: async () => {
       if (!accountAddress) return null;
+      console.log("Fetching bets for address:", accountAddress);
       const response = await request<SubgraphResponse>(
         SUBGRAPH_URL,
         GET_USER_BETS,
@@ -75,6 +94,7 @@ export const useBetList = ({
           userAddress: accountAddress.toLowerCase(),
         }
       );
+      console.log("Subgraph response:", response);
       return response.bets;
     },
     enabled: !!accountAddress,
@@ -82,25 +102,32 @@ export const useBetList = ({
 
   const processBets = useCallback(
     (bets: SubgraphBet[]) => {
+      console.log("Processing bets:", bets);
       const open: string[] = [];
       const unfunded: string[] = [];
       const history: string[] = [];
 
       bets.forEach((bet) => {
+        console.log("Processing bet:", bet);
         if (
-          accountAddress.toLowerCase() === bet.better1.toLowerCase() ||
-          accountAddress.toLowerCase() === bet.better2.toLowerCase() ||
-          accountAddress.toLowerCase() === bet.decider.toLowerCase()
+          accountAddress.toLowerCase() === bet.maker.toLowerCase() ||
+          accountAddress.toLowerCase() === bet.taker.toLowerCase() ||
+          accountAddress.toLowerCase() === bet.judge.toLowerCase()
         ) {
-          if (bet.status === 0 || bet.status === 1 || bet.status === 2) {
+          const status = parseInt(bet.status);
+          if (status === 0 || status === 1) {
             unfunded.push(bet.betAddress);
-          } else if (bet.status === 3) {
+          } else if (status === 2) {
             open.push(bet.betAddress);
-          } else if (bet.status === 4 || bet.status === 5) {
+          } else if (status === 3 || status === 4 || bet.finalized) {
             history.push(bet.betAddress);
           }
         }
       });
+
+      console.log("Processed bets - Open:", open);
+      console.log("Processed bets - Unfunded:", unfunded);
+      console.log("Processed bets - History:", history);
 
       setOpenBets(open);
       setUnfundedBets(unfunded);
@@ -111,6 +138,7 @@ export const useBetList = ({
 
   useEffect(() => {
     if (!isLoading && !isError && subgraphData) {
+      console.log("Subgraph data received, processing bets");
       processBets(subgraphData);
     }
   }, [processBets, isLoading, isError, subgraphData]);
@@ -122,9 +150,11 @@ export const useBetList = ({
 
       switch (type) {
         case "BetCreated":
+          console.log("BetCreated event, adding to unfundedBets:", data.betAddress);
           setUnfundedBets((prev) => [...prev, data.betAddress]);
           break;
         case "BetFunded":
+          console.log("BetFunded event, moving from unfundedBets to openBets:", data.betAddress);
           setUnfundedBets((prev) =>
             prev.filter((address) => address !== data.betAddress)
           );
@@ -133,6 +163,7 @@ export const useBetList = ({
         case "BetCancelled":
         case "BetResolved":
         case "BetInvalidated":
+          console.log(`${type} event, moving to betHistory:`, data.betAddress);
           setUnfundedBets((prev) =>
             prev.filter((address) => address !== data.betAddress)
           );
@@ -145,10 +176,14 @@ export const useBetList = ({
           console.log("Unknown event type:", type);
       }
 
-      // Refetch to ensure consistency with the subgraph
+      console.log("Refetching bets after WebSocket event");
       refetch();
     }
   }, [isConnected, lastEvent, refetch]);
+
+  console.log("Final state - openBets:", openBets);
+  console.log("Final state - unfundedBets:", unfundedBets);
+  console.log("Final state - betHistory:", betHistory);
 
   return {
     openBets,

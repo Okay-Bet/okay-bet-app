@@ -1,59 +1,63 @@
-// components/Bet/BetDetails.tsx
-import React from "react";
+"use client";
+import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { useActiveAccount, useSendTransaction } from "thirdweb/react";
+import Navbar from "@/components/Common/Navbar";
+import ConnectWallet from "@/components/User/ConnectWallet";
+import AlertModal from "@/components/Common/AlertModal";
+import BetCard from "@/components/Bet/BetCard";
+import { useFetchEthToUsdRate } from "@/hooks/useFetchEthToUsdRate";
+import { useFetchBetDetails } from "@/hooks/useFetchBetDetails";
 
-interface BetDetailsProps {
-  bet: any;
-  ethToUsdRate: number;
-  address: string;
-}
+const BetDetails = () => {
+  const pathname = usePathname();
+  const slug = pathname.split("/").pop() || null;
+  const ethToUsdRate = useFetchEthToUsdRate();
+  const { betDetails, loading, fetchBetDetails } = useFetchBetDetails(
+    slug || ""
+  );
+  const account = useActiveAccount();
+  const [message, setMessage] = useState<string>("");
+  const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
+  const { mutateAsync: sendTransaction } = useSendTransaction();
 
-const BetDetails: React.FC<BetDetailsProps> = ({ bet, ethToUsdRate, address }) => {
-  const shortenAddress = (address: string) =>
-    `${address.slice(0, 6)}...${address.slice(-4)}`;
-  const wagerInUsd = (parseFloat(bet.wagerEth) * ethToUsdRate).toFixed(2);
+  if (loading) {
+    return <p>Loading...</p>;
+  }
 
-  const displayName = (name: string) => {
-    if (name.includes('.eth')) {
-      return name;
-    }
-    if (name.startsWith('0x')) {
-      return shortenAddress(name);
-    }
-    return name; // This will be the username
+  if (!betDetails) {
+    return <p>No bet found</p>;
+  }
+
+  const handleAlertClose = () => {
+    setIsAlertOpen(false);
   };
 
   return (
-    <div>
-      <div className="flex justify-between mb-4">
-        <div>
-          <span className="block font-semibold">Maker:</span>
-          <span>{displayName(bet.better1Display)}</span>
-        </div>
-        <div>
-          <span className="block font-semibold">Taker:</span>
-          <span>{displayName(bet.better2Display)}</span>
-        </div>
+    <div className="max-w-md mx-auto p-4 text-center min-h-screen">
+      <Navbar />
+      <div className="p-4 container ">
+        <ConnectWallet />
+        <BetCard
+          bet={betDetails}
+          ethToUsdRate={ethToUsdRate}
+          accountAddress={account?.address || ""}
+          fetchBetDetails={fetchBetDetails}
+          setMessage={setMessage}
+          setIsAlertOpen={setIsAlertOpen}
+          isLoading={loading}
+          sendTransactionProp={sendTransaction}
+          initialOpen={true}
+          disableCollapse={true}
+        />
       </div>
-      <div className="flex justify-between mb-4">
-        <div>
-          <span className="block font-semibold">Judge:</span>
-          <span>{displayName(bet.deciderDisplay)}</span>
-        </div>
-        <div>
-          <span className="block font-semibold">Wager:</span>
-          <span>${wagerInUsd} USD ({bet.wagerEth} ETH)</span>
-        </div>
-      </div>
-      <div className="flex justify-between mb-4">
-        <div>
-          <span className="block font-semibold">Status:</span>
-          <span>{bet.status === 4 ? "Resolved" : "Invalidated"}</span>
-        </div>
-        <div>
-          <span className="block font-semibold">Winner:</span>
-          <span>{bet.winnerDisplay ? displayName(bet.winnerDisplay) : "N/A"}</span>
-        </div>
-      </div>
+      <AlertModal
+        isOpen={isAlertOpen}
+        message={message}
+        onClose={handleAlertClose}
+        onProceed={() => {}}
+        showProceed={false}
+      />
     </div>
   );
 };

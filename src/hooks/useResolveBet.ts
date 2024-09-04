@@ -6,9 +6,11 @@ import { resolveBet } from "@/generated/bet";
 import { ethers } from "ethers";
 import { BASE_MAINNET_RPC } from "@/constants/rpc";
 import useWebSocket from "./useWebSocket";
+import { useActiveAccount } from "thirdweb/react";
 
 export const useResolveBet = () => {
   const { emitEvent } = useWebSocket();
+  const account = useActiveAccount();
 
   const handleResolveBet = useCallback(
     async (
@@ -24,6 +26,29 @@ export const useResolveBet = () => {
         emitEvent("refreshStart");
         setIsActionLoading(true);
 
+        if (!account) {
+          throw new Error("No active account found");
+        }
+
+        // Fetch current bet details
+        const currentBetDetails = await fetchBetDetails(betAddress);
+
+        // Check if the user is the judge
+        if (account.address.toLowerCase() !== currentBetDetails.judge.toLowerCase()) {
+          throw new Error("Only the judge can resolve this bet");
+        }
+
+        // Check bet status
+        if (currentBetDetails.status !== 2) { // Assuming 2 is the status for FullyFunded
+          throw new Error("Bet can only be resolved when it is fully funded");
+        }
+
+        // Check if the winner is either the maker or the taker
+        if (winnerAddress.toLowerCase() !== currentBetDetails.maker.toLowerCase() &&
+            winnerAddress.toLowerCase() !== currentBetDetails.taker.toLowerCase()) {
+          throw new Error("Winner must be either the maker or the taker of the bet");
+        }
+
         const betContract = getContract({
           client,
           address: betAddress,
@@ -33,6 +58,7 @@ export const useResolveBet = () => {
         const formattedWinnerAddress = ethers.utils.getAddress(
           winnerAddress
         ) as `0x${string}`;
+
         const transaction = resolveBet({
           contract: betContract,
           winner: formattedWinnerAddress,
@@ -48,7 +74,7 @@ export const useResolveBet = () => {
 
         const ethersBetContract = new ethers.Contract(
           betAddress,
-          ["event BetResolved(address winner)"],
+          ["event BetResolved(address indexed betAddress, address indexed winner, uint256 winningAmount, uint64 resolutionTimestamp)"],
           provider
         );
 
@@ -59,14 +85,15 @@ export const useResolveBet = () => {
             startBlock,
             currentBlock
           );
-
           if (events.length > 0) {
-            const winner = events[0].args?.[0];
-            if (winner) {
-              setMessage(`Bet resolved successfully! Winner Selected!!`);
+            const event = events[0];
+            if (event.args && "winner" in event.args && "winningAmount" in event.args) {
+              const winner = event.args.winner;
+              const winningAmount = event.args.winningAmount;
+              setMessage(`Bet resolved successfully! Winner: ${winner}. Winning amount: ${ethers.utils.formatEther(winningAmount)} ETH`);
               setIsAlertOpen(true);
               await fetchBetDetails(betAddress);
-              emitEvent("betResolved", { betAddress, winner });
+              emitEvent("betResolved", { betAddress, winner, winningAmount: winningAmount.toString() });
               setIsActionLoading(false);
               return true;
             }
@@ -104,7 +131,7 @@ export const useResolveBet = () => {
         emitEvent("refreshComplete");
       }
     },
-    [emitEvent]
+    [emitEvent, account?.address]
   );
 
   return handleResolveBet;

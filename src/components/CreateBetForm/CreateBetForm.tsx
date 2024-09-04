@@ -13,18 +13,18 @@ interface CreateBetFormProps {
 
 const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
   const {
-    better1,
-    setBetter1,
-    better2,
-    setBetter2,
-    decider,
-    setDecider,
-    better1DisplayName,
-    better2DisplayName,
-    deciderDisplayName,
-    better1Address,
-    better2Address,
-    deciderAddress,
+    maker,
+    setMaker,
+    taker,
+    setTaker,
+    judge,
+    setJudge,
+    makerDisplayName,
+    takerDisplayName,
+    judgeDisplayName,
+    makerAddress,
+    takerAddress,
+    judgeAddress,
     wagerUSD,
     setWagerUSD,
     conditions,
@@ -37,14 +37,14 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
     isAlertOpen,
     setIsAlertOpen,
     handleSubmit,
-    better1Valid,
-    better2Valid,
-    deciderValid,
+    makerValid,
+    takerValid,
+    judgeValid,
     ethToUsdRate,
     convertUsdToEth,
-    better1Loading,
-    better2Loading,
-    deciderLoading,
+    makerLoading,
+    takerLoading,
+    judgeLoading,
     canSubmit,
   } = useCreateBetForm(contract);
 
@@ -60,7 +60,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
         onClick={() => setIsFormVisible(!isFormVisible)}
         className="text-lg p-2 bg-primary text-quaternary font-bold font-heading italic rounded w-full mb-3 mt-3"
       >
-        {isFormVisible ? "NEW BET" : "NEW BET"}
+        {isFormVisible ? "HIDE NEW BET" : "NEW BET"}
       </button>
       <Collapse in={isFormVisible}>
         <form
@@ -73,43 +73,43 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
           />
           <UserInput
             label="Maker (Your Account)"
-            value={better1}
-            displayValue={better1DisplayName}
-            setValue={setBetter1}
-            valid={better1Valid}
-            loading={better1Loading}
-            resolvedAddress={better1Address || undefined}
+            value={maker}
+            displayValue={makerDisplayName}
+            setValue={setMaker}
+            valid={makerValid}
+            loading={makerLoading}
+            resolvedAddress={makerAddress || undefined}
             resolvedUsername={
-              better1DisplayName !== better1Address
-                ? better1DisplayName
+              makerDisplayName !== makerAddress
+                ? makerDisplayName
                 : undefined
             }
           />
           <UserInput
             label="Taker"
-            value={better2}
-            displayValue={better2DisplayName}
-            setValue={setBetter2}
-            valid={better2Valid}
-            loading={better2Loading}
-            resolvedAddress={better2Address || undefined}
+            value={taker}
+            displayValue={takerDisplayName}
+            setValue={setTaker}
+            valid={takerValid}
+            loading={takerLoading}
+            resolvedAddress={takerAddress || undefined}
             resolvedUsername={
-              better2DisplayName !== better2Address
-                ? better2DisplayName
+              takerDisplayName !== takerAddress
+                ? takerDisplayName
                 : undefined
             }
           />
           <UserInput
             label="Judge"
-            value={decider}
-            displayValue={deciderDisplayName}
-            setValue={setDecider}
-            valid={deciderValid}
-            loading={deciderLoading}
-            resolvedAddress={deciderAddress || undefined}
+            value={judge}
+            displayValue={judgeDisplayName}
+            setValue={setJudge}
+            valid={judgeValid}
+            loading={judgeLoading}
+            resolvedAddress={judgeAddress || undefined}
             resolvedUsername={
-              deciderDisplayName !== deciderAddress
-                ? deciderDisplayName
+              judgeDisplayName !== judgeAddress
+                ? judgeDisplayName
                 : undefined
             }
           />

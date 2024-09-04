@@ -3,9 +3,9 @@ import React, { useState } from "react";
 import IosShareIcon from "@mui/icons-material/IosShare";
 
 interface ShareButtonProps {
-  better1Display: string;
-  better2Display: string;
-  deciderDisplay: string;
+  makerDisplay: string;
+  takerDisplay: string;
+  judgeDisplay: string;
   wagerEth: string;
   status: number;
   conditions: string;
@@ -14,14 +14,14 @@ interface ShareButtonProps {
 }
 
 const ShareButton: React.FC<ShareButtonProps> = ({
-  better1Display,
-  better2Display,
-  deciderDisplay,
+  makerDisplay,
+  takerDisplay,
+  judgeDisplay,
   wagerEth,
   status,
   conditions,
   ethToUsdRate,
-  address,
+  address
 }) => {
   const [isCopied, setIsCopied] = useState(false);
 
@@ -36,9 +36,9 @@ const ShareButton: React.FC<ShareButtonProps> = ({
 
   const shareText = `Okay Bet Alert
 Conditions: ${conditions}
-Bettor 1: ${shortenAddress(better1Display)}
-Bettor 2: ${shortenAddress(better2Display)}
-Judge: ${shortenAddress(deciderDisplay)}
+Maker: ${shortenAddress(makerDisplay)}
+Taker: ${shortenAddress(takerDisplay)}
+Judge: ${shortenAddress(judgeDisplay)}
 Wager: $${wagerInUsd} USD (${wagerEth} ETH)
 Status: ${statusText}
 https://www.okaybet.fun/bet/${address}
