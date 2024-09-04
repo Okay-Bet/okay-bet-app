@@ -21,27 +21,29 @@ const ShareButton: React.FC<ShareButtonProps> = ({
   status,
   conditions,
   ethToUsdRate,
-  address
+  address,
 }) => {
   const [isCopied, setIsCopied] = useState(false);
 
-  const shortenAddress = (address: string) =>
-    address.startsWith("0x")
+  const shortenAddress = (address: string | undefined) =>
+    address && address.startsWith("0x")
       ? `${address.slice(0, 6)}...${address.slice(-4)}`
-      : address;
+      : address || "Unknown";
 
-  const wagerInUsd = (parseFloat(wagerEth) * ethToUsdRate).toFixed(2);
+  const wagerInUsd = (
+    parseFloat(wagerEth || "0") * (ethToUsdRate || 0)
+  ).toFixed(2);
   const statusText =
     status === 4 ? "Resolved" : status === 5 ? "Invalidated" : "Open";
 
   const shareText = `Okay Bet Alert
-Conditions: ${conditions}
+Conditions: ${conditions || "N/A"}
 Maker: ${shortenAddress(makerDisplay)}
 Taker: ${shortenAddress(takerDisplay)}
 Judge: ${shortenAddress(judgeDisplay)}
-Wager: $${wagerInUsd} USD (${wagerEth} ETH)
+Wager: $${wagerInUsd} USD (${wagerEth || "0"} ETH)
 Status: ${statusText}
-https://www.okaybet.fun/bet/${address}
+${address ? `https://www.okaybet.fun/bet/${address}` : "URL not available"}
 `;
 
   const handleShare = async () => {

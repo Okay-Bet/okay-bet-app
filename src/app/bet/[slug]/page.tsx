@@ -1,31 +1,35 @@
 "use client";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { useActiveAccount, useSendTransaction } from "thirdweb/react";
+import { useActiveAccount } from "thirdweb/react";
 import Navbar from "@/components/Common/Navbar";
 import ConnectWallet from "@/components/User/ConnectWallet";
 import AlertModal from "@/components/Common/AlertModal";
 import BetCard from "@/components/Bet/BetCard";
 import { useFetchEthToUsdRate } from "@/hooks/useFetchEthToUsdRate";
-import { useFetchSingleBetDetails } from "@/hooks/useFetchSingleBetDetails";
+import { useFetchBetDetails } from "@/hooks/useFetchBetDetails";
 
 const BetDetails = () => {
   const pathname = usePathname();
-  const slug = pathname.split("/").pop() || null;
+  const slug = pathname.split("/").pop() || "";
   const ethToUsdRate = useFetchEthToUsdRate();
-  const { betDetails, loading, fetchBetDetails } = useFetchSingleBetDetails(slug);
+  const { betDetails, loading, fetchBetDetails } = useFetchBetDetails(slug);
   const account = useActiveAccount();
   const [message, setMessage] = useState<string>("");
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
-  const { mutateAsync: sendTransaction } = useSendTransaction();
 
   if (loading) {
     return <p>Loading...</p>;
   }
 
-  if (!betDetails) {
+  if (!betDetails || betDetails.length === 0) {
     return <p>No bet found</p>;
   }
+
+  const bet = betDetails[0]; // Get the first bet from the array
+
+  // Convert wager to USD
+  const wagerInUsd = (parseFloat(bet.totalWager) * ethToUsdRate).toFixed(2);
 
   const handleAlertClose = () => {
     setIsAlertOpen(false);
@@ -40,14 +44,13 @@ const BetDetails = () => {
       <div className="p-4 container ">
         <ConnectWallet />
         <BetCard
-          bet={betDetails}
+          bet={{ ...bet, wagerUsd: wagerInUsd }}
           ethToUsdRate={ethToUsdRate}
           accountAddress={account?.address || ""}
           fetchBetDetails={fetchBetDetails}
           setMessage={setMessage}
           setIsAlertOpen={setIsAlertOpen}
           isLoading={loading}
-          sendTransactionProp={sendTransaction}
           initialOpen={true}
           disableCollapse={true}
         />

@@ -10,19 +10,18 @@ import QRCodeModal from "../Common/QRCodeModal";
 import { BetDetailsType } from "@/components/types/bet";
 import BetActions from "./BetActions";
 import CircularProgress from "@mui/material/CircularProgress";
-import useWebSocket from "@/hooks/useWebSocket";
+import ExpirationTimer from "../Common/ExpirationTimer";
 
 interface BetCardProps {
   bet: BetDetailsType;
   ethToUsdRate: number;
   accountAddress: string;
-  fetchBetDetails: (betAddress: string) => Promise<void>;
+  fetchBetDetails: (betAddress: string) => Promise<BetDetailsType | null>;
   setMessage: (message: string) => void;
   setIsAlertOpen: (isOpen: boolean) => void;
   isLoading: boolean;
-  sendTransactionProp?: any;
-  disableCollapse?: boolean;
   initialOpen?: boolean;
+  disableCollapse?: boolean;
 }
 
 const BetCard: React.FC<BetCardProps> = ({
@@ -33,26 +32,19 @@ const BetCard: React.FC<BetCardProps> = ({
   setMessage,
   setIsAlertOpen,
   isLoading,
-  sendTransactionProp,
-  disableCollapse = false,
   initialOpen = false,
+  disableCollapse = false,
 }) => {
   const { mutateAsync: sendTransaction } = useSendTransaction();
   const [localLoading, setLocalLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isOpen, setIsOpen] = useState(initialOpen);
-  const { emitEvent } = useWebSocket();
-
-  const actualSendTransaction = sendTransactionProp || sendTransaction;
 
   const userIsMaker = accountAddress.toLowerCase() === bet.maker.toLowerCase();
   const userIsTaker = accountAddress.toLowerCase() === bet.taker.toLowerCase();
   const userIsJudge = accountAddress.toLowerCase() === bet.judge.toLowerCase();
-
   const canFund =
     (userIsMaker || userIsTaker) && (bet.status === 0 || bet.status === 1);
-
-  const wagerInUsd = (parseFloat(bet.wagerEth) * ethToUsdRate).toFixed(2);
 
   let bgColorClass = "bg-secondary";
   if (bet.status === 4) {
@@ -81,18 +73,31 @@ const BetCard: React.FC<BetCardProps> = ({
     }
   };
 
-  const displayParticipantInfo = (address: string, displayName: string) => {
-    return (
-      <Tooltip title={address} arrow placement="top">
-        <span className="cursor-help break-all">{displayName}</span>
-      </Tooltip>
-    );
+  const shortenAddress = (address: string) => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await fetchBetDetails(bet.address);
-    setIsRefreshing(false);
+  const displayParticipantInfo = (
+    address: string,
+    displayName: string | undefined
+  ) => {
+    let displayText = displayName || address;
+
+    if (displayName) {
+      if (displayName.includes(".eth")) {
+        displayText = displayName;
+      } else if (displayName.startsWith("0x")) {
+        displayText = shortenAddress(displayName);
+      }
+    } else {
+      displayText = shortenAddress(address);
+    }
+
+    return (
+      <Tooltip title={address} arrow placement="top">
+        <span className="cursor-help break-all">{displayText}</span>
+      </Tooltip>
+    );
   };
 
   return (
@@ -128,22 +133,25 @@ const BetCard: React.FC<BetCardProps> = ({
             </div>
           </div>
           <div className="inline-block px-4 py-2 bg-blue-500 text-font rounded-full">
-            ${wagerInUsd} USD ({bet.wagerEth} ETH)
+            ${bet.wagerUsd} USD ({bet.wagerEth} ETH)
           </div>
           <div className="mt-2">
-            <span>Wager Ratio: {bet.wagerRatio}%</span>
-          </div>
-          <div className="mt-2">
-            <span>Expiration Block: {bet.expirationBlock}</span>
+            <span>
+              Expires in:{" "}
+              <ExpirationTimer
+                expirationBlock={bet.expirationBlock}
+              />
+            </span>
           </div>
           <div className="justify-end items-center mt-4">
             <BetActions
               betDetails={bet}
+              fetchBetDetails={fetchBetDetails}
               setMessage={setMessage}
               setIsAlertOpen={setIsAlertOpen}
               isLoading={localLoading}
               accountAddress={accountAddress}
-              sendTransaction={actualSendTransaction}
+              sendTransaction={sendTransaction}
               canFund={canFund}
               userIsDecider={userIsJudge}
               betStatusText={getBetStatusText()}
@@ -151,16 +159,16 @@ const BetCard: React.FC<BetCardProps> = ({
             />
           </div>
           <div className="flex justify-end items-center space-x-4 mt-4">
-            {/* <ShareButton
-              makerDisplay={bet.makerDisplay}
-              takerDisplay={bet.takerDisplay}
-              judgeDisplay={bet.judgeDisplay}
+            <ShareButton
+              makerDisplay={bet.makerDisplay || bet.maker}
+              takerDisplay={bet.takerDisplay || bet.taker}
+              judgeDisplay={bet.judgeDisplay || bet.judge}
               wagerEth={bet.wagerEth}
               status={bet.status}
               conditions={bet.conditions}
               ethToUsdRate={ethToUsdRate}
               address={bet.address}
-            /> */}
+            />
             <QRCodeModal url={`https://www.okaybet.fun/bet/${bet.address}`} />
             <Link href={`/bet/${bet.address}`} passHref legacyBehavior>
               <a className="text-primary hover:text-quaternary cursor-pointer mt-1">

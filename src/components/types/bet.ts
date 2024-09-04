@@ -8,6 +8,7 @@ export interface BetDetailsType {
   judgeDisplay: string;
   wagerWei: string;
   wagerEth: string;
+  wagerUsd?: string;  
   wagerCurrency: string;
   conditions: string;
   status: number;
