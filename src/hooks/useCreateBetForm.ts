@@ -1,14 +1,14 @@
-// hooks/useCreateBetForm.ts
 import { useState, useEffect, useCallback, FormEvent } from "react";
 import { useSendTransaction, useActiveAccount } from "thirdweb/react";
-import { ethers } from "ethers";
+import { ethers, BigNumber } from "ethers";
 import { useFetchEthToUsdRate } from "./useFetchEthToUsdRate";
 import { resolveUserAddress } from "./useResolveUserAddress";
 import { useFundBet } from "@/hooks/useFundBet";
 import { waitForBetReady } from "@/utils/waitForBetReady";
 import { createBet } from "@/generated/betFactory";
 import { BASE_MAINNET_RPC } from "@/constants/rpc";
-import debounce from 'lodash/debounce';
+import debounce from "lodash/debounce";
+import useWebSocket from "@/hooks/useWebSocket";
 
 type EthereumAddress = `0x${string}`;
 
@@ -20,7 +20,9 @@ export const useCreateBetForm = (contract: any) => {
   const [wagerRatio, setWagerRatio] = useState<number>(50);
   const [conditions, setConditions] = useState<string>("");
   const [expirationBlocks, setExpirationBlocks] = useState<number>(302400); // Default to 1 week
-  const [wagerCurrency, setWagerCurrency] = useState<string>(ethers.constants.AddressZero); // Default to ETH
+  const [wagerCurrency, setWagerCurrency] = useState<string>(
+    ethers.constants.AddressZero
+  ); // Default to ETH
   const [message, setMessage] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isFunding, setIsFunding] = useState<boolean>(false);
@@ -34,11 +36,15 @@ export const useCreateBetForm = (contract: any) => {
   const [takerLoading, setTakerLoading] = useState<boolean>(false);
   const [judgeLoading, setJudgeLoading] = useState<boolean>(false);
 
-  const [needsFunding, setNeedsFunding] = useState<boolean>(false);
-  const [newBetAddress, setNewBetAddress] = useState<string>("");
-  const [resolvedMaker, setResolvedMaker] = useState<EthereumAddress | null>(null);
-  const [resolvedTaker, setResolvedTaker] = useState<EthereumAddress | null>(null);
-  const [resolvedJudge, setResolvedJudge] = useState<EthereumAddress | null>(null);
+  const [resolvedMaker, setResolvedMaker] = useState<EthereumAddress | null>(
+    null
+  );
+  const [resolvedTaker, setResolvedTaker] = useState<EthereumAddress | null>(
+    null
+  );
+  const [resolvedJudge, setResolvedJudge] = useState<EthereumAddress | null>(
+    null
+  );
 
   const [makerDisplayName, setMakerDisplayName] = useState<string>("");
   const [takerDisplayName, setTakerDisplayName] = useState<string>("");
@@ -51,6 +57,8 @@ export const useCreateBetForm = (contract: any) => {
   const ethToUsdRate = useFetchEthToUsdRate();
   const { mutateAsync: sendTransaction } = useSendTransaction();
   const account = useActiveAccount();
+  const handleFundBet = useFundBet();
+  const { emitEvent } = useWebSocket();
 
   const resetForm = () => {
     setMaker(account?.address || "");
@@ -64,33 +72,34 @@ export const useCreateBetForm = (contract: any) => {
     setIsFormVisible(false);
   };
 
-  const handleFundBet = useFundBet();
-
-  const validateAndResolveAddress = useCallback(async (
-    value: string,
-    setValid: (valid: boolean) => void,
-    setLoading: (loading: boolean) => void,
-    setResolvedAddress: (address: EthereumAddress | null) => void,
-    setDisplayName: (name: string) => void,
-    setWalletAddress: (address: string | null) => void
-  ) => {
-    setLoading(true);
-    try {
-      const { address, displayName } = await resolveUserAddress(value);
-      setValid(!!address);
-      setResolvedAddress(address as EthereumAddress | null);
-      setDisplayName(displayName);
-      setWalletAddress(address);
-    } catch (error) {
-      console.error("Error resolving address:", error);
-      setValid(false);
-      setResolvedAddress(null);
-      setDisplayName(value);
-      setWalletAddress(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const validateAndResolveAddress = useCallback(
+    async (
+      value: string,
+      setValid: (valid: boolean) => void,
+      setLoading: (loading: boolean) => void,
+      setResolvedAddress: (address: EthereumAddress | null) => void,
+      setDisplayName: (name: string) => void,
+      setWalletAddress: (address: string | null) => void
+    ) => {
+      setLoading(true);
+      try {
+        const { address, displayName } = await resolveUserAddress(value);
+        setValid(!!address);
+        setResolvedAddress(address as EthereumAddress | null);
+        setDisplayName(displayName);
+        setWalletAddress(address);
+      } catch (error) {
+        console.error("Error resolving address:", error);
+        setValid(false);
+        setResolvedAddress(null);
+        setDisplayName(value);
+        setWalletAddress(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
 
   const debouncedValidateAndResolveAddress = useCallback(
     debounce(validateAndResolveAddress, 500),
@@ -102,7 +111,9 @@ export const useCreateBetForm = (contract: any) => {
       if (account) {
         setMakerLoading(true);
         try {
-          const { address, displayName } = await resolveUserAddress(account.address);
+          const { address, displayName } = await resolveUserAddress(
+            account.address
+          );
           setMaker(displayName);
           setMakerDisplayName(displayName);
           setResolvedMaker(address as EthereumAddress);
@@ -163,6 +174,18 @@ export const useCreateBetForm = (contract: any) => {
     if (!usdAmount || !ethToUsdRate) return "0";
     const ethAmount = parseFloat(usdAmount) / ethToUsdRate;
     return ethAmount.toFixed(6);
+  };
+
+  const calculateWagerWei = (
+    totalWager: string,
+    wagerRatio: number,
+    isMaker: boolean
+  ): string => {
+    const totalWagerBN = BigNumber.from(totalWager);
+    const wagerWeiBN = isMaker
+      ? totalWagerBN.mul(wagerRatio).div(100)
+      : totalWagerBN.mul(100 - wagerRatio).div(100);
+    return wagerWeiBN.toString();
   };
 
   const handleSubmit = async (event: FormEvent) => {
@@ -242,17 +265,29 @@ export const useCreateBetForm = (contract: any) => {
         setIsFunding(true);
         const isBetReady = await waitForBetReady(newBetAddress);
         if (isBetReady) {
+          const wagerWei = calculateWagerWei(
+            wagerInWei.toString(),
+            wagerRatio,
+            true
+          );
           await handleFundBet(
             newBetAddress,
-            wagerInWei.toString(),
+            wagerWei,
             wagerCurrency,
-            sendTransaction,
-            async () => {}, // We don't need to fetch bet details here
+            async (betAddress: string) => {
+              // Implement fetchBetDetails here if needed
+              console.log("Fetching bet details for:", betAddress);
+              return null;
+            },
             setMessage,
             setIsAlertOpen,
             setIsLoading
           );
           setMessage("Bet created and funded successfully!");
+          emitEvent("betFunded", {
+            betAddress: newBetAddress,
+            amount: wagerWei,
+          });
         } else {
           setMessage(
             "Bet created, but not ready for funding. Please try funding manually."
@@ -274,13 +309,8 @@ export const useCreateBetForm = (contract: any) => {
     }
   };
 
-  const handleFundingComplete = () => {
-    setNeedsFunding(false);
-    setNewBetAddress("");
-    setResolvedMaker(null);
-  };
-
-  const canSubmit = makerValid && takerValid && judgeValid && wagerUSD && conditions;
+  const canSubmit =
+    makerValid && takerValid && judgeValid && wagerUSD && conditions;
 
   return {
     maker,
@@ -316,11 +346,6 @@ export const useCreateBetForm = (contract: any) => {
     takerLoading,
     judgeLoading,
     canSubmit,
-    needsFunding,
-    newBetAddress,
-    resolvedMaker,
-    handleFundingComplete,
-    setNeedsFunding,
     resetForm,
     makerDisplayName,
     takerDisplayName,
