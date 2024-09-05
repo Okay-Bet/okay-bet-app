@@ -3,6 +3,7 @@ import { BetDetailsType } from "@/components/types/bet";
 import { useFundBet } from "@/hooks/useFundBet";
 import { useResolveBet } from "@/hooks/useResolveBet";
 import { useInvalidateBet } from "@/hooks/useInvalidateBet";
+import { useCancelBet } from "@/hooks/useCancelBet";
 import CircularProgress from "@mui/material/CircularProgress";
 import useWebSocket from "@/hooks/useWebSocket";
 import { BigNumber } from "ethers";
@@ -46,6 +47,7 @@ const BetActions: React.FC<BetActionsProps> = ({
   const handleFundBet = useFundBet();
   const handleInvalidateBet = useInvalidateBet();
   const handleResolveBet = useResolveBet();
+  const handleCancelBet = useCancelBet();
 
   const handleAction = async (action: () => Promise<void>) => {
     if (!activeAccount) {
@@ -193,6 +195,25 @@ const BetActions: React.FC<BetActionsProps> = ({
           {isActionLoading ? <CircularProgress size={24} /> : "Invalidate Bet"}
         </button>
       )}
+      {availableActions.includes("cancelBet") && (
+        <button
+          onClick={() =>
+            handleAction(() =>
+              handleCancelBet(
+                betDetails.address,
+                fetchBetDetails,
+                setMessage,
+                setIsAlertOpen,
+                setIsActionLoading
+              )
+            )
+          }
+          className={buttonClass("red")}
+          disabled={isActionLoading || isLoading}
+        >
+          {isActionLoading ? <CircularProgress size={24} /> : "Cancel Bet"}
+        </button>
+      )}
     </div>
   );
 };
@@ -228,7 +249,7 @@ const getAvailableActions = (
     }
     if (role === "maker" || role === "taker" || role === "judge") {
       if (betStatus === 0 || betStatus === 1 || betStatus === 2) {
-        actions.add("invalidateBet");
+        actions.add("cancelBet");
       }
     }
     if (role === "judge") {

@@ -6,11 +6,11 @@ import { BASE_MAINNET_RPC } from "@/constants/rpc";
 import useWebSocket from "./useWebSocket";
 import { useActiveAccount } from "thirdweb/react";
 
-export const useInvalidateBet = () => {
+export const useCancelBet = () => {
   const { emitEvent } = useWebSocket();
   const activeAccount = useActiveAccount();
 
-  const handleInvalidateBet = useCallback(
+  const handleCancelBet = useCallback(
     async (
       betAddress: string,
       fetchBetDetails: (betAddress: string) => Promise<any>,
@@ -34,16 +34,16 @@ export const useInvalidateBet = () => {
           chain: contract.chain,
         });
 
-        // Prepare the invalidateBet transaction
-        const invalidateBetTransaction = await prepareContractCall({
+        // Prepare the cancelBet transaction
+        const cancelBetTransaction = await prepareContractCall({
           contract: betContract,
-          method: "function invalidateBet()",
+          method: "function cancelBet()",
         });
 
         // Send the transaction
         const { transactionHash } = await sendTransaction({
           account: activeAccount,
-          transaction: invalidateBetTransaction,
+          transaction: cancelBetTransaction,
         });
 
         const provider = new ethers.providers.JsonRpcProvider(BASE_MAINNET_RPC);
@@ -67,11 +67,11 @@ export const useInvalidateBet = () => {
               const event = events[0];
               if (event.args && "invalidator" in event.args) {
                 setMessage(
-                  `Bet invalidated successfully for address: ${betAddress}`
+                  `Bet cancelled successfully for address: ${betAddress}`
                 );
                 setIsAlertOpen(true);
                 await fetchBetDetails(betAddress);
-                emitEvent("betInvalidated", { betAddress });
+                emitEvent("betCancelled", { betAddress });
                 return true;
               }
             }
@@ -91,14 +91,14 @@ export const useInvalidateBet = () => {
         );
         setIsAlertOpen(true);
       } catch (error: unknown) {
-        console.error("Error invalidating bet:", error);
+        console.error("Error cancelling bet:", error);
         if (error instanceof Error) {
           setMessage(
-            `Error invalidating bet. Please try again. Details: ${error.message}`
+            `Error cancelling bet. Please try again. Details: ${error.message}`
           );
         } else {
           setMessage(
-            "Error invalidating bet. Please try again. An unexpected error occurred."
+            "Error cancelling bet. Please try again. An unexpected error occurred."
           );
         }
         setIsAlertOpen(true);
@@ -110,5 +110,5 @@ export const useInvalidateBet = () => {
     [emitEvent, activeAccount]
   );
 
-  return handleInvalidateBet;
+  return handleCancelBet;
 };
