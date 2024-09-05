@@ -1,26 +1,32 @@
 import { useCallback } from "react";
-import { getContract } from "thirdweb";
+import { getContract, prepareContractCall, sendTransaction } from "thirdweb";
 import { client, contract } from "@/app/client";
-import { fundBet } from "@/generated/bet";
-import { ethers } from "ethers";
+import { ethers, BigNumber } from "ethers";
 import { BASE_MAINNET_RPC } from "@/constants/rpc";
 import useWebSocket from "./useWebSocket";
+import { useActiveAccount } from "thirdweb/react";
 
 export const useFundBet = () => {
   const { emitEvent } = useWebSocket();
+  const activeAccount = useActiveAccount();
 
   const handleFundBet = useCallback(
     async (
       betAddress: string,
       wagerWei: string,
       wagerCurrency: string,
-      sendTransaction: any,
       fetchBetDetails: (betAddress: string) => Promise<any>,
       setMessage: (message: string) => void,
       setIsAlertOpen: (isOpen: boolean) => void,
       setIsActionLoading: (isLoading: boolean) => void
     ) => {
       try {
+        if (!activeAccount) {
+          throw new Error(
+            "No active account found. Please connect your wallet."
+          );
+        }
+
         emitEvent("refreshStart");
         setIsActionLoading(true);
 
@@ -30,56 +36,87 @@ export const useFundBet = () => {
           chain: contract.chain,
         });
 
-        const transaction = fundBet({
-          contract: betContract,
-        });
-
-        const wagerWeiBigInt = BigInt(wagerWei);
-        const provider = new ethers.providers.JsonRpcProvider(BASE_MAINNET_RPC);
-        const startBlock = await provider.getBlockNumber();
+        const wagerWeiBigNumber = BigNumber.from(wagerWei);
 
         // If wagerCurrency is not the zero address (ETH), we need to approve the token transfer first
         if (wagerCurrency !== ethers.constants.AddressZero) {
-          const tokenContract = new ethers.Contract(
-            wagerCurrency,
-            ["function approve(address spender, uint256 amount) public returns (bool)"],
-            provider
-          );
-          await tokenContract.approve(betAddress, wagerWeiBigInt);
+          const tokenContract = getContract({
+            client,
+            address: wagerCurrency,
+            chain: contract.chain,
+          });
+
+          const approveTransaction = await prepareContractCall({
+            contract: tokenContract,
+            method: "function approve(address spender, uint256 amount)",
+            params: [betAddress, wagerWeiBigNumber.toString()],
+          });
+
+          await sendTransaction({
+            account: activeAccount,
+            transaction: approveTransaction,
+          });
         }
 
-        // Send the transaction
-        await sendTransaction({ 
-          ...transaction, 
-          value: wagerCurrency === ethers.constants.AddressZero ? wagerWeiBigInt : 0 
+        // Prepare the fundBet transaction
+        const fundBetTransaction = await prepareContractCall({
+          contract: betContract,
+          method: "function fundBet(uint256 amount)",
+          params: [wagerWeiBigNumber.toString()],
+          value:
+            wagerCurrency === ethers.constants.AddressZero
+              ? wagerWeiBigNumber.toString()
+              : "0",
         });
 
+        // Send the transaction
+        const { transactionHash } = await sendTransaction({
+          account: activeAccount,
+          transaction: fundBetTransaction,
+        });
+
+        const provider = new ethers.providers.JsonRpcProvider(BASE_MAINNET_RPC);
         const ethersBetContract = new ethers.Contract(
           betAddress,
-          ["event BetFunded(address indexed betAddress, address indexed funder, uint256 amount, uint8 newStatus)"],
+          [
+            "event BetFunded(address indexed betAddress, address indexed funder, uint256 amount, uint8 newStatus)",
+          ],
           provider
         );
 
         const checkForEvent = async () => {
-          const currentBlock = await provider.getBlockNumber();
-          const events = await ethersBetContract.queryFilter(
-            ethersBetContract.filters.BetFunded(),
-            startBlock,
-            currentBlock
-          );
-          if (events.length > 0) {
-            const event = events[0];
-            if (event.args && "funder" in event.args && "amount" in event.args) {
-              const amount = event.args.amount;
-              const tokenSymbol = wagerCurrency === ethers.constants.AddressZero ? "ETH" : "tokens";
-              setMessage(
-                `Bet funded successfully! Amount: ${ethers.utils.formatEther(amount)} ${tokenSymbol}`
-              );
-              setIsAlertOpen(true);
-              await fetchBetDetails(betAddress);
-              emitEvent("betFunded", { betAddress, amount: wagerWeiBigInt.toString() });
-              setIsActionLoading(false);
-              return true;
+          const receipt = await provider.getTransactionReceipt(transactionHash);
+          if (receipt) {
+            const events = await ethersBetContract.queryFilter(
+              ethersBetContract.filters.BetFunded(),
+              receipt.blockNumber,
+              receipt.blockNumber
+            );
+            if (events.length > 0) {
+              const event = events[0];
+              if (
+                event.args &&
+                "funder" in event.args &&
+                "amount" in event.args
+              ) {
+                const amount = event.args.amount;
+                const tokenSymbol =
+                  wagerCurrency === ethers.constants.AddressZero
+                    ? "ETH"
+                    : "tokens";
+                setMessage(
+                  `Bet funded successfully! Amount: ${ethers.utils.formatEther(
+                    amount
+                  )} ${tokenSymbol}`
+                );
+                setIsAlertOpen(true);
+                await fetchBetDetails(betAddress);
+                emitEvent("betFunded", {
+                  betAddress,
+                  amount: wagerWeiBigNumber.toString(),
+                });
+                return true;
+              }
             }
           }
           return false;
@@ -113,7 +150,7 @@ export const useFundBet = () => {
         emitEvent("refreshComplete");
       }
     },
-    [emitEvent]
+    [emitEvent, activeAccount]
   );
 
   return handleFundBet;

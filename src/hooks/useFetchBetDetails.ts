@@ -71,10 +71,8 @@ export const useFetchBetDetails = (
             finalized,
             wagerCurrency,
           };
-          console.log("Fetched bet detail:", betDetail);
           return betDetail;
         } else {
-          console.error("Invalid bet data structure:", betData);
         }
       } catch (error) {
         console.error(`Error fetching bet details for ${betAddress}:`, error);
@@ -90,7 +88,6 @@ export const useFetchBetDetails = (
       ? betAddresses
       : [betAddresses];
     try {
-      console.log("Fetching details for addresses:", addresses);
       const details = await Promise.all(
         addresses.map(async (address) => {
           const detail = await fetchBetDetails(address);
@@ -100,7 +97,6 @@ export const useFetchBetDetails = (
       const filteredDetails = details.filter(
         (detail): detail is BetDetailsType => detail !== null
       );
-      console.log("Filtered bet details:", filteredDetails);
       setBetDetails(filteredDetails);
     } catch (error) {
       console.error("Error fetching all bet details:", error);
@@ -124,7 +120,6 @@ export const useFetchBetDetails = (
   }, [lastEvent, fetchAllBetDetails]);
 
   useEffect(() => {
-    console.log("Current bet details state:", betDetails);
   }, [betDetails]);
 
   return {

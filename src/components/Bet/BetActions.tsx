@@ -5,14 +5,16 @@ import { useResolveBet } from "@/hooks/useResolveBet";
 import { useInvalidateBet } from "@/hooks/useInvalidateBet";
 import CircularProgress from "@mui/material/CircularProgress";
 import useWebSocket from "@/hooks/useWebSocket";
+import { BigNumber } from "ethers";
+import { useActiveAccount } from "thirdweb/react";
 
 interface BetActionsProps {
   betDetails: BetDetailsType;
+  fetchBetDetails: (betAddress: string) => Promise<BetDetailsType | null>;
   setMessage: (message: string) => void;
   setIsAlertOpen: (isOpen: boolean) => void;
   isLoading: boolean;
   accountAddress: string;
-  sendTransaction: any;
   canFund: boolean;
   userIsDecider: boolean;
   betStatusText: string;
@@ -21,11 +23,11 @@ interface BetActionsProps {
 
 const BetActions: React.FC<BetActionsProps> = ({
   betDetails,
+  fetchBetDetails,
   setMessage,
   setIsAlertOpen,
   isLoading,
   accountAddress,
-  sendTransaction,
   canFund,
   userIsDecider,
   betStatusText,
@@ -33,6 +35,7 @@ const BetActions: React.FC<BetActionsProps> = ({
 }) => {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const { emitEvent } = useWebSocket();
+  const activeAccount = useActiveAccount();
   const userRoles = getUserRoles(accountAddress, betDetails);
   const availableActions = getAvailableActions(
     userRoles,
@@ -44,18 +47,43 @@ const BetActions: React.FC<BetActionsProps> = ({
   const handleInvalidateBet = useInvalidateBet();
   const handleResolveBet = useResolveBet();
 
-  const fetchBetDetails = async (betAddress: string) => {
-    emitEvent("requestBetUpdate", { betAddress });
+  const handleAction = async (action: () => Promise<void>) => {
+    if (!activeAccount) {
+      setMessage("Please connect your wallet to perform this action.");
+      setIsAlertOpen(true);
+      return;
+    }
+
+    setIsActionLoading(true);
+    setLocalLoading(true);
+    try {
+      await action();
+    } finally {
+      setIsActionLoading(false);
+      setLocalLoading(false);
+    }
   };
 
   const buttonClass = (color: string) => `
     w-full p-2 bg-${color}-500 text-font font-heading rounded-lg mt-2 
     ${
-      isActionLoading || isLoading
+      isActionLoading || isLoading || !activeAccount
         ? "cursor-not-allowed opacity-50"
         : `hover:bg-tertiary hover:italic transition-colors`
     }
   `;
+
+  const calculateWagerWei = (
+    totalWager: string,
+    wagerRatio: number,
+    isMaker: boolean
+  ): string => {
+    const totalWagerBN = BigNumber.from(totalWager);
+    const wagerWeiBN = isMaker
+      ? totalWagerBN.mul(wagerRatio).div(100)
+      : totalWagerBN.mul(100 - wagerRatio).div(100);
+    return wagerWeiBN.toString();
+  };
 
   return (
     <div>
@@ -66,17 +94,26 @@ const BetActions: React.FC<BetActionsProps> = ({
       </div>
       {availableActions.includes("fundBet") && canFund && (
         <button
-          onClick={() =>
-            handleFundBet(
-              betDetails.address,
-              betDetails.wagerWei,
-              sendTransaction,
-              fetchBetDetails,
-              setMessage,
-              setIsAlertOpen,
-              setIsActionLoading
-            )
-          }
+          onClick={() => {
+            const isMaker =
+              accountAddress.toLowerCase() === betDetails.maker.toLowerCase();
+            const wagerWei = calculateWagerWei(
+              betDetails.totalWager,
+              betDetails.wagerRatio,
+              isMaker
+            );
+            handleAction(() =>
+              handleFundBet(
+                betDetails.address,
+                wagerWei,
+                betDetails.wagerCurrency,
+                fetchBetDetails,
+                setMessage,
+                setIsAlertOpen,
+                setIsActionLoading
+              )
+            );
+          }}
           className={buttonClass("green")}
           disabled={isActionLoading || isLoading}
         >
@@ -93,14 +130,15 @@ const BetActions: React.FC<BetActionsProps> = ({
         <>
           <button
             onClick={() =>
-              handleResolveBet(
-                betDetails.address,
-                betDetails.maker,
-                sendTransaction,
-                fetchBetDetails,
-                setMessage,
-                setIsAlertOpen,
-                setIsActionLoading
+              handleAction(() =>
+                handleResolveBet(
+                  betDetails.address,
+                  betDetails.maker,
+                  fetchBetDetails,
+                  setMessage,
+                  setIsAlertOpen,
+                  setIsActionLoading
+                )
               )
             }
             className={buttonClass("blue")}
@@ -114,14 +152,15 @@ const BetActions: React.FC<BetActionsProps> = ({
           </button>
           <button
             onClick={() =>
-              handleResolveBet(
-                betDetails.address,
-                betDetails.taker,
-                sendTransaction,
-                fetchBetDetails,
-                setMessage,
-                setIsAlertOpen,
-                setIsActionLoading
+              handleAction(() =>
+                handleResolveBet(
+                  betDetails.address,
+                  betDetails.taker,
+                  fetchBetDetails,
+                  setMessage,
+                  setIsAlertOpen,
+                  setIsActionLoading
+                )
               )
             }
             className={buttonClass("blue")}
@@ -138,13 +177,14 @@ const BetActions: React.FC<BetActionsProps> = ({
       {availableActions.includes("invalidateBet") && (
         <button
           onClick={() =>
-            handleInvalidateBet(
-              betDetails.address,
-              sendTransaction,
-              fetchBetDetails,
-              setMessage,
-              setIsAlertOpen,
-              setIsActionLoading
+            handleAction(() =>
+              handleInvalidateBet(
+                betDetails.address,
+                fetchBetDetails,
+                setMessage,
+                setIsAlertOpen,
+                setIsActionLoading
+              )
             )
           }
           className={buttonClass("yellow")}

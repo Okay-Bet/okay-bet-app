@@ -75,8 +75,6 @@ export const useBetList = ({
   const [betHistory, setBetHistory] = useState<string[]>([]);
   const { isConnected, lastEvent } = useWebSocket();
 
-  console.log("useBetList: accountAddress", accountAddress);
-
   const {
     data: subgraphData,
     isLoading,
@@ -86,7 +84,6 @@ export const useBetList = ({
     queryKey: ["userBets", accountAddress],
     queryFn: async () => {
       if (!accountAddress) return null;
-      console.log("Fetching bets for address:", accountAddress);
       const response = await request<SubgraphResponse>(
         SUBGRAPH_URL,
         GET_USER_BETS,
@@ -94,7 +91,6 @@ export const useBetList = ({
           userAddress: accountAddress.toLowerCase(),
         }
       );
-      console.log("Subgraph response:", response);
       return response.bets;
     },
     enabled: !!accountAddress,
@@ -102,13 +98,11 @@ export const useBetList = ({
 
   const processBets = useCallback(
     (bets: SubgraphBet[]) => {
-      console.log("Processing bets:", bets);
       const open: string[] = [];
       const unfunded: string[] = [];
       const history: string[] = [];
 
       bets.forEach((bet) => {
-        console.log("Processing bet:", bet);
         if (
           accountAddress.toLowerCase() === bet.maker.toLowerCase() ||
           accountAddress.toLowerCase() === bet.taker.toLowerCase() ||
@@ -125,10 +119,6 @@ export const useBetList = ({
         }
       });
 
-      console.log("Processed bets - Open:", open);
-      console.log("Processed bets - Unfunded:", unfunded);
-      console.log("Processed bets - History:", history);
-
       setOpenBets(open);
       setUnfundedBets(unfunded);
       setBetHistory(history);
@@ -138,23 +128,19 @@ export const useBetList = ({
 
   useEffect(() => {
     if (!isLoading && !isError && subgraphData) {
-      console.log("Subgraph data received, processing bets");
       processBets(subgraphData);
     }
   }, [processBets, isLoading, isError, subgraphData]);
 
   useEffect(() => {
     if (isConnected && lastEvent) {
-      console.log("WebSocket event received:", lastEvent);
       const { type, data } = lastEvent;
 
       switch (type) {
         case "BetCreated":
-          console.log("BetCreated event, adding to unfundedBets:", data.betAddress);
           setUnfundedBets((prev) => [...prev, data.betAddress]);
           break;
         case "BetFunded":
-          console.log("BetFunded event, moving from unfundedBets to openBets:", data.betAddress);
           setUnfundedBets((prev) =>
             prev.filter((address) => address !== data.betAddress)
           );
@@ -163,7 +149,6 @@ export const useBetList = ({
         case "BetCancelled":
         case "BetResolved":
         case "BetInvalidated":
-          console.log(`${type} event, moving to betHistory:`, data.betAddress);
           setUnfundedBets((prev) =>
             prev.filter((address) => address !== data.betAddress)
           );
@@ -173,17 +158,11 @@ export const useBetList = ({
           setBetHistory((prev) => [...prev, data.betAddress]);
           break;
         default:
-          console.log("Unknown event type:", type);
       }
 
-      console.log("Refetching bets after WebSocket event");
       refetch();
     }
   }, [isConnected, lastEvent, refetch]);
-
-  console.log("Final state - openBets:", openBets);
-  console.log("Final state - unfundedBets:", unfundedBets);
-  console.log("Final state - betHistory:", betHistory);
 
   return {
     openBets,
