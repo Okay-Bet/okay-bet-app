@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { useFetchBetDetails, BetDetailsType } from "@/hooks/useFetchBetDetails";
+import { useFetchBetDetails } from "@/hooks/useFetchBetDetails";
 import BetCard from "./BetCard";
 import AlertModal from "../Common/AlertModal";
 import { useFetchEthToUsdRate } from "@/hooks/useFetchEthToUsdRate";
@@ -16,23 +16,14 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
   betAddresses,
   accountAddress,
 }) => {
-  console.log("UnfundedBets component rendered with addresses:", betAddresses);
-  const { betDetails, loading, fetchBetDetails, refetchAll } =
-    useFetchBetDetails(betAddresses, true);
+  const { betDetails, loading, fetchBetDetails, refetchAll } = useFetchBetDetails(betAddresses, true);
   const ethToUsdRate = useFetchEthToUsdRate();
   const [message, setMessage] = useState<string>("");
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
   const { lastEvent } = useWebSocket();
 
-  console.log("Bet details received in UnfundedBets:", betDetails);
-  console.log("Loading state:", loading);
-
   useEffect(() => {
-    if (
-      lastEvent &&
-      (lastEvent.type === "BetFunded" || lastEvent.type === "BetCancelled")
-    ) {
-      console.log("Refetching due to event:", lastEvent);
+    if (lastEvent && (lastEvent.type === "BetFunded" || lastEvent.type === "BetCancelled")) {
       refetchAll();
     }
   }, [lastEvent, refetchAll]);
@@ -42,11 +33,7 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
     refetchAll();
   };
 
-  console.log("All bet details:", betDetails);
-  const unfundedBets = betDetails.filter(
-    (bet) => bet.status === 0 || bet.status === 1
-  );
-  console.log("Filtered unfunded bets:", unfundedBets);
+  const unfundedBets = betDetails.filter((bet) => bet.status === 0 || bet.status === 1);
 
   return (
     <CollapsibleSection title="Unfunded Bets" loading={loading}>

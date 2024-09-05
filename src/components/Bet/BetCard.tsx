@@ -1,5 +1,4 @@
-"use client";
-
+// components/Bet/BetCard.tsx
 import React, { useState } from "react";
 import { Collapse, Tooltip } from "@mui/material";
 import { useSendTransaction } from "thirdweb/react";
@@ -11,6 +10,7 @@ import { BetDetailsType } from "@/components/types/bet";
 import BetActions from "./BetActions";
 import CircularProgress from "@mui/material/CircularProgress";
 import ExpirationTimer from "../Common/ExpirationTimer";
+import { useWagerConversion } from "@/hooks/useWagerConversion";
 
 interface BetCardProps {
   bet: BetDetailsType;
@@ -39,6 +39,8 @@ const BetCard: React.FC<BetCardProps> = ({
   const [localLoading, setLocalLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isOpen, setIsOpen] = useState(initialOpen);
+  const { makerWagerEth, takerWagerEth, makerWagerUsd, takerWagerUsd } =
+    useWagerConversion(bet.totalWager, bet.wagerRatio);
 
   const userIsMaker = accountAddress.toLowerCase() === bet.maker.toLowerCase();
   const userIsTaker = accountAddress.toLowerCase() === bet.taker.toLowerCase();
@@ -79,18 +81,23 @@ const BetCard: React.FC<BetCardProps> = ({
 
   const displayParticipantInfo = (
     address: string,
-    displayName: string | undefined
+    displayName:
+      | string
+      | { address: string | null; displayName: string }
+      | undefined
   ) => {
-    let displayText = displayName || address;
+    let displayText = address;
 
-    if (displayName) {
+    if (typeof displayName === "string") {
       if (displayName.includes(".eth")) {
         displayText = displayName;
       } else if (displayName.startsWith("0x")) {
         displayText = shortenAddress(displayName);
+      } else {
+        displayText = displayName;
       }
-    } else {
-      displayText = shortenAddress(address);
+    } else if (displayName && typeof displayName === "object") {
+      displayText = displayName.displayName || address;
     }
 
     return (
@@ -132,17 +139,32 @@ const BetCard: React.FC<BetCardProps> = ({
               </span>
             </div>
           </div>
-          <div className="inline-block px-4 py-2 bg-blue-500 text-font rounded-full">
-            ${bet.wagerUsd} USD ({bet.wagerEth} ETH)
+          <div className="mt-2">
+            <span>
+              Maker Wager: {makerWagerEth} ETH (${makerWagerUsd} USD)
+            </span>
+          </div>
+          <div className="mt-2">
+            <span>
+              Taker Wager: {takerWagerEth} ETH (${takerWagerUsd} USD)
+            </span>
+          </div>
+          <div className="mt-2">
+            <span>Status: {getBetStatusText()}</span>
           </div>
           <div className="mt-2">
             <span>
               Expires in:{" "}
-              <ExpirationTimer
-                expirationBlock={bet.expirationBlock}
-              />
+              <ExpirationTimer expirationBlock={bet.expirationBlock} />
             </span>
           </div>
+          {bet.status === 3 && bet.winner && (
+            <div className="mt-2">
+              <span>
+                Winner: {displayParticipantInfo(bet.winner, bet.winnerDisplay)}
+              </span>
+            </div>
+          )}
           <div className="justify-end items-center mt-4">
             <BetActions
               betDetails={bet}
@@ -160,10 +182,22 @@ const BetCard: React.FC<BetCardProps> = ({
           </div>
           <div className="flex justify-end items-center space-x-4 mt-4">
             <ShareButton
-              makerDisplay={bet.makerDisplay || bet.maker}
-              takerDisplay={bet.takerDisplay || bet.taker}
-              judgeDisplay={bet.judgeDisplay || bet.judge}
-              wagerEth={bet.wagerEth}
+              makerDisplay={
+                typeof bet.makerDisplay === "object"
+                  ? bet.makerDisplay.displayName
+                  : bet.makerDisplay
+              }
+              takerDisplay={
+                typeof bet.takerDisplay === "object"
+                  ? bet.takerDisplay.displayName
+                  : bet.takerDisplay
+              }
+              judgeDisplay={
+                typeof bet.judgeDisplay === "object"
+                  ? bet.judgeDisplay.displayName
+                  : bet.judgeDisplay
+              }
+              wagerEth={makerWagerEth}
               status={bet.status}
               conditions={bet.conditions}
               ethToUsdRate={ethToUsdRate}

@@ -1,3 +1,4 @@
+// types/bet.ts
 export interface BetDetailsType {
   address: string;
   maker: string;
@@ -6,14 +7,13 @@ export interface BetDetailsType {
   takerDisplay: string;
   judge: string;
   judgeDisplay: string;
-  wagerWei: string;
-  wagerEth: string;
-  wagerUsd?: string;  
-  wagerCurrency: string;
+  totalWager: string;
+  wagerRatio: number;
   conditions: string;
   status: number;
   winner: string | null;
   winnerDisplay: string | null;
   expirationBlock: number;
-  wagerRatio: number;
+  finalized: boolean;
+  wagerCurrency: string;
 }

@@ -26,17 +26,11 @@ const BetDetails = () => {
     return <p>No bet found</p>;
   }
 
-  const bet = betDetails[0]; // Get the first bet from the array
-
-  // Convert wager to USD
-  const wagerInUsd = (parseFloat(bet.totalWager) * ethToUsdRate).toFixed(2);
+  const bet = betDetails[0];
 
   const handleAlertClose = () => {
     setIsAlertOpen(false);
   };
-
-  // Dummy function to satisfy the onProceed prop requirement
-  const dummyProceed = () => {};
 
   return (
     <div className="max-w-md mx-auto p-4 text-center min-h-screen">
@@ -44,7 +38,7 @@ const BetDetails = () => {
       <div className="p-4 container ">
         <ConnectWallet />
         <BetCard
-          bet={{ ...bet, wagerUsd: wagerInUsd }}
+          bet={bet}
           ethToUsdRate={ethToUsdRate}
           accountAddress={account?.address || ""}
           fetchBetDetails={fetchBetDetails}
@@ -59,7 +53,7 @@ const BetDetails = () => {
         isOpen={isAlertOpen}
         message={message}
         onClose={handleAlertClose}
-        onProceed={dummyProceed}
+        onProceed={() => {}}
         showProceed={false}
       />
     </div>
