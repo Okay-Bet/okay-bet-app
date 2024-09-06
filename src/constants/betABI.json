@@ -1,223 +1,517 @@
 [
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "_better1",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "_better2",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "_decider",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "_wager",
-				"type": "uint256"
-			},
-			{
-				"internalType": "string",
-				"name": "_conditions",
-				"type": "string"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "constructor"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "canceller",
-				"type": "address"
-			}
-		],
-		"name": "BetCancelled",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "better1",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "better2",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "decider",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "wager",
-				"type": "uint256"
-			},
-			{
-				"indexed": false,
-				"internalType": "string",
-				"name": "conditions",
-				"type": "string"
-			}
-		],
-		"name": "BetCreated",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [],
-		"name": "BetFullyFunded",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "funder",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			}
-		],
-		"name": "BetFunded",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [],
-		"name": "BetInvalidated",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "winner",
-				"type": "address"
-			}
-		],
-		"name": "BetResolved",
-		"type": "event"
-	},
-	{
-		"inputs": [],
-		"name": "bet",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "better1",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "better2",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "decider",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "wager",
-				"type": "uint256"
-			},
-			{
-				"internalType": "string",
-				"name": "conditions",
-				"type": "string"
-			},
-			{
-				"internalType": "enum Bet.BetStatus",
-				"name": "status",
-				"type": "uint8"
-			},
-			{
-				"internalType": "address",
-				"name": "winner",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "cancelBet",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "fundBet",
-		"outputs": [],
-		"stateMutability": "payable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"name": "hasFunded",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "invalidateBet",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "_winner",
-				"type": "address"
-			}
-		],
-		"name": "resolveBet",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	}
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_maker",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_taker",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_judge",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_totalWager",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_wagerRatio",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "_conditions",
+        "type": "string"
+      },
+      {
+        "internalType": "address",
+        "name": "_wagerCurrency",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_expirationBlocks",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "betAddress",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "maker",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "taker",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "judge",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "totalWager",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "wagerRatio",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "conditions",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "creationTimestamp",
+        "type": "uint64"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint32",
+        "name": "expirationBlock",
+        "type": "uint32"
+      }
+    ],
+    "name": "BetCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "betAddress",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "funder",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum Bet.BetStatus",
+        "name": "newStatus",
+        "type": "uint8"
+      }
+    ],
+    "name": "BetFunded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "betAddress",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "invalidator",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "reason",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "invalidationTimestamp",
+        "type": "uint64"
+      }
+    ],
+    "name": "BetInvalidated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "betAddress",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "winner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "winningAmount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "resolutionTimestamp",
+        "type": "uint64"
+      }
+    ],
+    "name": "BetResolved",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "betAddress",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "enum Bet.BetStatus",
+        "name": "oldStatus",
+        "type": "uint8"
+      },
+      {
+        "indexed": true,
+        "internalType": "enum Bet.BetStatus",
+        "name": "newStatus",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "timestamp",
+        "type": "uint64"
+      }
+    ],
+    "name": "BetStatusChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "recipient",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "PayoutFailed",
+    "type": "event"
+  },
+  {
+    "stateMutability": "payable",
+    "type": "fallback"
+  },
+  {
+    "inputs": [],
+    "name": "WAGER_RATIO_PRECISION",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "bet",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "maker",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "taker",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "judge",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalWager",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "wagerRatio",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "conditions",
+        "type": "string"
+      },
+      {
+        "internalType": "enum Bet.BetStatus",
+        "name": "status",
+        "type": "uint8"
+      },
+      {
+        "internalType": "address",
+        "name": "winner",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "expirationBlock",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "finalized",
+        "type": "bool"
+      },
+      {
+        "internalType": "address",
+        "name": "wagerCurrency",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "cancelBet",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "checkExpiration",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "fundBet",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "fundedAmount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getBetDetails",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "maker",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "taker",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "judge",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalWager",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "wagerRatio",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "conditions",
+        "type": "string"
+      },
+      {
+        "internalType": "enum Bet.BetStatus",
+        "name": "status",
+        "type": "uint8"
+      },
+      {
+        "internalType": "address",
+        "name": "winner",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "expirationBlock",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "finalized",
+        "type": "bool"
+      },
+      {
+        "internalType": "address",
+        "name": "wagerCurrency",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getBetStatus",
+    "outputs": [
+      {
+        "internalType": "enum Bet.BetStatus",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getBetWinner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "bettor",
+        "type": "address"
+      }
+    ],
+    "name": "getWagerAmount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "invalidateBet",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "isBetFinalized",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_winner",
+        "type": "address"
+      }
+    ],
+    "name": "resolveBet",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "stateMutability": "payable",
+    "type": "receive"
+  }
 ]

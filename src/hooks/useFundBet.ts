@@ -1,10 +1,9 @@
 import { useCallback } from "react";
-import { getContract, prepareContractCall, sendTransaction } from "thirdweb";
-import { client, contract } from "@/app/client";
-import { ethers, BigNumber } from "ethers";
+import { ethers } from "ethers";
 import { BASE_MAINNET_RPC } from "@/constants/rpc";
 import useWebSocket from "./useWebSocket";
 import { useActiveAccount } from "thirdweb/react";
+import betABI from "@/constants/betABI.json";
 
 export const useFundBet = () => {
   const { emitEvent } = useWebSocket();
@@ -13,7 +12,6 @@ export const useFundBet = () => {
   const handleFundBet = useCallback(
     async (
       betAddress: string,
-      wagerWei: string,
       wagerCurrency: string,
       fetchBetDetails: (betAddress: string) => Promise<any>,
       setMessage: (message: string) => void,
@@ -21,120 +19,105 @@ export const useFundBet = () => {
       setIsActionLoading: (isLoading: boolean) => void
     ) => {
       try {
+        console.log("handleFundBet called with:", {
+          betAddress,
+          wagerCurrency,
+        });
+
         if (!activeAccount) {
           throw new Error(
             "No active account found. Please connect your wallet."
           );
         }
+        console.log("Active account:", activeAccount.address);
 
         emitEvent("refreshStart");
         setIsActionLoading(true);
 
-        const betContract = getContract({
-          client,
-          address: betAddress,
-          chain: contract.chain,
-        });
+        // Create provider and signer
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const signer = provider.getSigner();
 
-        const wagerWeiBigNumber = BigNumber.from(wagerWei);
+        console.log("Creating contract instance for address:", betAddress);
+        const betContract = new ethers.Contract(betAddress, betABI, signer);
+        console.log("BetContract created");
+
+        // Get the required wager amount for the current user
+        console.log(
+          "Attempting to get wager amount for address:",
+          activeAccount.address
+        );
+        let wagerAmount;
+        try {
+          wagerAmount = await betContract.getWagerAmount(activeAccount.address);
+          console.log("Wager amount:", wagerAmount.toString());
+        } catch (error) {
+          console.error("Error calling getWagerAmount:", error);
+          throw error;
+        }
 
         // If wagerCurrency is not the zero address (ETH), we need to approve the token transfer first
         if (wagerCurrency !== ethers.constants.AddressZero) {
-          const tokenContract = getContract({
-            client,
-            address: wagerCurrency,
-            chain: contract.chain,
-          });
+          console.log("Wager currency is not ETH, preparing approval");
+          const tokenContract = new ethers.Contract(
+            wagerCurrency,
+            [
+              "function approve(address spender, uint256 amount) public returns (bool)",
+            ],
+            signer
+          );
+          console.log("Token contract created");
 
-          const approveTransaction = await prepareContractCall({
-            contract: tokenContract,
-            method: "function approve(address spender, uint256 amount)",
-            params: [betAddress, wagerWeiBigNumber.toString()],
-          });
+          console.log("Preparing approve transaction");
+          const approveTx = await tokenContract.approve(
+            betAddress,
+            wagerAmount
+          );
+          console.log("Approve transaction sent:", approveTx.hash);
 
-          await sendTransaction({
-            account: activeAccount,
-            transaction: approveTransaction,
-          });
+          await approveTx.wait();
+          console.log("Approve transaction confirmed");
         }
 
-        // Prepare the fundBet transaction
-        const fundBetTransaction = await prepareContractCall({
-          contract: betContract,
-          method: "function fundBet(uint256 amount)",
-          params: [wagerWeiBigNumber.toString()],
+        // Prepare and send the fundBet transaction
+        console.log("Preparing and sending fundBet transaction");
+        const fundBetTx = await betContract.fundBet({
           value:
-            wagerCurrency === ethers.constants.AddressZero
-              ? wagerWeiBigNumber.toString()
-              : "0",
+            wagerCurrency === ethers.constants.AddressZero ? wagerAmount : 0,
         });
+        console.log("FundBet transaction sent:", fundBetTx.hash);
 
-        // Send the transaction
-        const { transactionHash } = await sendTransaction({
-          account: activeAccount,
-          transaction: fundBetTransaction,
-        });
+        const receipt = await fundBetTx.wait();
+        console.log("FundBet transaction confirmed:", receipt.transactionHash);
 
-        const provider = new ethers.providers.JsonRpcProvider(BASE_MAINNET_RPC);
-        const ethersBetContract = new ethers.Contract(
-          betAddress,
-          [
-            "event BetFunded(address indexed betAddress, address indexed funder, uint256 amount, uint8 newStatus)",
-          ],
-          provider
+        const betFundedEvent = receipt.events?.find(
+          (e) => e.event === "BetFunded"
         );
-
-        const checkForEvent = async () => {
-          const receipt = await provider.getTransactionReceipt(transactionHash);
-          if (receipt) {
-            const events = await ethersBetContract.queryFilter(
-              ethersBetContract.filters.BetFunded(),
-              receipt.blockNumber,
-              receipt.blockNumber
-            );
-            if (events.length > 0) {
-              const event = events[0];
-              if (
-                event.args &&
-                "funder" in event.args &&
-                "amount" in event.args
-              ) {
-                const amount = event.args.amount;
-                const tokenSymbol =
-                  wagerCurrency === ethers.constants.AddressZero
-                    ? "ETH"
-                    : "tokens";
-                setMessage(
-                  `Bet funded successfully! Amount: ${ethers.utils.formatEther(
-                    amount
-                  )} ${tokenSymbol}`
-                );
-                setIsAlertOpen(true);
-                await fetchBetDetails(betAddress);
-                emitEvent("betFunded", {
-                  betAddress,
-                  amount: wagerWeiBigNumber.toString(),
-                });
-                return true;
-              }
-            }
-          }
-          return false;
-        };
-
-        for (let i = 0; i < 15; i++) {
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-          if (await checkForEvent()) {
-            return;
-          }
+        if (betFundedEvent) {
+          console.log("BetFunded event found");
+          const [, funder, amount, newStatus] = betFundedEvent.args;
+          const tokenSymbol =
+            wagerCurrency === ethers.constants.AddressZero ? "ETH" : "tokens";
+          const message = `Bet funded successfully! Amount: ${ethers.utils.formatEther(
+            amount
+          )} ${tokenSymbol}`;
+          console.log(message);
+          setMessage(message);
+          setIsAlertOpen(true);
+          await fetchBetDetails(betAddress);
+          emitEvent("betFunded", {
+            betAddress,
+            amount: amount.toString(),
+          });
+        } else {
+          console.log("BetFunded event not found in transaction receipt");
+          setMessage(
+            "Transaction confirmed, but BetFunded event not found. Please check the transaction status."
+          );
+          setIsAlertOpen(true);
         }
-
-        setMessage(
-          "Transaction sent, but event not found. Please check the transaction status."
-        );
-        setIsAlertOpen(true);
       } catch (error: unknown) {
-        console.error("Error funding bet:", error);
+        console.error("Error in handleFundBet:", error);
         if (error instanceof Error) {
           setMessage(
             `Error funding bet. Please try again. Details: ${error.message}`

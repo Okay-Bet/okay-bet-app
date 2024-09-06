@@ -17,7 +17,7 @@ export const useCreateBetForm = (contract: any) => {
   const [taker, setTaker] = useState<string>("");
   const [judge, setJudge] = useState<string>("");
   const [wagerUSD, setWagerUSD] = useState<string>("");
-  const [wagerRatio, setWagerRatio] = useState<number>(50);
+  const [wagerRatio, setWagerRatio] = useState<BigNumber>(BigNumber.from(5000)); // Default to 50% (5000 basis points)
   const [conditions, setConditions] = useState<string>("");
   const [expirationBlocks, setExpirationBlocks] = useState<number>(302400); // Default to 1 week
   const [wagerCurrency, setWagerCurrency] = useState<string>(
@@ -65,7 +65,7 @@ export const useCreateBetForm = (contract: any) => {
     setTaker("");
     setJudge("");
     setWagerUSD("");
-    setWagerRatio(50);
+    setWagerRatio(BigNumber.from(5000));
     setConditions("");
     setExpirationBlocks(302400);
     setWagerCurrency(ethers.constants.AddressZero);
@@ -178,13 +178,13 @@ export const useCreateBetForm = (contract: any) => {
 
   const calculateWagerWei = (
     totalWager: string,
-    wagerRatio: number,
+    wagerRatio: BigNumber,
     isMaker: boolean
   ): string => {
     const totalWagerBN = BigNumber.from(totalWager);
     const wagerWeiBN = isMaker
-      ? totalWagerBN.mul(wagerRatio).div(100)
-      : totalWagerBN.mul(100 - wagerRatio).div(100);
+      ? totalWagerBN.mul(wagerRatio).div(10000)
+      : totalWagerBN.mul(BigNumber.from(10000).sub(wagerRatio)).div(10000);
     return wagerWeiBN.toString();
   };
 
@@ -208,7 +208,7 @@ export const useCreateBetForm = (contract: any) => {
         taker: resolvedTaker,
         judge: resolvedJudge,
         totalWager: BigInt(wagerInWei.toString()),
-        wagerRatio: wagerRatio,
+        wagerRatio: wagerRatio.toNumber(), // Convert BigNumber to number
         conditions,
         wagerCurrency,
         expirationBlocks,
@@ -225,7 +225,7 @@ export const useCreateBetForm = (contract: any) => {
         const factoryContract = new ethers.Contract(
           contract.address,
           [
-            "event BetCreated(address indexed betAddress, address indexed maker, address indexed taker, address judge, uint256 totalWager, uint8 wagerRatio, string conditions, uint256 expirationBlock, address wagerCurrency)",
+            "event BetCreated(address indexed betAddress, address indexed maker, address indexed taker, address judge, uint256 totalWager, uint256 wagerRatio, string conditions, uint256 expirationBlock, address wagerCurrency)",
           ],
           provider
         );
@@ -309,6 +309,10 @@ export const useCreateBetForm = (contract: any) => {
     }
   };
 
+  const handleSetWagerRatio = (value: number) => {
+    setWagerRatio(BigNumber.from(value * 100)); // Convert percentage to basis points
+  };
+
   const canSubmit =
     makerValid && takerValid && judgeValid && wagerUSD && conditions;
 
@@ -321,8 +325,8 @@ export const useCreateBetForm = (contract: any) => {
     setJudge,
     wagerUSD,
     setWagerUSD,
-    wagerRatio,
-    setWagerRatio,
+    wagerRatio: wagerRatio.toNumber() / 100, // Convert basis points to percentage
+    setWagerRatio: handleSetWagerRatio,
     conditions,
     setConditions,
     expirationBlocks,

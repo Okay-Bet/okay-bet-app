@@ -96,26 +96,18 @@ const BetActions: React.FC<BetActionsProps> = ({
       </div>
       {availableActions.includes("fundBet") && canFund && (
         <button
-          onClick={() => {
-            const isMaker =
-              accountAddress.toLowerCase() === betDetails.maker.toLowerCase();
-            const wagerWei = calculateWagerWei(
-              betDetails.totalWager,
-              betDetails.wagerRatio,
-              isMaker
-            );
+          onClick={() =>
             handleAction(() =>
               handleFundBet(
                 betDetails.address,
-                wagerWei,
                 betDetails.wagerCurrency,
                 fetchBetDetails,
                 setMessage,
                 setIsAlertOpen,
                 setIsActionLoading
               )
-            );
-          }}
+            )
+          }
           className={buttonClass("green")}
           disabled={isActionLoading || isLoading}
         >
@@ -242,7 +234,6 @@ const getAvailableActions = (
   const actions = new Set<string>();
   console.log("betstatus  :  ", betStatus);
 
-
   userRoles.forEach((role) => {
     if ((role === "maker" || role === "taker") && canFund) {
       if (betStatus === 0 || betStatus === 1 || betStatus === 2) {
@@ -250,12 +241,12 @@ const getAvailableActions = (
       }
     }
     if (role === "maker" || role === "taker" || role === "judge") {
-      if (betStatus === 0 || betStatus === 1 || betStatus === 2) {
+      if (betStatus === 0 || betStatus === 1) {
         actions.add("cancelBet");
       }
     }
     if (role === "judge") {
-      if (betStatus === 3) {
+      if (betStatus === 2) {
         actions.add("resolveBet");
         actions.add("invalidateBet");
       }
