@@ -35,44 +35,35 @@ export const useFundBet = () => {
         emitEvent("refreshStart");
         setIsActionLoading(true);
 
-        console.log("Getting contract...");
-        const betContract = getContract({
-          client,
-          address: betAddress,
-          chain: contract.chain,
-        });
-        console.log("Contract object:", betContract);
-
-        // Get the wager amount from the contract
-        console.log("Preparing getWagerAmount call...");
-        const getWagerAmountTx = prepareContractCall({
-          contract: betContract,
-          method:
-            "function getWagerAmount(address bettor) view returns (uint256)",
-          params: [activeAccount.address],
-        });
-        console.log("getWagerAmount transaction prepared:", getWagerAmountTx);
-
-        console.log("Calling getWagerAmount...");
-        const getWagerAmountResult = await sendTransaction({
-          account: activeAccount,
-          transaction: getWagerAmountTx,
-        });
-        console.log("getWagerAmount transaction sent:", getWagerAmountResult);
-
-        // Wait for the transaction to be mined
         const provider = new ethers.providers.JsonRpcProvider(BASE_MAINNET_RPC);
-        const receipt = await provider.waitForTransaction(
-          getWagerAmountResult.transactionHash
+        const betContract = new ethers.Contract(
+          betAddress,
+          [
+            "function getWagerAmount(address bettor) view returns (uint256)",
+            "function fundBet()",
+            "event BetFunded(address indexed betAddress, address indexed funder, uint256 amount, uint8 newStatus)",
+          ],
+          provider
         );
-        console.log("getWagerAmount transaction mined:", receipt);
 
-        // Decode the result
-        const wagerAmountHex = receipt.logs[0].data;
-        const wagerAmount = BigNumber.from(wagerAmountHex);
-        console.log("Wager amount:", wagerAmount.toString());
+        // Get the wager amount using ethers.js
+        console.log("Fetching wager amount...");
+        const wagerAmount = await betContract.getWagerAmount(
+          activeAccount.address
+        );
+        console.log(
+          "Wager amount:",
+          ethers.utils.formatEther(wagerAmount),
+          "ETH"
+        );
 
-        // If wagerCurrency is not the zero address (ETH), we need to approve the token transfer first
+        if (wagerAmount.isZero()) {
+          throw new Error(
+            "Wager amount is zero. The bet may not be properly initialized."
+          );
+        }
+
+        // If wagerCurrency is not ETH, approve the token transfer
         if (wagerCurrency !== ethers.constants.AddressZero) {
           console.log("Preparing token approval...");
           const tokenContract = getContract({
@@ -88,17 +79,27 @@ export const useFundBet = () => {
           });
 
           console.log("Sending approval transaction...");
-          await sendTransaction({
+          const approvalResult = await sendTransaction({
             account: activeAccount,
             transaction: approveTransaction,
           });
+          console.log(
+            "Token approval sent. Hash:",
+            approvalResult.transactionHash
+          );
+
+          await provider.waitForTransaction(approvalResult.transactionHash);
           console.log("Token approval completed");
         }
 
         // Prepare the fundBet transaction
         console.log("Preparing fundBet transaction...");
         const fundBetTransaction = prepareContractCall({
-          contract: betContract,
+          contract: getContract({
+            client,
+            address: betAddress,
+            chain: contract.chain,
+          }),
           method: "function fundBet()",
           params: [],
         });
@@ -116,21 +117,13 @@ export const useFundBet = () => {
         });
         console.log("fundBet transaction sent. Hash:", transactionHash);
 
-        const ethersBetContract = new ethers.Contract(
-          betAddress,
-          [
-            "event BetFunded(address indexed betAddress, address indexed funder, uint256 amount, uint8 newStatus)",
-          ],
-          provider
-        );
-
         const checkForEvent = async () => {
           console.log("Checking for BetFunded event...");
           const receipt = await provider.getTransactionReceipt(transactionHash);
           if (receipt) {
             console.log("Transaction receipt found:", receipt);
-            const events = await ethersBetContract.queryFilter(
-              ethersBetContract.filters.BetFunded(),
+            const events = await betContract.queryFilter(
+              betContract.filters.BetFunded(),
               receipt.blockNumber,
               receipt.blockNumber
             );
@@ -165,28 +158,28 @@ export const useFundBet = () => {
           return false;
         };
 
-        for (let i = 0; i < 15; i++) {
+        for (let i = 0; i < 30; i++) {
           console.log(`Attempt ${i + 1} to find BetFunded event...`);
-          await new Promise((resolve) => setTimeout(resolve, 2000));
+          await new Promise((resolve) => setTimeout(resolve, 3000));
           if (await checkForEvent()) {
             return;
           }
         }
 
-        console.log("BetFunded event not found after 15 attempts");
+        console.log("BetFunded event not found after 30 attempts");
         setMessage(
-          "Transaction sent, but event not found. Please check the transaction status."
+          "Transaction sent, but funding confirmation not received. Please check the transaction status manually."
         );
         setIsAlertOpen(true);
       } catch (error: unknown) {
         console.error("Error funding bet:", error);
         if (error instanceof Error) {
           setMessage(
-            `Error funding bet. Please try again. Details: ${error.message}`
+            `Error funding bet: ${error.message}. Please check the transaction status manually.`
           );
         } else {
           setMessage(
-            "Error funding bet. Please try again. An unexpected error occurred."
+            "An unexpected error occurred while funding the bet. Please check the transaction status manually."
           );
         }
         setIsAlertOpen(true);

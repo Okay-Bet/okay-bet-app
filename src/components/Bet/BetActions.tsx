@@ -232,7 +232,6 @@ const getAvailableActions = (
   canFund: boolean
 ) => {
   const actions = new Set<string>();
-  console.log("betstatus  :  ", betStatus);
 
   userRoles.forEach((role) => {
     if ((role === "maker" || role === "taker") && canFund) {

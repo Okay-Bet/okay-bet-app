@@ -176,17 +176,6 @@ export const useCreateBetForm = (contract: any) => {
     return ethAmount.toFixed(6);
   };
 
-  const calculateWagerWei = (
-    totalWager: string,
-    wagerRatio: BigNumber,
-    isMaker: boolean
-  ): string => {
-    const totalWagerBN = BigNumber.from(totalWager);
-    const wagerWeiBN = isMaker
-      ? totalWagerBN.mul(wagerRatio).div(10000)
-      : totalWagerBN.mul(BigNumber.from(10000).sub(wagerRatio)).div(10000);
-    return wagerWeiBN.toString();
-  };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -208,7 +197,7 @@ export const useCreateBetForm = (contract: any) => {
         taker: resolvedTaker,
         judge: resolvedJudge,
         totalWager: BigInt(wagerInWei.toString()),
-        wagerRatio: wagerRatio.toNumber(), // Convert BigNumber to number
+        wagerRatio: wagerRatio.toNumber(),
         conditions,
         wagerCurrency,
         expirationBlocks,
@@ -217,7 +206,19 @@ export const useCreateBetForm = (contract: any) => {
       const provider = new ethers.providers.JsonRpcProvider(BASE_MAINNET_RPC);
       const startBlock = await provider.getBlockNumber();
 
-      await sendTransaction(transaction);
+      console.log("Sending bet creation transaction...");
+      const txResponse = await sendTransaction(transaction);
+      console.log("Bet creation transaction sent:", txResponse);
+
+      console.log("Waiting for transaction receipt...");
+      const receipt = await provider.waitForTransaction(
+        txResponse.transactionHash
+      );
+      console.log("Transaction receipt received:", receipt);
+
+      if (receipt.status === 0) {
+        throw new Error("Bet creation transaction failed");
+      }
 
       let newBetAddress = "";
       const checkForEvent = async () => {
@@ -249,6 +250,7 @@ export const useCreateBetForm = (contract: any) => {
 
       // Wait for the bet creation event
       for (let i = 0; i < 15; i++) {
+        console.log(`Checking for BetCreated event, attempt ${i + 1}`);
         await new Promise((resolve) => setTimeout(resolve, 2000));
         if (await checkForEvent()) {
           break;
@@ -257,58 +259,56 @@ export const useCreateBetForm = (contract: any) => {
 
       console.log("New bet address:", newBetAddress);
 
-      if (
-        newBetAddress &&
-        account &&
-        account.address.toLowerCase() === resolvedMaker.toLowerCase()
-      ) {
-        setIsFunding(true);
-        const isBetReady = await waitForBetReady(newBetAddress);
-        if (isBetReady) {
-          const wagerWei = calculateWagerWei(
-            wagerInWei.toString(),
-            wagerRatio,
-            true
-          );
-          await handleFundBet(
-            newBetAddress,
-            wagerWei,
-            wagerCurrency,
-            async (betAddress: string) => {
-              // Implement fetchBetDetails here if needed
-              console.log("Fetching bet details for:", betAddress);
-              return null;
-            },
-            setMessage,
-            setIsAlertOpen,
-            setIsLoading
-          );
-          setMessage("Bet created and funded successfully!");
-          emitEvent("betFunded", {
-            betAddress: newBetAddress,
-            amount: wagerWei,
-          });
-        } else {
-          setMessage(
-            "Bet created, but not ready for funding. Please try funding manually."
-          );
-        }
-      } else {
-        setMessage("Bet created successfully!");
-      }
-
-      setIsAlertOpen(true);
-      resetForm();
-    } catch (error: any) {
-      console.error("Error creating or funding bet:", error);
-      setMessage(`Error: ${error.message}`);
-      setIsAlertOpen(true);
-    } finally {
-      setIsLoading(false);
-      setIsFunding(false);
+    if (!newBetAddress) {
+      throw new Error("Failed to retrieve the new bet address");
     }
-  };
 
+    if (account && account.address.toLowerCase() === resolvedMaker.toLowerCase()) {
+      setIsFunding(true);
+      console.log("Waiting for bet to be ready for funding...");
+      const isBetReady = await waitForBetReady(newBetAddress);
+
+      if (isBetReady) {
+        console.log("Bet is ready for funding");
+        console.log("Attempting to fund bet...");
+        await handleFundBet(
+          newBetAddress,
+          wagerCurrency,
+          async (betAddress: string) => {
+            console.log("Fetching bet details for:", betAddress);
+            // Implement actual bet details fetching logic here if needed
+            return null;
+          },
+          setMessage,
+          setIsAlertOpen,
+          setIsLoading
+        );
+
+        // The success message will be set by handleFundBet
+        emitEvent("betFunded", {
+          betAddress: newBetAddress,
+          amount: wagerInWei.toString(),
+        });
+      } else {
+        console.log("Bet is not ready for funding");
+        setMessage("Bet created, but not ready for funding. Please try funding manually.");
+        setIsAlertOpen(true);
+      }
+    } else {
+      setMessage("Bet created successfully!");
+      setIsAlertOpen(true);
+    }
+
+    resetForm();
+  } catch (error: any) {
+    console.error("Error creating or funding bet:", error);
+    setMessage(`Error: ${error.message}`);
+    setIsAlertOpen(true);
+  } finally {
+    setIsLoading(false);
+    setIsFunding(false);
+  }
+};
   const handleSetWagerRatio = (value: number) => {
     setWagerRatio(BigNumber.from(value * 100)); // Convert percentage to basis points
   };
