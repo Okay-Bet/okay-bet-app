@@ -1,7 +1,7 @@
-// components/Bet/BetInfo.tsx
 import React from "react";
 import { BetDetailsType } from "@/components/types/bet";
 import { getBetStatusText } from "@/utils/betUtils";
+import { ethers } from "ethers";
 
 interface BetInfoProps {
   betDetails: BetDetailsType;
@@ -11,6 +11,8 @@ interface BetInfoProps {
 const BetInfo: React.FC<BetInfoProps> = ({ betDetails, wagerInUsd }) => {
   const shortenAddress = (address: string) =>
     `${address.slice(0, 6)}...${address.slice(-4)}`;
+
+  const wagerEth = ethers.utils.formatEther(betDetails.totalWager);
 
   return (
     <div className="p-4 mb-4 bg-secondary text-font shadow-md">
@@ -44,7 +46,7 @@ const BetInfo: React.FC<BetInfoProps> = ({ betDetails, wagerInUsd }) => {
         </div>
       </div>
       <div className="inline-block px-4 py-2 bg-blue-500 text-font rounded-full">
-        ${wagerInUsd} USD ({betDetails.wagerEth} ETH)
+        ${wagerInUsd} USD ({wagerEth} ETH)
       </div>
       <div className="mb-2 mt-2">
         <span className="inline-block px-4 py-2 bg-tertiary text-font">

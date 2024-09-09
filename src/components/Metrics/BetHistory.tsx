@@ -1,5 +1,5 @@
 // components/BetHistory.tsx
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useFetchBetDetails } from "@/hooks/useFetchBetDetails";
 import BetCard from "../Bet/BetCard";
 import BetStats from "./BetStats";
@@ -98,9 +98,13 @@ const BetHistory: React.FC<BetHistoryProps> = ({
     return calculateStats(betDetails);
   }, [betDetails, address, ethToUsdRate]);
 
-  const handleRefresh = async () => {
-    await refetchAll();
-  };
+  const fetchBetDetailsWrapper = useCallback(
+    async (betAddress: string): Promise<BetDetailsType | null> => {
+      await refetchAll();
+      return betDetails.find(bet => bet.address === betAddress) || null;
+    },
+    [refetchAll, betDetails]
+  );
 
   return (
     <CollapsibleSection title="Bet History" loading={loading}>
@@ -111,7 +115,7 @@ const BetHistory: React.FC<BetHistoryProps> = ({
           bet={bet}
           ethToUsdRate={ethToUsdRate}
           accountAddress={address}
-          fetchBetDetails={refetchAll}
+          fetchBetDetails={fetchBetDetailsWrapper}
           setMessage={() => {}}
           setIsAlertOpen={() => {}}
           isLoading={false}

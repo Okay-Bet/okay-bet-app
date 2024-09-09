@@ -1,11 +1,12 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useFetchBetDetails } from "@/hooks/useFetchBetDetails";
 import BetCard from "./BetCard";
 import AlertModal from "../Common/AlertModal";
 import { useFetchEthToUsdRate } from "@/hooks/useFetchEthToUsdRate";
 import CollapsibleSection from "../Common/CollapsibleSection";
 import useWebSocket from "@/hooks/useWebSocket";
+import { BetDetailsType } from "@/components/types/bet";
 
 interface UnfundedBetsProps {
   betAddresses: string[];
@@ -16,14 +17,18 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
   betAddresses,
   accountAddress,
 }) => {
-  const { betDetails, loading, fetchBetDetails, refetchAll } = useFetchBetDetails(betAddresses, true);
+  const { betDetails, loading, fetchBetDetails, refetchAll } =
+    useFetchBetDetails(betAddresses, true);
   const ethToUsdRate = useFetchEthToUsdRate();
   const [message, setMessage] = useState<string>("");
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
   const { lastEvent } = useWebSocket();
 
   useEffect(() => {
-    if (lastEvent && (lastEvent.type === "BetFunded" || lastEvent.type === "BetCancelled")) {
+    if (
+      lastEvent &&
+      (lastEvent.type === "BetFunded" || lastEvent.type === "BetCancelled")
+    ) {
       refetchAll();
     }
   }, [lastEvent, refetchAll]);
@@ -33,7 +38,17 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
     refetchAll();
   };
 
-  const unfundedBets = betDetails.filter((bet) => bet.status === 0 || bet.status === 1);
+  const fetchBetDetailsWrapper = useCallback(
+    async (betAddress: string): Promise<BetDetailsType | null> => {
+      await fetchBetDetails();
+      return betDetails.find((bet) => bet.address === betAddress) || null;
+    },
+    [fetchBetDetails, betDetails]
+  );
+
+  const unfundedBets = betDetails.filter(
+    (bet) => bet.status === 0 || bet.status === 1
+  );
 
   return (
     <CollapsibleSection title="Unfunded Bets" loading={loading}>
@@ -46,7 +61,7 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
             bet={bet}
             ethToUsdRate={ethToUsdRate}
             accountAddress={accountAddress}
-            fetchBetDetails={fetchBetDetails}
+            fetchBetDetails={fetchBetDetailsWrapper}
             setMessage={setMessage}
             setIsAlertOpen={setIsAlertOpen}
             isLoading={loading}

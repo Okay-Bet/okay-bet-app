@@ -9,20 +9,15 @@ export default function PushNotificationSubscriber() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('PushNotificationSubscriber component mounted');
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
-      console.log('Service Worker and Push Manager are supported');
       navigator.serviceWorker.ready.then(reg => {
-        console.log('Service Worker is ready');
         setRegistration(reg);
         reg.pushManager.getSubscription().then(sub => {
           if (sub && !(sub.expirationTime && Date.now() > sub.expirationTime - 5 * 60 * 1000)) {
-            console.log('Existing subscription found');
             setSubscription(sub);
             setIsSubscribed(true);
           } else {
-            console.log('No existing subscription found');
-          }
+            console.log('No subscription found');}
         }).catch(err => {
           console.error('Error checking subscription:', err);
           setError('Error checking subscription status');
@@ -32,7 +27,6 @@ export default function PushNotificationSubscriber() {
         setError('Error initializing push notifications');
       });
     } else {
-      console.log('Service Worker or Push Manager not supported');
       setError('Push notifications are not supported in this browser');
     }
   }, []);
@@ -41,14 +35,11 @@ export default function PushNotificationSubscriber() {
     if (!registration) return;
 
     try {
-      console.log('Subscribing to push notifications...');
       const sub = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
       });
       
-      console.log('Push notification subscription created:', sub);
-
       const response = await fetch('/api/subscribe', {
         method: 'POST',
         headers: {
@@ -59,10 +50,8 @@ export default function PushNotificationSubscriber() {
 
       if (response.ok) {
         const result = await response.json();
-        console.log('Subscription sent to server:', result);
         setSubscription(sub);
         setIsSubscribed(true);
-        console.log('Web push subscribed!');
       } else {
         const error = await response.text();
         throw new Error(`Failed to subscribe: ${error}`);
@@ -87,7 +76,6 @@ export default function PushNotificationSubscriber() {
       });
       setSubscription(null);
       setIsSubscribed(false);
-      console.log('Web push unsubscribed!');
     } catch (error) {
       console.error('Error unsubscribing from push notifications:', error);
       setError('Failed to unsubscribe from push notifications');

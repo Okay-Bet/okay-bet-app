@@ -10,7 +10,6 @@ const app = next({ dev });
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
-  console.log("Next.js app prepared");
   const server = createServer((req, res) => {
     const parsedUrl = parse(req.url!, true);
     handle(req, res, parsedUrl);
@@ -20,13 +19,10 @@ app.prepare().then(() => {
     path: "/api/socketio",
   });
 
-  console.log("Socket.IO server created");
 
   io.on("connection", (socket) => {
-    console.log("New client connected", socket.id);
     
     socket.on("disconnect", () => {
-      console.log("Client disconnected", socket.id);
     });
 
     socket.on("error", (error) => {
@@ -35,7 +31,6 @@ app.prepare().then(() => {
 
     // Handle betCancelled event from client
     socket.on("betCancelled", ({ betAddress }) => {
-      console.log(`Bet cancellation initiated for address: ${betAddress}`);
       // You might want to perform additional actions here
     });
   });
@@ -51,7 +46,6 @@ app.prepare().then(() => {
   );
 
   contract.on("*", (event) => {
-    console.log("Contract event:", event);
     io.emit("contractEvent", {
       type: event.event,
       data: event.args,
@@ -60,7 +54,6 @@ app.prepare().then(() => {
 
   const port = process.env.PORT || 3000;
   server.listen(port, () => {
-    console.log(`> Ready on http://localhost:${port}`);
-    console.log(`> Socket.IO server running on the same port`);
+
   });
 });

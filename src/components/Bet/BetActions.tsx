@@ -21,6 +21,8 @@ interface BetActionsProps {
   userIsDecider: boolean;
   betStatusText: string;
   setLocalLoading: (isLoading: boolean) => void;
+  ethToUsdRate: number;
+  sendTransaction: (...args: any[]) => Promise<any>;
 }
 
 const BetActions: React.FC<BetActionsProps> = ({

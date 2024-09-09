@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { useActiveAccount } from "thirdweb/react";
 import Navbar from "@/components/Common/Navbar";
@@ -17,6 +17,14 @@ const BetDetails = () => {
   const account = useActiveAccount();
   const [message, setMessage] = useState<string>("");
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
+
+  const handleFetchBetDetails = useCallback(
+    async (betAddress: string) => {
+      await fetchBetDetails();
+      return betDetails?.[0] || null;
+    },
+    [fetchBetDetails, betDetails]
+  );
 
   if (loading) {
     return <p>Loading...</p>;
@@ -41,7 +49,7 @@ const BetDetails = () => {
           bet={bet}
           ethToUsdRate={ethToUsdRate}
           accountAddress={account?.address || ""}
-          fetchBetDetails={fetchBetDetails}
+          fetchBetDetails={handleFetchBetDetails}
           setMessage={setMessage}
           setIsAlertOpen={setIsAlertOpen}
           isLoading={loading}

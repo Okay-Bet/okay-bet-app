@@ -213,24 +213,20 @@ export const useCreateBetForm = (contract: any) => {
         taker: resolvedTaker,
         judge: resolvedJudge,
         totalWager: BigInt(wagerInWei.toString()),
-        wagerRatio: wagerRatio.toNumber(),
+        wagerRatio: BigInt(wagerRatio.toNumber()),
         conditions,
         wagerCurrency,
-        expirationBlocks,
+        expirationBlocks: BigInt(expirationBlocks),
       });
 
       const provider = new ethers.providers.JsonRpcProvider(BASE_MAINNET_RPC);
       const startBlock = await provider.getBlockNumber();
 
-      console.log("Sending bet creation transaction...");
       const txResponse = await sendTransaction(transaction);
-      console.log("Bet creation transaction sent:", txResponse);
 
-      console.log("Waiting for transaction receipt...");
       const receipt = await provider.waitForTransaction(
         txResponse.transactionHash
       );
-      console.log("Transaction receipt received:", receipt);
 
       if (receipt.status === 0) {
         throw new Error("Bet creation transaction failed");
@@ -266,14 +262,11 @@ export const useCreateBetForm = (contract: any) => {
 
       // Wait for the bet creation event
       for (let i = 0; i < 15; i++) {
-        console.log(`Checking for BetCreated event, attempt ${i + 1}`);
         await new Promise((resolve) => setTimeout(resolve, 2000));
         if (await checkForEvent()) {
           break;
         }
       }
-
-      console.log("New bet address:", newBetAddress);
 
       if (!newBetAddress) {
         throw new Error("Failed to retrieve the new bet address");
@@ -284,17 +277,13 @@ export const useCreateBetForm = (contract: any) => {
         account.address.toLowerCase() === resolvedMaker.toLowerCase()
       ) {
         setIsFunding(true);
-        console.log("Waiting for bet to be ready for funding...");
         const isBetReady = await waitForBetReady(newBetAddress);
 
         if (isBetReady) {
-          console.log("Bet is ready for funding");
-          console.log("Attempting to fund bet...");
           await handleFundBet(
             newBetAddress,
             wagerCurrency,
             async (betAddress: string) => {
-              console.log("Fetching bet details for:", betAddress);
               // Implement actual bet details fetching logic here if needed
               return null;
             },

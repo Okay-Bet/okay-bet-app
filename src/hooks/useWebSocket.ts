@@ -23,17 +23,14 @@ export default function useWebSocket() {
     }
 
     const onConnect = () => {
-      console.log("WebSocket connected");
       setIsConnected(true);
     };
 
     const onDisconnect = () => {
-      console.log("WebSocket disconnected");
       setIsConnected(false);
     };
 
     const onContractEvent = (data: any) => {
-      console.log("Contract event received:", data);
       setLastEvent(data);
     };
 

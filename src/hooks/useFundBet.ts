@@ -20,17 +20,11 @@ export const useFundBet = () => {
       setIsActionLoading: (isLoading: boolean) => void
     ) => {
       try {
-        console.log("handleFundBet called with:", {
-          betAddress,
-          wagerCurrency,
-        });
-
         if (!activeAccount) {
           throw new Error(
             "No active account found. Please connect your wallet."
           );
         }
-        console.log("Active account:", activeAccount.address);
 
         emitEvent("refreshStart");
         setIsActionLoading(true);
@@ -47,14 +41,8 @@ export const useFundBet = () => {
         );
 
         // Get the wager amount using ethers.js
-        console.log("Fetching wager amount...");
         const wagerAmount = await betContract.getWagerAmount(
           activeAccount.address
-        );
-        console.log(
-          "Wager amount:",
-          ethers.utils.formatEther(wagerAmount),
-          "ETH"
         );
 
         if (wagerAmount.isZero()) {
@@ -65,7 +53,6 @@ export const useFundBet = () => {
 
         // If wagerCurrency is not ETH, approve the token transfer
         if (wagerCurrency !== ethers.constants.AddressZero) {
-          console.log("Preparing token approval...");
           const tokenContract = getContract({
             client,
             address: wagerCurrency,
@@ -78,22 +65,15 @@ export const useFundBet = () => {
             params: [betAddress, wagerAmount.toString()],
           });
 
-          console.log("Sending approval transaction...");
           const approvalResult = await sendTransaction({
             account: activeAccount,
             transaction: approveTransaction,
           });
-          console.log(
-            "Token approval sent. Hash:",
-            approvalResult.transactionHash
-          );
 
           await provider.waitForTransaction(approvalResult.transactionHash);
-          console.log("Token approval completed");
         }
 
         // Prepare the fundBet transaction
-        console.log("Preparing fundBet transaction...");
         const fundBetTransaction = prepareContractCall({
           contract: getContract({
             client,
@@ -104,7 +84,6 @@ export const useFundBet = () => {
           params: [],
         });
 
-        console.log("Sending fundBet transaction...");
         const { transactionHash } = await sendTransaction({
           account: activeAccount,
           transaction: {
@@ -115,20 +94,16 @@ export const useFundBet = () => {
                 : "0",
           },
         });
-        console.log("fundBet transaction sent. Hash:", transactionHash);
 
         const checkForEvent = async () => {
-          console.log("Checking for BetFunded event...");
           const receipt = await provider.getTransactionReceipt(transactionHash);
           if (receipt) {
-            console.log("Transaction receipt found:", receipt);
             const events = await betContract.queryFilter(
               betContract.filters.BetFunded(),
               receipt.blockNumber,
               receipt.blockNumber
             );
             if (events.length > 0) {
-              console.log("BetFunded event found:", events[0]);
               const event = events[0];
               if (
                 event.args &&
@@ -141,7 +116,6 @@ export const useFundBet = () => {
                     ? "ETH"
                     : "tokens";
                 const message = `Bet funded successfully!`;
-                console.log(message);
                 setMessage(message);
                 setIsAlertOpen(true);
                 await fetchBetDetails(betAddress);
@@ -157,14 +131,12 @@ export const useFundBet = () => {
         };
 
         for (let i = 0; i < 30; i++) {
-          console.log(`Attempt ${i + 1} to find BetFunded event...`);
           await new Promise((resolve) => setTimeout(resolve, 3000));
           if (await checkForEvent()) {
             return;
           }
         }
 
-        console.log("BetFunded event not found after 30 attempts");
         setMessage(
           "Transaction sent, but funding confirmation not received. Please check the transaction status manually."
         );

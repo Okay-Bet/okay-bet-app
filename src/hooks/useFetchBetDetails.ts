@@ -5,7 +5,12 @@ import { client, contract } from "@/app/client";
 import { bet } from "@/generated/bet";
 import { BetDetailsType } from "@/components/types/bet";
 import useWebSocket from "@/hooks/useWebSocket";
-import {resolveUserAddress}  from "@/hooks/useResolveUserAddress";
+import { resolveUserAddress } from "@/hooks/useResolveUserAddress";
+
+interface ResolvedAddress {
+  address: string | null;
+  displayName: string;
+}
 
 export const useFetchBetDetails = (
   betAddresses: string | string[],
@@ -38,36 +43,40 @@ export const useFetchBetDetails = (
             finalized,
             wagerCurrency,
           ] = betData;
-
-          const [makerResolved, takerResolved, judgeResolved, winnerResolved] =
-            await Promise.all([
-              resolveUserAddress(maker),
-              resolveUserAddress(taker),
-              resolveUserAddress(judge),
-              winner !== "0x0000000000000000000000000000000000000000"
-                ? resolveUserAddress(winner)
-                : { address: null, displayName: null },
-            ]);
-
+          const [
+            makerResolved,
+            takerResolved,
+            judgeResolved,
+            winnerResolved,
+          ]: ResolvedAddress[] = await Promise.all([
+            resolveUserAddress(maker),
+            resolveUserAddress(taker),
+            resolveUserAddress(judge),
+            winner !== "0x0000000000000000000000000000000000000000"
+              ? resolveUserAddress(winner)
+              : { address: null, displayName: "" },
+          ]);
           const betDetail: BetDetailsType = {
             address: betAddress,
             maker,
-            makerDisplay: makerResolved || maker,
+            makerDisplay: makerResolved.displayName || maker,
             taker,
-            takerDisplay: takerResolved || taker,
+            takerDisplay: takerResolved.displayName || taker,
             judge,
-            judgeDisplay: judgeResolved || judge,
+            judgeDisplay: judgeResolved.displayName || judge,
             totalWager: totalWager.toString(),
             wagerRatio: Number(wagerRatio),
             conditions,
             status: Number(status),
-            winner: winner !== "0x0000000000000000000000000000000000000000" ? winner : null,
-            winnerDisplay: winnerResolved || winner,
+            winner:
+              winner !== "0x0000000000000000000000000000000000000000"
+                ? winner
+                : null,
+            winnerDisplay: winnerResolved.displayName || winner,
             expirationBlock: Number(expirationBlock),
             finalized,
             wagerCurrency,
           };
-
           return betDetail;
         }
       } catch (error) {

@@ -5,7 +5,6 @@ const ContractEvents = () => {
   const { isConnected, lastEvent, emitEvent } = useWebSocket();
 
   useEffect(() => {
-    console.log('WebSocket connection status:', isConnected);
   }, [isConnected]);
 
 

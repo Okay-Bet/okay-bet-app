@@ -26,6 +26,11 @@ interface BetCardProps {
   disableCollapse?: boolean;
 }
 
+type DisplayNameType =
+  | string
+  | { address: string | null; displayName: string }
+  | undefined;
+
 const BetCard: React.FC<BetCardProps> = ({
   bet,
   ethToUsdRate,
@@ -93,6 +98,7 @@ const BetCard: React.FC<BetCardProps> = ({
       | string
       | { address: string | null; displayName: string }
       | undefined
+      | null
   ) => {
     let displayText = address;
 
@@ -113,6 +119,13 @@ const BetCard: React.FC<BetCardProps> = ({
         <span className="cursor-help break-all">{displayText}</span>
       </Tooltip>
     );
+  };
+
+  const getDisplayName = (display: DisplayNameType): string => {
+    if (typeof display === "object" && display !== null) {
+      return display.displayName;
+    }
+    return display || "";
   };
 
   return (
@@ -184,21 +197,9 @@ const BetCard: React.FC<BetCardProps> = ({
           </div>
           <div className="flex justify-end items-center space-x-4 mt-4">
             <ShareButton
-              makerDisplay={
-                typeof bet.makerDisplay === "object"
-                  ? bet.makerDisplay.displayName
-                  : bet.makerDisplay
-              }
-              takerDisplay={
-                typeof bet.takerDisplay === "object"
-                  ? bet.takerDisplay.displayName
-                  : bet.takerDisplay
-              }
-              judgeDisplay={
-                typeof bet.judgeDisplay === "object"
-                  ? bet.judgeDisplay.displayName
-                  : bet.judgeDisplay
-              }
+              makerDisplay={getDisplayName(bet.makerDisplay)}
+              takerDisplay={getDisplayName(bet.takerDisplay)}
+              judgeDisplay={getDisplayName(bet.judgeDisplay)}
               wagerEth={makerWagerEth}
               status={bet.status}
               conditions={bet.conditions}

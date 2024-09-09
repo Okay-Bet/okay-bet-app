@@ -1,11 +1,12 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import AlertModal from "../Common/AlertModal";
 import { useFetchBetDetails } from "@/hooks/useFetchBetDetails";
 import { useFetchEthToUsdRate } from "@/hooks/useFetchEthToUsdRate";
 import CollapsibleSection from "../Common/CollapsibleSection";
 import BetCard from "./BetCard";
 import useWebSocket from "@/hooks/useWebSocket";
+import { BetDetailsType } from "@/components/types/bet";
 
 interface OpenBetsProps {
   betAddresses: string[];
@@ -34,6 +35,14 @@ const OpenBets: React.FC<OpenBetsProps> = ({
     refetchAll();
   };
 
+  const fetchBetDetailsWrapper = useCallback(
+    async (betAddress: string): Promise<BetDetailsType | null> => {
+      await fetchBetDetails();
+      return betDetails.find((bet) => bet.address === betAddress) || null;
+    },
+    [fetchBetDetails, betDetails]
+  );
+
   return (
     <CollapsibleSection title="Open Bets" loading={loading}>
       {Array.isArray(betDetails) && betDetails.length > 0 ? (
@@ -43,7 +52,7 @@ const OpenBets: React.FC<OpenBetsProps> = ({
             bet={bet}
             ethToUsdRate={ethToUsdRate}
             accountAddress={accountAddress}
-            fetchBetDetails={fetchBetDetails}
+            fetchBetDetails={fetchBetDetailsWrapper}
             setMessage={setMessage}
             setIsAlertOpen={setIsAlertOpen}
             isLoading={loading}

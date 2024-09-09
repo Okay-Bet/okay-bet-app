@@ -8,7 +8,6 @@ export async function POST(request: Request) {
   
 
   if (!email) {
-    console.log("Missing required parameter: email");
     return NextResponse.json({ message: 'Missing required parameter: email' }, { status: 400 });
   }
 
