@@ -140,9 +140,7 @@ export const useFundBet = () => {
                   wagerCurrency === ethers.constants.AddressZero
                     ? "ETH"
                     : "tokens";
-                const message = `Bet funded successfully! Amount: ${ethers.utils.formatEther(
-                  amount
-                )} ${tokenSymbol}`;
+                const message = `Bet funded successfully!`;
                 console.log(message);
                 setMessage(message);
                 setIsAlertOpen(true);

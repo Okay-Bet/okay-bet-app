@@ -67,7 +67,7 @@ export const useCancelBet = () => {
               const event = events[0];
               if (event.args && "invalidator" in event.args) {
                 setMessage(
-                  `Bet cancelled successfully for address: ${betAddress}`
+                  `Bet cancelled successfully!`
                 );
                 setIsAlertOpen(true);
                 await fetchBetDetails(betAddress);

@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { Collapse, Tooltip } from "@mui/material";
 import { useSendTransaction } from "thirdweb/react";
+import { ethers } from "ethers";
 import ShareButton from "../Common/ShareButton";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import Link from "next/link";
@@ -11,6 +12,7 @@ import BetActions from "./BetActions";
 import CircularProgress from "@mui/material/CircularProgress";
 import ExpirationTimer from "../Common/ExpirationTimer";
 import { useWagerConversion } from "@/hooks/useWagerConversion";
+import { formatCurrency, convertEthToUsd } from "@/utils/currencyUtils";
 
 interface BetCardProps {
   bet: BetDetailsType;
@@ -42,11 +44,15 @@ const BetCard: React.FC<BetCardProps> = ({
   const { makerWagerEth, takerWagerEth, makerWagerUsd, takerWagerUsd } =
     useWagerConversion(bet.totalWager, bet.wagerRatio);
 
+  const totalWagerEth = ethers.utils.formatEther(bet.totalWager);
+  const totalWagerUsd = convertEthToUsd(totalWagerEth, ethToUsdRate);
+  const formattedTotalWagerEth = formatCurrency(totalWagerEth, "ETH");
+
   const userIsMaker = accountAddress.toLowerCase() === bet.maker.toLowerCase();
   const userIsTaker = accountAddress.toLowerCase() === bet.taker.toLowerCase();
   const userIsJudge = accountAddress.toLowerCase() === bet.judge.toLowerCase();
   const canFund =
-    (userIsMaker || userIsTaker) && (bet.status === 0 || bet.status === 1);
+    (userIsMaker && bet.status !== 1) || (userIsTaker && bet.status !== 2);
 
   let bgColorClass = "bg-secondary";
   if (bet.status === 4) {
@@ -74,6 +80,8 @@ const BetCard: React.FC<BetCardProps> = ({
         return "Unknown Status";
     }
   };
+
+  const isActiveBet = bet.status < 3; // Assuming statuses 0, 1, 2 are active
 
   const shortenAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -139,30 +147,23 @@ const BetCard: React.FC<BetCardProps> = ({
               </span>
             </div>
           </div>
-          <div className="mt-2">
-            <span>
-              Maker Wager: {makerWagerEth} ETH (${makerWagerUsd} USD)
-            </span>
-          </div>
-          <div className="mt-2">
-            <span>
-              Taker Wager: {takerWagerEth} ETH (${takerWagerUsd} USD)
-            </span>
-          </div>
-          <div className="mt-2">
-            <span>Status: {getBetStatusText()}</span>
-          </div>
-          <div className="mt-2">
-            <span>
-              Expires in:{" "}
-              <ExpirationTimer expirationBlock={bet.expirationBlock} />
-            </span>
+          <div className="inline-block mt-2 px-4 py-2 bg-blue-500 text-font rounded-lg">
+            <div className="bold text-lg mb-1">Total Pot</div>
+            <div>
+              {totalWagerUsd} USD ({formattedTotalWagerEth})
+            </div>
           </div>
           {bet.status === 3 && bet.winner && (
             <div className="mt-2">
               <span>
                 Winner: {displayParticipantInfo(bet.winner, bet.winnerDisplay)}
               </span>
+            </div>
+          )}
+          {isActiveBet && (
+            <div className="absolute bottom-2 left-2 text-sm text-gray-300">
+              Expires in:{" "}
+              <ExpirationTimer expirationBlock={bet.expirationBlock} />
             </div>
           )}
           <div className="justify-end items-center mt-4">
@@ -178,6 +179,7 @@ const BetCard: React.FC<BetCardProps> = ({
               userIsDecider={userIsJudge}
               betStatusText={getBetStatusText()}
               setLocalLoading={setLocalLoading}
+              ethToUsdRate={ethToUsdRate}
             />
           </div>
           <div className="flex justify-end items-center space-x-4 mt-4">

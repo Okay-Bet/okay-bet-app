@@ -79,9 +79,7 @@ export const useResolveBet = () => {
                 const winner = event.args.winner;
                 const winningAmount = event.args.winningAmount;
                 setMessage(
-                  `Bet resolved successfully! Winner: ${winner}. Winning amount: ${ethers.utils.formatEther(
-                    winningAmount
-                  )} ETH`
+                  `Bet resolved successfully!`
                 );
                 setIsAlertOpen(true);
                 await fetchBetDetails(betAddress);

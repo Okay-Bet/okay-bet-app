@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { ethers } from "ethers";
 import { BetDetailsType } from "@/components/types/bet";
 import { useFundBet } from "@/hooks/useFundBet";
 import { useResolveBet } from "@/hooks/useResolveBet";
@@ -6,8 +7,8 @@ import { useInvalidateBet } from "@/hooks/useInvalidateBet";
 import { useCancelBet } from "@/hooks/useCancelBet";
 import CircularProgress from "@mui/material/CircularProgress";
 import useWebSocket from "@/hooks/useWebSocket";
-import { BigNumber } from "ethers";
 import { useActiveAccount } from "thirdweb/react";
+import { formatCurrency, convertEthToUsd } from "@/utils/currencyUtils";
 
 interface BetActionsProps {
   betDetails: BetDetailsType;
@@ -33,6 +34,7 @@ const BetActions: React.FC<BetActionsProps> = ({
   userIsDecider,
   betStatusText,
   setLocalLoading,
+  ethToUsdRate,
 }) => {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const { emitEvent } = useWebSocket();
@@ -48,6 +50,12 @@ const BetActions: React.FC<BetActionsProps> = ({
   const handleInvalidateBet = useInvalidateBet();
   const handleResolveBet = useResolveBet();
   const handleCancelBet = useCancelBet();
+
+  const calculateFundingAmount = () => {
+    const totalWager = ethers.utils.formatEther(betDetails.totalWager);
+    const requiredFunding = parseFloat(totalWager) / 2; // Assuming 50/50 split
+    return convertEthToUsd(requiredFunding, ethToUsdRate);
+  };
 
   const handleAction = async (action: () => Promise<void>) => {
     if (!activeAccount) {
@@ -75,18 +83,6 @@ const BetActions: React.FC<BetActionsProps> = ({
     }
   `;
 
-  const calculateWagerWei = (
-    totalWager: string,
-    wagerRatio: number,
-    isMaker: boolean
-  ): string => {
-    const totalWagerBN = BigNumber.from(totalWager);
-    const wagerWeiBN = isMaker
-      ? totalWagerBN.mul(wagerRatio).div(100)
-      : totalWagerBN.mul(100 - wagerRatio).div(100);
-    return wagerWeiBN.toString();
-  };
-
   return (
     <div>
       <div className="mb-2 mt-2">
@@ -111,7 +107,11 @@ const BetActions: React.FC<BetActionsProps> = ({
           className={buttonClass("green")}
           disabled={isActionLoading || isLoading}
         >
-          {isActionLoading ? <CircularProgress size={24} /> : "Fund Bet"}
+          {isActionLoading ? (
+            <CircularProgress size={24} />
+          ) : (
+            `Fund Bet for ${calculateFundingAmount()}`
+          )}
         </button>
       )}
       {!canFund && !userIsDecider && (
