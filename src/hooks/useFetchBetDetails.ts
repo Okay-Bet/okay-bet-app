@@ -61,18 +61,14 @@ export const useFetchBetDetails = (
             wagerRatio: Number(wagerRatio),
             conditions,
             status: Number(status),
-            winner: isUnfundedBets
-              ? null
-              : winner !== "0x0000000000000000000000000000000000000000"
-              ? winner
-              : null,
+            winner: winner !== "0x0000000000000000000000000000000000000000" ? winner : null,
             winnerDisplay: winnerResolved || winner,
             expirationBlock: Number(expirationBlock),
             finalized,
             wagerCurrency,
           };
+
           return betDetail;
-        } else {
         }
       } catch (error) {
         console.error(`Error fetching bet details for ${betAddress}:`, error);
@@ -118,9 +114,6 @@ export const useFetchBetDetails = (
       fetchAllBetDetails();
     }
   }, [lastEvent, fetchAllBetDetails]);
-
-  useEffect(() => {
-  }, [betDetails]);
 
   return {
     betDetails,

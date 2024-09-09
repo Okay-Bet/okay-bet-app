@@ -1,3 +1,4 @@
+// components/BetHistory.tsx
 import React, { useEffect, useState, useMemo } from "react";
 import { useFetchBetDetails } from "@/hooks/useFetchBetDetails";
 import BetCard from "../Bet/BetCard";
@@ -15,6 +16,7 @@ interface Stats {
   betsWon: number;
   betsLost: number;
   betsDecided: number;
+  betsCancelled: number;
   pnlEth: number;
   pnlUsd: number;
 }
@@ -47,6 +49,7 @@ const BetHistory: React.FC<BetHistoryProps> = ({
       let betsWon = 0;
       let betsLost = 0;
       let betsDecided = 0;
+      let betsCancelled = 0;
       let pnlEth = 0;
       let pnlUsd = 0;
 
@@ -56,9 +59,12 @@ const BetHistory: React.FC<BetHistoryProps> = ({
           betDetail.winner.toLowerCase() === address.toLowerCase();
         const isDecider =
           betDetail.judge.toLowerCase() === address.toLowerCase();
+        const isMakerOrTaker =
+          address.toLowerCase() === betDetail.maker.toLowerCase() ||
+          address.toLowerCase() === betDetail.taker.toLowerCase();
 
-        // Check if the bet is resolved (status 4)
-        if (betDetail.status === 4) {
+        // Check if the bet is resolved (status 3)
+        if (betDetail.status === 3) {
           const wagerEth = parseFloat(
             ethers.utils.formatEther(betDetail.totalWager)
           );
@@ -66,26 +72,27 @@ const BetHistory: React.FC<BetHistoryProps> = ({
             betsWon += 1;
             pnlEth += wagerEth;
             pnlUsd += wagerEth * ethToUsdRate;
-          } else if (
-            address.toLowerCase() === betDetail.maker.toLowerCase() ||
-            address.toLowerCase() === betDetail.taker.toLowerCase()
-          ) {
+          } else if (isMakerOrTaker) {
             betsLost += 1;
             pnlEth -= wagerEth;
             pnlUsd -= wagerEth * ethToUsdRate;
           }
+          if (isDecider) {
+            betsDecided += 1;
+          }
         }
-
-        // Check if the bet is decided by this user
-        if (isDecider && (betDetail.status === 4 || betDetail.status === 5)) {
-          betsDecided += 1;
+        // Check if the bet is cancelled (status 4), invalidated (status 5), or expired (status 6)
+        else if (
+          (betDetail.status === 4 ||
+            betDetail.status === 5 ||
+            betDetail.status === 6) &&
+          isMakerOrTaker
+        ) {
+          betsCancelled += 1;
         }
-
-        // Handle canceled bets (status 5)
-        // We don't count them as won or lost, and we don't affect the PnL
       });
 
-      return { betsWon, betsLost, betsDecided, pnlEth, pnlUsd };
+      return { betsWon, betsLost, betsDecided, betsCancelled, pnlEth, pnlUsd };
     };
 
     return calculateStats(betDetails);
