@@ -9,6 +9,11 @@ import { createBet } from "@/generated/betFactory";
 import { BASE_MAINNET_RPC } from "@/constants/rpc";
 import debounce from "lodash/debounce";
 import useWebSocket from "@/hooks/useWebSocket";
+import {
+  BLOCKS_PER_DAY,
+  timeToBlocks,
+  formatExpirationTime,
+} from "@/utils/blockTimeConversion";
 
 type EthereumAddress = `0x${string}`;
 
@@ -19,10 +24,13 @@ export const useCreateBetForm = (contract: any) => {
   const [wagerUSD, setWagerUSD] = useState<string>("");
   const [wagerRatio, setWagerRatio] = useState<BigNumber>(BigNumber.from(5000)); // Default to 50% (5000 basis points)
   const [conditions, setConditions] = useState<string>("");
-  const [expirationBlocks, setExpirationBlocks] = useState<number>(302400); // Default to 1 week
   const [wagerCurrency, setWagerCurrency] = useState<string>(
     ethers.constants.AddressZero
-  ); // Default to ETH
+  );
+  const [expirationDays, setExpirationDays] = useState<number>(7);
+  const [expirationBlocks, setExpirationBlocks] = useState<number>(
+    BLOCKS_PER_DAY * 7
+  );
   const [message, setMessage] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isFunding, setIsFunding] = useState<boolean>(false);
@@ -107,6 +115,15 @@ export const useCreateBetForm = (contract: any) => {
   );
 
   useEffect(() => {
+    const blocks = timeToBlocks(expirationDays, 0);
+    setExpirationBlocks(blocks);
+  }, [expirationDays]);
+
+  const handleExpirationChange = (value: number) => {
+    setExpirationDays(value);
+  };
+
+  useEffect(() => {
     const initializeMaker = async () => {
       if (account) {
         setMakerLoading(true);
@@ -175,7 +192,6 @@ export const useCreateBetForm = (contract: any) => {
     const ethAmount = parseFloat(usdAmount) / ethToUsdRate;
     return ethAmount.toFixed(6);
   };
-
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -259,56 +275,60 @@ export const useCreateBetForm = (contract: any) => {
 
       console.log("New bet address:", newBetAddress);
 
-    if (!newBetAddress) {
-      throw new Error("Failed to retrieve the new bet address");
-    }
+      if (!newBetAddress) {
+        throw new Error("Failed to retrieve the new bet address");
+      }
 
-    if (account && account.address.toLowerCase() === resolvedMaker.toLowerCase()) {
-      setIsFunding(true);
-      console.log("Waiting for bet to be ready for funding...");
-      const isBetReady = await waitForBetReady(newBetAddress);
+      if (
+        account &&
+        account.address.toLowerCase() === resolvedMaker.toLowerCase()
+      ) {
+        setIsFunding(true);
+        console.log("Waiting for bet to be ready for funding...");
+        const isBetReady = await waitForBetReady(newBetAddress);
 
-      if (isBetReady) {
-        console.log("Bet is ready for funding");
-        console.log("Attempting to fund bet...");
-        await handleFundBet(
-          newBetAddress,
-          wagerCurrency,
-          async (betAddress: string) => {
-            console.log("Fetching bet details for:", betAddress);
-            // Implement actual bet details fetching logic here if needed
-            return null;
-          },
-          setMessage,
-          setIsAlertOpen,
-          setIsLoading
-        );
+        if (isBetReady) {
+          console.log("Bet is ready for funding");
+          console.log("Attempting to fund bet...");
+          await handleFundBet(
+            newBetAddress,
+            wagerCurrency,
+            async (betAddress: string) => {
+              console.log("Fetching bet details for:", betAddress);
+              // Implement actual bet details fetching logic here if needed
+              return null;
+            },
+            setMessage,
+            setIsAlertOpen,
+            setIsLoading
+          );
 
-        // The success message will be set by handleFundBet
-        emitEvent("betFunded", {
-          betAddress: newBetAddress,
-          amount: wagerInWei.toString(),
-        });
+          // The success message will be set by handleFundBet
+          emitEvent("betFunded", {
+            betAddress: newBetAddress,
+            amount: wagerInWei.toString(),
+          });
+        } else {
+          setMessage(
+            "Bet created, but not ready for funding. Please try funding manually."
+          );
+          setIsAlertOpen(true);
+        }
       } else {
-        console.log("Bet is not ready for funding");
-        setMessage("Bet created, but not ready for funding. Please try funding manually.");
+        setMessage("Bet created successfully!");
         setIsAlertOpen(true);
       }
-    } else {
-      setMessage("Bet created successfully!");
-      setIsAlertOpen(true);
-    }
 
-    resetForm();
-  } catch (error: any) {
-    console.error("Error creating or funding bet:", error);
-    setMessage(`Error: ${error.message}`);
-    setIsAlertOpen(true);
-  } finally {
-    setIsLoading(false);
-    setIsFunding(false);
-  }
-};
+      resetForm();
+    } catch (error: any) {
+      console.error("Error creating or funding bet:", error);
+      setMessage(`Error: ${error.message}`);
+      setIsAlertOpen(true);
+    } finally {
+      setIsLoading(false);
+      setIsFunding(false);
+    }
+  };
   const handleSetWagerRatio = (value: number) => {
     setWagerRatio(BigNumber.from(value * 100)); // Convert percentage to basis points
   };
@@ -329,8 +349,10 @@ export const useCreateBetForm = (contract: any) => {
     setWagerRatio: handleSetWagerRatio,
     conditions,
     setConditions,
+    expirationDays,
+    handleExpirationChange,
     expirationBlocks,
-    setExpirationBlocks,
+    formatExpirationTime,
     wagerCurrency,
     setWagerCurrency,
     message,

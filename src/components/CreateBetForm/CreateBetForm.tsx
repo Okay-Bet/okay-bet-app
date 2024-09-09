@@ -1,5 +1,5 @@
 import React from "react";
-import { Collapse } from "@mui/material";
+import { Collapse, Slider, styled } from "@mui/material";
 import AlertModal from "../Common/AlertModal";
 import { useCreateBetForm } from "@/hooks/useCreateBetForm";
 import ConditionsInput from "./ConditionsInput";
@@ -10,6 +10,39 @@ import SubmitButton from "./SubmitButton";
 interface CreateBetFormProps {
   contract: any;
 }
+
+// Styled Slider component
+const WhiteSlider = styled(Slider)(({ theme }) => ({
+  color: "white",
+  "& .MuiSlider-thumb": {
+    backgroundColor: "white",
+  },
+  "& .MuiSlider-track": {
+    backgroundColor: "white",
+  },
+  "& .MuiSlider-rail": {
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+  },
+  "& .MuiSlider-mark": {
+    backgroundColor: "white",
+  },
+  "& .MuiSlider-markLabel": {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: "0.875rem",
+    '&[data-index="0"]': {
+      transform: "translateX(0%)",
+    },
+    '&[data-index="1"]': {
+      transform: "translateX(-100%)",
+    },
+  },
+  "& .MuiSlider-valueLabel": {
+    backgroundColor: "white",
+    color: theme.palette.primary.main,
+    fontWeight: "bold",
+  },
+}));
 
 const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
   const {
@@ -46,6 +79,10 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
     takerLoading,
     judgeLoading,
     canSubmit,
+    expirationDays,
+    handleExpirationChange,
+    expirationBlocks,
+    formatExpirationTime,
   } = useCreateBetForm(contract);
 
   // Dummy function for onProceed
@@ -80,9 +117,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             loading={makerLoading}
             resolvedAddress={makerAddress || undefined}
             resolvedUsername={
-              makerDisplayName !== makerAddress
-                ? makerDisplayName
-                : undefined
+              makerDisplayName !== makerAddress ? makerDisplayName : undefined
             }
           />
           <UserInput
@@ -94,9 +129,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             loading={takerLoading}
             resolvedAddress={takerAddress || undefined}
             resolvedUsername={
-              takerDisplayName !== takerAddress
-                ? takerDisplayName
-                : undefined
+              takerDisplayName !== takerAddress ? takerDisplayName : undefined
             }
           />
           <UserInput
@@ -108,11 +141,28 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             loading={judgeLoading}
             resolvedAddress={judgeAddress || undefined}
             resolvedUsername={
-              judgeDisplayName !== judgeAddress
-                ? judgeDisplayName
-                : undefined
+              judgeDisplayName !== judgeAddress ? judgeDisplayName : undefined
             }
           />
+          <div className="space-y-4 mx-7">
+            <label className="block mb-2 font-heading">
+              Expiration Time
+            </label>
+            <p className="text-sm text-quaternary"> After {formatExpirationTime(expirationBlocks)} this bet will be refunded if there is no Winner</p>
+            <WhiteSlider
+              value={expirationDays}
+              onChange={(_, value) => handleExpirationChange(value as number)}
+              min={7}
+              max={365}
+              step={1}
+              marks={[
+                { value: 7, label: "1 week" },
+                { value: 365, label: "1 year" },
+              ]}
+              valueLabelDisplay="auto"
+              valueLabelFormat={(value) => `${value} days`}
+            />
+          </div>
           <WagerInput
             wagerUSD={wagerUSD}
             setWagerUSD={setWagerUSD}
