@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "ts-node --project tsconfig.server.json src/server.ts",
     "build": "next build",
-    "start": "next start",
+    "start": "NODE_ENV=production ts-node --project tsconfig.server.json src/server.ts",
     "lint": "next lint"
   },
   "dependencies": {
@@ -32,9 +32,13 @@
     "react-qrcode-logo": "^3.0.0",
     "react-slick": "^0.30.2",
     "slick-carousel": "^1.8.1",
+    "socket.io": "^4.7.5",
+    "socket.io-client": "^4.7.5",
     "tailwindcss-bg-patterns": "^0.3.0",
     "thirdweb": "^5.45.1",
+    "ts-node": "^10.9.2",
     "viem": "^2.16.4",
+    "web-push": "^3.6.7",
     "web3modal": "^1.9.12",
     "workbox-webpack-plugin": "^7.1.0"
   },
@@ -45,6 +49,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/react-slick": "^0.23.13",
+    "@types/web-push": "^3.6.3",
     "autoprefixer": "^10.0.1",
     "eslint": "^8",
     "eslint-config-next": "14.1.0",

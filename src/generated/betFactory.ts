@@ -7,134 +7,144 @@ import {
 } from "thirdweb";
 
 /**
-* Contract events
-*/
+ * Contract events
+ */
 
-
+/**
+ * Represents the filters for the "BetCreated" event.
+ */
+export type BetCreatedEventFilters = Partial<{
+  betAddress: AbiParameterToPrimitiveType<{
+    indexed: true;
+    internalType: "address";
+    name: "betAddress";
+    type: "address";
+  }>;
+  maker: AbiParameterToPrimitiveType<{
+    indexed: true;
+    internalType: "address";
+    name: "maker";
+    type: "address";
+  }>;
+  taker: AbiParameterToPrimitiveType<{
+    indexed: true;
+    internalType: "address";
+    name: "taker";
+    type: "address";
+  }>;
+}>;
 
 /**
  * Creates an event object for the BetCreated event.
+ * @param filters - Optional filters to apply to the event.
  * @returns The prepared event object.
  * @example
  * ```
  * import { getContractEvents } from "thirdweb";
  * import { betCreatedEvent } from "TODO";
- * 
+ *
  * const events = await getContractEvents({
  * contract,
  * events: [
- *  betCreatedEvent()
+ *  betCreatedEvent({
+ *  betAddress: ...,
+ *  maker: ...,
+ *  taker: ...,
+ * })
  * ],
  * });
  * ```
- */ 
-export function betCreatedEvent() {
+ */
+export function betCreatedEvent(filters: BetCreatedEventFilters = {}) {
   return prepareEvent({
-    signature: "event BetCreated(address betAddress, address better1, address better2, address decider, uint256 wager, string conditions)",
+    signature:
+      "event BetCreated(address indexed betAddress, address indexed maker, address indexed taker, address judge, uint256 totalWager, uint256 wagerRatio, string conditions, uint256 expirationBlock, address wagerCurrency)",
+    filters,
   });
-};
-  
+}
 
 /**
-* Contract read functions
-*/
-
-/**
- * Represents the parameters for the "bets" function.
+ * Contract read functions
  */
-export type BetsParams = {
-  arg_0: AbiParameterToPrimitiveType<{"internalType":"uint256","name":"","type":"uint256"}>
-};
 
 /**
- * Calls the "bets" function on the contract.
- * @param options - The options for the bets function.
+ * Calls the "MIN_EXPIRATION_BLOCKS" function on the contract.
+ * @param options - The options for the MIN_EXPIRATION_BLOCKS function.
  * @returns The parsed result of the function call.
  * @example
  * ```
- * import { bets } from "TODO";
- * 
- * const result = await bets({
- *  arg_0: ...,
- * });
- * 
+ * import { MIN_EXPIRATION_BLOCKS } from "TODO";
+ *
+ * const result = await MIN_EXPIRATION_BLOCKS();
+ *
  * ```
  */
-export async function bets(
-  options: BaseTransactionOptions<BetsParams>
-) {
+export async function MIN_EXPIRATION_BLOCKS(options: BaseTransactionOptions) {
   return readContract({
     contract: options.contract,
     method: [
-  "0x22af00fa",
-  [
-    {
-      "internalType": "uint256",
-      "name": "",
-      "type": "uint256"
-    }
-  ],
-  [
-    {
-      "internalType": "contract Bet",
-      "name": "",
-      "type": "address"
-    }
-  ]
-],
-    params: [options.arg_0]
+      "0x4f67bb5a",
+      [],
+      [
+        {
+          internalType: "uint256",
+          name: "",
+          type: "uint256",
+        },
+      ],
+    ],
+    params: [],
   });
-};
-
-
-
+}
 
 /**
- * Calls the "getBets" function on the contract.
- * @param options - The options for the getBets function.
- * @returns The parsed result of the function call.
- * @example
- * ```
- * import { getBets } from "TODO";
- * 
- * const result = await getBets();
- * 
- * ```
+ * Contract write functions
  */
-export async function getBets(
-  options: BaseTransactionOptions
-) {
-  return readContract({
-    contract: options.contract,
-    method: [
-  "0xa6afd5fd",
-  [],
-  [
-    {
-      "internalType": "contract Bet[]",
-      "name": "",
-      "type": "address[]"
-    }
-  ]
-],
-    params: []
-  });
-};
-
-
-/**
-* Contract write functions
-*/
 
 /**
  * Represents the parameters for the "createBet" function.
  */
 export type CreateBetParams = {
-  better1: AbiParameterToPrimitiveType<{"internalType":"address","name":"_better1","type":"address"}>
-better2: AbiParameterToPrimitiveType<{"internalType":"address","name":"_better2","type":"address"}>
-decider: AbiParameterToPrimitiveType<{"internalType":"address","name":"_decider","type":"address"}>
-wager: AbiParameterToPrimitiveType<{"internalType":"uint256","name":"_wager","type":"uint256"}>
-conditions: AbiParameterToPrimitiveType<{"internalType":"string","name":"_conditions","type":"string"}>
+  maker: AbiParameterToPrimitiveType<{
+    internalType: "address";
+    name: "_maker";
+    type: "address";
+  }>;
+  taker: AbiParameterToPrimitiveType<{
+    internalType: "address";
+    name: "_taker";
+    type: "address";
+  }>;
+  judge: AbiParameterToPrimitiveType<{
+    internalType: "address";
+    name: "_judge";
+    type: "address";
+  }>;
+  totalWager: AbiParameterToPrimitiveType<{
+    internalType: "uint256";
+    name: "_totalWager";
+    type: "uint256";
+  }>;
+  wagerRatio: AbiParameterToPrimitiveType<{
+    internalType: "uint256";
+    name: "_wagerRatio";
+    type: "uint256";
+  }>;
+  conditions: AbiParameterToPrimitiveType<{
+    internalType: "string";
+    name: "_conditions";
+    type: "string";
+  }>;
+  expirationBlocks: AbiParameterToPrimitiveType<{
+    internalType: "uint256";
+    name: "_expirationBlocks";
+    type: "uint256";
+  }>;
+  wagerCurrency: AbiParameterToPrimitiveType<{
+    internalType: "address";
+    name: "_wagerCurrency";
+    type: "address";
+  }>;
 };
 
 /**
@@ -144,58 +154,81 @@ conditions: AbiParameterToPrimitiveType<{"internalType":"string","name":"_condit
  * @example
  * ```
  * import { createBet } from "TODO";
- * 
+ *
  * const transaction = createBet({
- *  better1: ...,
- *  better2: ...,
- *  decider: ...,
- *  wager: ...,
+ *  maker: ...,
+ *  taker: ...,
+ *  judge: ...,
+ *  totalWager: ...,
+ *  wagerRatio: ...,
  *  conditions: ...,
+ *  expirationBlocks: ...,
+ *  wagerCurrency: ...,
  * });
- * 
+ *
  * // Send the transaction
  * ...
- * 
+ *
  * ```
  */
-export function createBet(
-  options: BaseTransactionOptions<CreateBetParams>
-) {
+export function createBet(options: BaseTransactionOptions<CreateBetParams>) {
   return prepareContractCall({
     contract: options.contract,
     method: [
-  "0xccf0fbd6",
-  [
-    {
-      "internalType": "address",
-      "name": "_better1",
-      "type": "address"
-    },
-    {
-      "internalType": "address",
-      "name": "_better2",
-      "type": "address"
-    },
-    {
-      "internalType": "address",
-      "name": "_decider",
-      "type": "address"
-    },
-    {
-      "internalType": "uint256",
-      "name": "_wager",
-      "type": "uint256"
-    },
-    {
-      "internalType": "string",
-      "name": "_conditions",
-      "type": "string"
-    }
-  ],
-  []
-],
-    params: [options.better1, options.better2, options.decider, options.wager, options.conditions]
+      "0xb63f6e4f",
+      [
+        {
+          internalType: "address",
+          name: "_maker",
+          type: "address",
+        },
+        {
+          internalType: "address",
+          name: "_taker",
+          type: "address",
+        },
+        {
+          internalType: "address",
+          name: "_judge",
+          type: "address",
+        },
+        {
+          internalType: "uint256",
+          name: "_totalWager",
+          type: "uint256",
+        },
+        {
+          internalType: "uint256",
+          name: "_wagerRatio",
+          type: "uint256",
+        },
+        {
+          internalType: "string",
+          name: "_conditions",
+          type: "string",
+        },
+        {
+          internalType: "uint256",
+          name: "_expirationBlocks",
+          type: "uint256",
+        },
+        {
+          internalType: "address",
+          name: "_wagerCurrency",
+          type: "address",
+        },
+      ],
+      [],
+    ],
+    params: [
+      options.maker,
+      options.taker,
+      options.judge,
+      options.totalWager,
+      options.wagerRatio,
+      options.conditions,
+      options.expirationBlocks,
+      options.wagerCurrency,
+    ],
   });
-};
-
-
+}

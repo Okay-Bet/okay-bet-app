@@ -39,3 +39,4 @@ next-env.d.ts
 # pwa
 sw.js
 workbox-*.js
+worker-*.js

@@ -1,11 +1,12 @@
 "use client";
-import React, { useState, useEffect } from "react";
-import { useFetchUnfundedBetDetails } from "@/hooks/useFetchUnfundedBetDetails";
+import React, { useState, useEffect, useCallback } from "react";
+import { useFetchBetDetails } from "@/hooks/useFetchBetDetails";
 import BetCard from "./BetCard";
 import AlertModal from "../Common/AlertModal";
 import { useFetchEthToUsdRate } from "@/hooks/useFetchEthToUsdRate";
 import CollapsibleSection from "../Common/CollapsibleSection";
-import eventEmitter from "@/events/eventEmitter";
+import useWebSocket from "@/hooks/useWebSocket";
+import { BetDetailsType } from "@/components/types/bet";
 
 interface UnfundedBetsProps {
   betAddresses: string[];
@@ -16,42 +17,51 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
   betAddresses,
   accountAddress,
 }) => {
-  const { betDetails, fetchBetDetails, loading } = useFetchUnfundedBetDetails(betAddresses);
+  const { betDetails, loading, fetchBetDetails, refetchAll } =
+    useFetchBetDetails(betAddresses, true);
   const ethToUsdRate = useFetchEthToUsdRate();
   const [message, setMessage] = useState<string>("");
   const [isAlertOpen, setIsAlertOpen] = useState<boolean>(false);
-
-  const handleRefresh = async () => {
-    for (const betAddress of betAddresses) {
-      fetchBetDetails(betAddress);
-    }
-  };
+  const { lastEvent } = useWebSocket();
 
   useEffect(() => {
-    eventEmitter.on('refreshUnfundedBets', handleRefresh);
-    return () => {
-      eventEmitter.off('refreshUnfundedBets', handleRefresh);
-    };
-  }, [fetchBetDetails, betAddresses]);
+    if (
+      lastEvent &&
+      (lastEvent.type === "BetFunded" || lastEvent.type === "BetCancelled")
+    ) {
+      refetchAll();
+    }
+  }, [lastEvent, refetchAll]);
 
   const handleAlertClose = () => {
     setIsAlertOpen(false);
-    handleRefresh();
+    refetchAll();
   };
 
-  // Dummy function for onProceed
-  const dummyProceed = () => {};
+  const fetchBetDetailsWrapper = useCallback(
+    async (betAddress: string): Promise<BetDetailsType | null> => {
+      await fetchBetDetails();
+      return betDetails.find((bet) => bet.address === betAddress) || null;
+    },
+    [fetchBetDetails, betDetails]
+  );
+
+  const unfundedBets = betDetails.filter(
+    (bet) => bet.status === 0 || bet.status === 1
+  );
 
   return (
     <CollapsibleSection title="Unfunded Bets" loading={loading}>
-      {betDetails.length > 0 ? (
-        betDetails.map((bet, index) => (
+      {loading ? (
+        <div>Loading...</div>
+      ) : unfundedBets.length > 0 ? (
+        unfundedBets.map((bet, index) => (
           <BetCard
-            key={index}
+            key={bet.address || index}
             bet={bet}
             ethToUsdRate={ethToUsdRate}
             accountAddress={accountAddress}
-            fetchBetDetails={fetchBetDetails}
+            fetchBetDetails={fetchBetDetailsWrapper}
             setMessage={setMessage}
             setIsAlertOpen={setIsAlertOpen}
             isLoading={loading}
@@ -64,7 +74,7 @@ const UnfundedBets: React.FC<UnfundedBetsProps> = ({
         isOpen={isAlertOpen}
         message={message}
         onClose={handleAlertClose}
-        onProceed={dummyProceed}
+        onProceed={() => {}}
         showProceed={false}
       />
     </CollapsibleSection>

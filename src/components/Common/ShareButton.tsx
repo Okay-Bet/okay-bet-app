@@ -3,9 +3,9 @@ import React, { useState } from "react";
 import IosShareIcon from "@mui/icons-material/IosShare";
 
 interface ShareButtonProps {
-  better1Display: string;
-  better2Display: string;
-  deciderDisplay: string;
+  makerDisplay: string;
+  takerDisplay: string;
+  judgeDisplay: string;
   wagerEth: string;
   status: number;
   conditions: string;
@@ -14,9 +14,9 @@ interface ShareButtonProps {
 }
 
 const ShareButton: React.FC<ShareButtonProps> = ({
-  better1Display,
-  better2Display,
-  deciderDisplay,
+  makerDisplay,
+  takerDisplay,
+  judgeDisplay,
   wagerEth,
   status,
   conditions,
@@ -25,23 +25,25 @@ const ShareButton: React.FC<ShareButtonProps> = ({
 }) => {
   const [isCopied, setIsCopied] = useState(false);
 
-  const shortenAddress = (address: string) =>
-    address.startsWith("0x")
+  const shortenAddress = (address: string | undefined) =>
+    address && address.startsWith("0x")
       ? `${address.slice(0, 6)}...${address.slice(-4)}`
-      : address;
+      : address || "Unknown";
 
-  const wagerInUsd = (parseFloat(wagerEth) * ethToUsdRate).toFixed(2);
+  const wagerInUsd = (
+    parseFloat(wagerEth || "0") * (ethToUsdRate || 0)
+  ).toFixed(2);
   const statusText =
     status === 4 ? "Resolved" : status === 5 ? "Invalidated" : "Open";
 
   const shareText = `Okay Bet Alert
-Conditions: ${conditions}
-Bettor 1: ${shortenAddress(better1Display)}
-Bettor 2: ${shortenAddress(better2Display)}
-Judge: ${shortenAddress(deciderDisplay)}
-Wager: $${wagerInUsd} USD (${wagerEth} ETH)
+Conditions: ${conditions || "N/A"}
+Maker: ${shortenAddress(makerDisplay)}
+Taker: ${shortenAddress(takerDisplay)}
+Judge: ${shortenAddress(judgeDisplay)}
+Wager: $${wagerInUsd} USD (${wagerEth || "0"} ETH)
 Status: ${statusText}
-https://www.okaybet.fun/bet/${address}
+${address ? `https://www.okaybet.fun/bet/${address}` : "URL not available"}
 `;
 
   const handleShare = async () => {

@@ -1,11 +1,14 @@
-// components/Bet/BetActions.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { ethers } from "ethers";
 import { BetDetailsType } from "@/components/types/bet";
-import { handleFundBet } from "@/utils/handleBetActions/handleFundBet";
-import { handleCancelBet } from "@/utils/handleBetActions/handleCancelBet";
-import { handleResolveBet } from "@/utils/handleBetActions/handleResolveBet";
-import { handleInvalidateBet } from "@/utils/handleBetActions/handleInvalidateBet";
+import { useFundBet } from "@/hooks/useFundBet";
+import { useResolveBet } from "@/hooks/useResolveBet";
+import { useInvalidateBet } from "@/hooks/useInvalidateBet";
+import { useCancelBet } from "@/hooks/useCancelBet";
 import CircularProgress from "@mui/material/CircularProgress";
+import useWebSocket from "@/hooks/useWebSocket";
+import { useActiveAccount } from "thirdweb/react";
+import { formatCurrency, convertEthToUsd } from "@/utils/currencyUtils";
 
 interface BetActionsProps {
   betDetails: BetDetailsType;
@@ -14,11 +17,12 @@ interface BetActionsProps {
   setIsAlertOpen: (isOpen: boolean) => void;
   isLoading: boolean;
   accountAddress: string;
-  sendTransaction: any;
   canFund: boolean;
   userIsDecider: boolean;
   betStatusText: string;
   setLocalLoading: (isLoading: boolean) => void;
+  ethToUsdRate: number;
+  sendTransaction: (...args: any[]) => Promise<any>;
 }
 
 const BetActions: React.FC<BetActionsProps> = ({
@@ -28,13 +32,15 @@ const BetActions: React.FC<BetActionsProps> = ({
   setIsAlertOpen,
   isLoading,
   accountAddress,
-  sendTransaction,
   canFund,
   userIsDecider,
   betStatusText,
   setLocalLoading,
+  ethToUsdRate,
 }) => {
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const { emitEvent } = useWebSocket();
+  const activeAccount = useActiveAccount();
   const userRoles = getUserRoles(accountAddress, betDetails);
   const availableActions = getAvailableActions(
     userRoles,
@@ -42,17 +48,38 @@ const BetActions: React.FC<BetActionsProps> = ({
     canFund
   );
 
+  const handleFundBet = useFundBet();
+  const handleInvalidateBet = useInvalidateBet();
+  const handleResolveBet = useResolveBet();
+  const handleCancelBet = useCancelBet();
+
+  const calculateFundingAmount = () => {
+    const totalWager = ethers.utils.formatEther(betDetails.totalWager);
+    const requiredFunding = parseFloat(totalWager) / 2; // Assuming 50/50 split
+    return convertEthToUsd(requiredFunding, ethToUsdRate);
+  };
+
   const handleAction = async (action: () => Promise<void>) => {
+    if (!activeAccount) {
+      setMessage("Please connect your wallet to perform this action.");
+      setIsAlertOpen(true);
+      return;
+    }
+
     setIsActionLoading(true);
     setLocalLoading(true);
-    fetchBetDetails(betDetails.address);
-    await action();
+    try {
+      await action();
+    } finally {
+      setIsActionLoading(false);
+      setLocalLoading(false);
+    }
   };
 
   const buttonClass = (color: string) => `
     w-full p-2 bg-${color}-500 text-font font-heading rounded-lg mt-2 
     ${
-      isActionLoading || isLoading
+      isActionLoading || isLoading || !activeAccount
         ? "cursor-not-allowed opacity-50"
         : `hover:bg-tertiary hover:italic transition-colors`
     }
@@ -71,8 +98,7 @@ const BetActions: React.FC<BetActionsProps> = ({
             handleAction(() =>
               handleFundBet(
                 betDetails.address,
-                betDetails.wagerWei,
-                sendTransaction,
+                betDetails.wagerCurrency,
                 fetchBetDetails,
                 setMessage,
                 setIsAlertOpen,
@@ -83,27 +109,11 @@ const BetActions: React.FC<BetActionsProps> = ({
           className={buttonClass("green")}
           disabled={isActionLoading || isLoading}
         >
-          {isActionLoading ? <CircularProgress size={24} /> : "Fund Bet"}
-        </button>
-      )}
-      {availableActions.includes("cancelBet") && (
-        <button
-          onClick={() =>
-            handleAction(() =>
-              handleCancelBet(
-                betDetails.address,
-                sendTransaction,
-                fetchBetDetails,
-                setMessage,
-                setIsAlertOpen,
-                setIsActionLoading
-              )
-            )
-          }
-          className={buttonClass("red")}
-          disabled={isActionLoading || isLoading}
-        >
-          {isActionLoading ? <CircularProgress size={24} /> : "Cancel Bet"}
+          {isActionLoading ? (
+            <CircularProgress size={24} />
+          ) : (
+            `Fund Bet for ${calculateFundingAmount()}`
+          )}
         </button>
       )}
       {!canFund && !userIsDecider && (
@@ -119,8 +129,7 @@ const BetActions: React.FC<BetActionsProps> = ({
               handleAction(() =>
                 handleResolveBet(
                   betDetails.address,
-                  betDetails.better1,
-                  sendTransaction,
+                  betDetails.maker,
                   fetchBetDetails,
                   setMessage,
                   setIsAlertOpen,
@@ -142,8 +151,7 @@ const BetActions: React.FC<BetActionsProps> = ({
               handleAction(() =>
                 handleResolveBet(
                   betDetails.address,
-                  betDetails.better2,
-                  sendTransaction,
+                  betDetails.taker,
                   fetchBetDetails,
                   setMessage,
                   setIsAlertOpen,
@@ -168,7 +176,6 @@ const BetActions: React.FC<BetActionsProps> = ({
             handleAction(() =>
               handleInvalidateBet(
                 betDetails.address,
-                sendTransaction,
                 fetchBetDetails,
                 setMessage,
                 setIsAlertOpen,
@@ -180,6 +187,25 @@ const BetActions: React.FC<BetActionsProps> = ({
           disabled={isActionLoading || isLoading}
         >
           {isActionLoading ? <CircularProgress size={24} /> : "Invalidate Bet"}
+        </button>
+      )}
+      {availableActions.includes("cancelBet") && (
+        <button
+          onClick={() =>
+            handleAction(() =>
+              handleCancelBet(
+                betDetails.address,
+                fetchBetDetails,
+                setMessage,
+                setIsAlertOpen,
+                setIsActionLoading
+              )
+            )
+          }
+          className={buttonClass("red")}
+          disabled={isActionLoading || isLoading}
+        >
+          {isActionLoading ? <CircularProgress size={24} /> : "Cancel Bet"}
         </button>
       )}
     </div>
@@ -195,9 +221,9 @@ const getUserRoles = (
   const address = accountAddress.toLowerCase();
   const roles = [];
 
-  if (address === betDetails.better1.toLowerCase()) roles.push("better1");
-  if (address === betDetails.better2.toLowerCase()) roles.push("better2");
-  if (address === betDetails.decider.toLowerCase()) roles.push("decider");
+  if (address === betDetails.maker.toLowerCase()) roles.push("maker");
+  if (address === betDetails.taker.toLowerCase()) roles.push("taker");
+  if (address === betDetails.judge.toLowerCase()) roles.push("judge");
 
   return roles.length > 0 ? roles : ["other"];
 };
@@ -210,18 +236,18 @@ const getAvailableActions = (
   const actions = new Set<string>();
 
   userRoles.forEach((role) => {
-    if ((role === "better1" || role === "better2") && canFund) {
+    if ((role === "maker" || role === "taker") && canFund) {
       if (betStatus === 0 || betStatus === 1 || betStatus === 2) {
         actions.add("fundBet");
       }
     }
-    if (role === "better1" || role === "better2" || role === "decider") {
-      if (betStatus === 0 || betStatus === 1 || betStatus === 2) {
+    if (role === "maker" || role === "taker" || role === "judge") {
+      if (betStatus === 0 || betStatus === 1) {
         actions.add("cancelBet");
       }
     }
-    if (role === "decider") {
-      if (betStatus === 3) {
+    if (role === "judge") {
+      if (betStatus === 2) {
         actions.add("resolveBet");
         actions.add("invalidateBet");
       }

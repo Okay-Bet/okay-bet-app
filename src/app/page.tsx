@@ -1,10 +1,9 @@
 // app/page.tsx
 "use client";
-import React from "react";
+import React, { Suspense } from "react";
 import { useActiveAccount } from "thirdweb/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Image from "next/image";
-import Link from "next/link";
 import logo from "@public/okay_bet.png";
 import CreateBetForm from "../components/CreateBetForm/CreateBetForm";
 import OpenBets from "../components/Bet/OpenBets";
@@ -16,6 +15,13 @@ import { useBetList } from "@/hooks/useBetList";
 import { contract } from "./client";
 import BetHistory from "@/components/Metrics/BetHistory";
 import Testimonials from "@/components/Landing/Testimonials";
+// import ContractEvents from './events';
+// import dynamic from 'next/dynamic';
+
+// const PushNotificationSubscriber = dynamic(
+//   () => import('@/components/Notifications/PushNotificationSubscriber'),
+//   { ssr: false }
+// );
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,14 +30,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-export default function Home() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <HomeContent />
-    </QueryClientProvider>
-  );
-}
 
 function HomeContent() {
   const account = useActiveAccount();
@@ -55,11 +53,14 @@ function HomeContent() {
         </div>
         <ConnectWallet />
         <Username />
+        {/* <Suspense fallback={<div>Loading push notification component...</div>}>
+          <PushNotificationSubscriber />
+        </Suspense> */}
         {account ? (
           <div className="w-full max-w-md mx-auto">
             <CreateBetForm contract={contract} />
             {isLoading ? (
-              <p></p>
+              <p>Loading...</p>
             ) : (
               <div>
                 <OpenBets
@@ -75,6 +76,7 @@ function HomeContent() {
                   accountAddress={account.address}
                 />
                 <Testimonials />
+                {/* <ContractEvents /> */}
               </div>
             )}
           </div>
@@ -83,5 +85,13 @@ function HomeContent() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <HomeContent />
+    </QueryClientProvider>
   );
 }
