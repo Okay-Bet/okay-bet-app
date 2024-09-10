@@ -14,8 +14,10 @@ import {
   timeToBlocks,
   formatExpirationTime,
 } from "@/utils/blockTimeConversion";
+import { getUSDCBalance, approveUSDC, transferUSDC } from "@/utils/usdcUtils";
 
 type EthereumAddress = `0x${string}`;
+const USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // USDC address
 
 export const useCreateBetForm = (contract: any) => {
   const [maker, setMaker] = useState<string>("");
@@ -27,6 +29,7 @@ export const useCreateBetForm = (contract: any) => {
   const [wagerCurrency, setWagerCurrency] = useState<string>(
     ethers.constants.AddressZero
   );
+  const [usdcBalance, setUsdcBalance] = useState<BigNumber>(BigNumber.from(0));
   const [expirationDays, setExpirationDays] = useState<number>(7);
   const [expirationBlocks, setExpirationBlocks] = useState<number>(
     BLOCKS_PER_DAY * 7
@@ -115,6 +118,21 @@ export const useCreateBetForm = (contract: any) => {
   );
 
   useEffect(() => {
+    const fetchUsdcBalance = async () => {
+      if (account) {
+        const provider = new ethers.providers.JsonRpcProvider(BASE_MAINNET_RPC);
+        const balance = await getUSDCBalance(
+          account.address,
+          USDC_ADDRESS,
+          provider
+        );
+        setUsdcBalance(balance);
+      }
+    };
+    fetchUsdcBalance();
+  }, [account]);
+
+  useEffect(() => {
     const blocks = timeToBlocks(expirationDays, 0);
     setExpirationBlocks(blocks);
   }, [expirationDays]);
@@ -198,40 +216,39 @@ export const useCreateBetForm = (contract: any) => {
     setIsLoading(true);
     setMessage("");
     setIsAlertOpen(false);
-
+  
     try {
       if (!resolvedMaker || !resolvedTaker || !resolvedJudge) {
         throw new Error("Failed to resolve one or more addresses");
       }
-
-      const wagerInEth = (parseFloat(wagerUSD) / ethToUsdRate).toFixed(18);
-      const wagerInWei = ethers.utils.parseEther(wagerInEth);
-
+  
+      const wagerInUsdc = ethers.utils.parseUnits(wagerUSD, 6); // USDC has 6 decimal places
+  
       const transaction = createBet({
         contract,
         maker: resolvedMaker,
         taker: resolvedTaker,
         judge: resolvedJudge,
-        totalWager: BigInt(wagerInWei.toString()),
+        totalWager: BigInt(wagerInUsdc.toString()),
         wagerRatio: BigInt(wagerRatio.toNumber()),
         conditions,
-        wagerCurrency,
         expirationBlocks: BigInt(expirationBlocks),
+        wagerCurrency: USDC_ADDRESS,
       });
-
+  
       const provider = new ethers.providers.JsonRpcProvider(BASE_MAINNET_RPC);
       const startBlock = await provider.getBlockNumber();
-
+  
       const txResponse = await sendTransaction(transaction);
-
+  
       const receipt = await provider.waitForTransaction(
         txResponse.transactionHash
       );
-
+  
       if (receipt.status === 0) {
         throw new Error("Bet creation transaction failed");
       }
-
+  
       let newBetAddress = "";
       const checkForEvent = async () => {
         const currentBlock = await provider.getBlockNumber();
@@ -259,7 +276,7 @@ export const useCreateBetForm = (contract: any) => {
         }
         return false;
       };
-
+  
       // Wait for the bet creation event
       for (let i = 0; i < 15; i++) {
         await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -267,22 +284,22 @@ export const useCreateBetForm = (contract: any) => {
           break;
         }
       }
-
+  
       if (!newBetAddress) {
         throw new Error("Failed to retrieve the new bet address");
       }
-
+  
       if (
         account &&
         account.address.toLowerCase() === resolvedMaker.toLowerCase()
       ) {
         setIsFunding(true);
         const isBetReady = await waitForBetReady(newBetAddress);
-
+  
         if (isBetReady) {
           await handleFundBet(
             newBetAddress,
-            wagerCurrency,
+            USDC_ADDRESS, // Always use USDC address for wager currency
             async (betAddress: string) => {
               // Implement actual bet details fetching logic here if needed
               return null;
@@ -291,12 +308,6 @@ export const useCreateBetForm = (contract: any) => {
             setIsAlertOpen,
             setIsLoading
           );
-
-          // The success message will be set by handleFundBet
-          emitEvent("betFunded", {
-            betAddress: newBetAddress,
-            amount: wagerInWei.toString(),
-          });
         } else {
           setMessage(
             "Bet created, but not ready for funding. Please try funding manually."
@@ -307,7 +318,7 @@ export const useCreateBetForm = (contract: any) => {
         setMessage("Bet created successfully!");
         setIsAlertOpen(true);
       }
-
+  
       resetForm();
     } catch (error: any) {
       console.error("Error creating or funding bet:", error);
@@ -368,5 +379,6 @@ export const useCreateBetForm = (contract: any) => {
     makerAddress,
     takerAddress,
     judgeAddress,
+    usdcBalance,
   };
 };

@@ -83,6 +83,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
     handleExpirationChange,
     expirationBlocks,
     formatExpirationTime,
+    usdcBalance,
   } = useCreateBetForm(contract);
 
   // Dummy function for onProceed
@@ -145,10 +146,11 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             }
           />
           <div className="space-y-4 mx-7">
-            <label className="block mb-2 font-heading">
-              Expiration Time
-            </label>
-            <p className="text-sm text-quaternary"> After {formatExpirationTime(expirationBlocks)} this bet will be refunded if there is no Winner</p>
+            <label className="block mb-2 font-heading">Expiration Time</label>
+            <p className="text-sm text-quaternary">
+              After {formatExpirationTime(expirationBlocks)} this bet will be
+              refunded if there is no Winner
+            </p>
             <WhiteSlider
               value={expirationDays}
               onChange={(_, value) => handleExpirationChange(value as number)}
@@ -166,13 +168,12 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
           <WagerInput
             wagerUSD={wagerUSD}
             setWagerUSD={setWagerUSD}
-            convertUsdToEth={convertUsdToEth}
-            ethToUsdRate={ethToUsdRate}
+            usdcBalance={usdcBalance}
           />
           <SubmitButton
             isLoading={isLoading}
             isFunding={isFunding}
-            canSubmit={isSubmittable}
+            canSubmit={canSubmit}
           />
         </form>
       </Collapse>
@@ -185,7 +186,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             setIsFormVisible(false);
           }
         }}
-        onProceed={dummyProceed}
+        onProceed={() => {}}
         showProceed={false}
       />
     </div>

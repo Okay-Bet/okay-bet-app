@@ -1,14 +1,33 @@
 import { useCallback } from "react";
-import { getContract, prepareContractCall, sendTransaction } from "thirdweb";
+import { useSendTransaction } from "thirdweb/react";
+import { getContract, prepareContractCall } from "thirdweb";
 import { client, contract } from "@/app/client";
-import { ethers, BigNumber } from "ethers";
+import { ethers } from "ethers";
 import { BASE_MAINNET_RPC } from "@/constants/rpc";
 import useWebSocket from "./useWebSocket";
 import { useActiveAccount } from "thirdweb/react";
 
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 5000; // 5 seconds
+
 export const useFundBet = () => {
   const { emitEvent } = useWebSocket();
   const activeAccount = useActiveAccount();
+  const { mutate: sendTransaction } = useSendTransaction();
+
+  const retryTransaction = async (transactionFunc: () => Promise<any>) => {
+    let lastError;
+    for (let i = 0; i < MAX_RETRIES; i++) {
+      try {
+        return await transactionFunc();
+      } catch (error) {
+        console.error(`Transaction attempt ${i + 1} failed:`, error);
+        lastError = error;
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+      }
+    }
+    throw lastError;
+  };
 
   const handleFundBet = useCallback(
     async (
@@ -51,26 +70,31 @@ export const useFundBet = () => {
           );
         }
 
-        // If wagerCurrency is not ETH, approve the token transfer
-        if (wagerCurrency !== ethers.constants.AddressZero) {
-          const tokenContract = getContract({
+        const isERC20 = wagerCurrency !== ethers.constants.AddressZero;
+
+        if (isERC20) {
+          // Approve USDC transfer
+          const usdcContract = getContract({
             client,
             address: wagerCurrency,
             chain: contract.chain,
           });
 
           const approveTransaction = prepareContractCall({
-            contract: tokenContract,
+            contract: usdcContract,
             method: "function approve(address spender, uint256 amount)",
             params: [betAddress, wagerAmount.toString()],
           });
 
-          const approvalResult = await sendTransaction({
-            account: activeAccount,
-            transaction: approveTransaction,
-          });
-
-          await provider.waitForTransaction(approvalResult.transactionHash);
+          await retryTransaction(
+            () =>
+              new Promise((resolve, reject) => {
+                sendTransaction(approveTransaction, {
+                  onSuccess: (result) => resolve(result),
+                  onError: (error) => reject(error),
+                });
+              })
+          );
         }
 
         // Prepare the fundBet transaction
@@ -84,19 +108,30 @@ export const useFundBet = () => {
           params: [],
         });
 
-        const { transactionHash } = await sendTransaction({
-          account: activeAccount,
-          transaction: {
-            ...fundBetTransaction,
-            value:
-              wagerCurrency === ethers.constants.AddressZero
-                ? wagerAmount.toString()
-                : "0",
-          },
-        });
+        let transactionHash: string;
+        await retryTransaction(
+          () =>
+            new Promise((resolve, reject) => {
+              sendTransaction(
+                {
+                  ...fundBetTransaction,
+                  value: isERC20 ? "0" : wagerAmount.toString(),
+                },
+                {
+                  onSuccess: (result) => {
+                    transactionHash = result.transactionHash;
+                    resolve(result);
+                  },
+                  onError: (error) => reject(error),
+                }
+              );
+            })
+        );
 
         const checkForEvent = async () => {
-          const receipt = await provider.getTransactionReceipt(transactionHash);
+          const receipt = await provider.getTransactionReceipt(
+            transactionHash!
+          );
           if (receipt) {
             const events = await betContract.queryFilter(
               betContract.filters.BetFunded(),
@@ -111,11 +146,11 @@ export const useFundBet = () => {
                 "amount" in event.args
               ) {
                 const amount = event.args.amount;
-                const tokenSymbol =
-                  wagerCurrency === ethers.constants.AddressZero
-                    ? "ETH"
-                    : "tokens";
-                const message = `Bet funded successfully!`;
+                const tokenSymbol = isERC20 ? "USDC" : "ETH";
+                const formattedAmount = isERC20
+                  ? ethers.utils.formatUnits(amount, 6)
+                  : ethers.utils.formatEther(amount);
+                const message = `Bet funded successfully with ${formattedAmount} ${tokenSymbol}!`;
                 setMessage(message);
                 setIsAlertOpen(true);
                 await fetchBetDetails(betAddress);
@@ -158,7 +193,7 @@ export const useFundBet = () => {
         emitEvent("refreshComplete");
       }
     },
-    [emitEvent, activeAccount]
+    [emitEvent, activeAccount, sendTransaction]
   );
 
   return handleFundBet;
