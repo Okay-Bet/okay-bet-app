@@ -25,7 +25,7 @@ const WagerInput: React.FC<WagerInputProps> = ({
   return (
     <div>
       <label htmlFor="wager" className="block mb-2 font-heading">
-        Wager Amount (USDC)
+        Wager Amount in USDC
       </label>
       <input
         id="wager"
@@ -34,10 +34,10 @@ const WagerInput: React.FC<WagerInputProps> = ({
         onChange={handleWagerChange}
         required
         className="w-full p-2 border text-black"
-        placeholder="How much USDC do you want to bet?"
+        placeholder="How much do you want to bet?"
       />
       <p className="text-sm text-quaternary mt-1">
-        Your USDC Balance: {formattedBalance} USDC
+        Your Balance: {formattedBalance} USDC
       </p>
       {parseFloat(wagerUSD) > parseFloat(formattedBalance) && (
         <p className="text-sm text-red-500 mt-1">

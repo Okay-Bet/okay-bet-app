@@ -98,7 +98,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
         onClick={() => setIsFormVisible(!isFormVisible)}
         className="text-lg p-2 bg-primary text-quaternary font-bold font-heading italic rounded w-full mb-3 mt-3"
       >
-        {isFormVisible ? "HIDE NEW BET" : "NEW BET"}
+        {isFormVisible ? "NEW BET" : "NEW BET"}
       </button>
       <Collapse in={isFormVisible}>
         <form
@@ -145,6 +145,11 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
               judgeDisplayName !== judgeAddress ? judgeDisplayName : undefined
             }
           />
+          <WagerInput
+            wagerUSD={wagerUSD}
+            setWagerUSD={setWagerUSD}
+            usdcBalance={usdcBalance}
+          />
           <div className="space-y-4 mx-7">
             <label className="block mb-2 font-heading">Expiration Time</label>
             <p className="text-sm text-quaternary">
@@ -165,11 +170,6 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
               valueLabelFormat={(value) => `${value} days`}
             />
           </div>
-          <WagerInput
-            wagerUSD={wagerUSD}
-            setWagerUSD={setWagerUSD}
-            usdcBalance={usdcBalance}
-          />
           <SubmitButton
             isLoading={isLoading}
             isFunding={isFunding}

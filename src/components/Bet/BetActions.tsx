@@ -8,7 +8,7 @@ import { useCancelBet } from "@/hooks/useCancelBet";
 import CircularProgress from "@mui/material/CircularProgress";
 import useWebSocket from "@/hooks/useWebSocket";
 import { useActiveAccount } from "thirdweb/react";
-import { formatCurrency, convertEthToUsd } from "@/utils/currencyUtils";
+import { formatCurrency } from "@/utils/currencyUtils";
 
 interface BetActionsProps {
   betDetails: BetDetailsType;
@@ -21,8 +21,7 @@ interface BetActionsProps {
   userIsDecider: boolean;
   betStatusText: string;
   setLocalLoading: (isLoading: boolean) => void;
-  ethToUsdRate: number;
-  sendTransaction: (...args: any[]) => Promise<any>;
+  usdcToUsdRate: number;
 }
 
 const BetActions: React.FC<BetActionsProps> = ({
@@ -36,7 +35,7 @@ const BetActions: React.FC<BetActionsProps> = ({
   userIsDecider,
   betStatusText,
   setLocalLoading,
-  ethToUsdRate,
+  usdcToUsdRate,
 }) => {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const { emitEvent } = useWebSocket();
@@ -54,9 +53,10 @@ const BetActions: React.FC<BetActionsProps> = ({
   const handleCancelBet = useCancelBet();
 
   const calculateFundingAmount = () => {
-    const totalWager = ethers.utils.formatEther(betDetails.totalWager);
+    const totalWager = ethers.utils.formatUnits(betDetails.totalWager, 6); // USDC has 6 decimal places
     const requiredFunding = parseFloat(totalWager) / 2; // Assuming 50/50 split
-    return convertEthToUsd(requiredFunding, ethToUsdRate);
+    const usdcAmount = formatCurrency(requiredFunding, "USD");
+    return `${usdcAmount}`;
   };
 
   const handleAction = async (action: () => Promise<void>) => {

@@ -1,4 +1,3 @@
-// components/Bet/BetCard.tsx
 import React, { useState } from "react";
 import { Collapse, Tooltip } from "@mui/material";
 import { useSendTransaction } from "thirdweb/react";
@@ -17,6 +16,7 @@ import { formatCurrency, convertEthToUsd } from "@/utils/currencyUtils";
 interface BetCardProps {
   bet: BetDetailsType;
   ethToUsdRate: number;
+  usdcToUsdRate: number;
   accountAddress: string;
   fetchBetDetails: (betAddress: string) => Promise<BetDetailsType | null>;
   setMessage: (message: string) => void;
@@ -34,6 +34,7 @@ type DisplayNameType =
 const BetCard: React.FC<BetCardProps> = ({
   bet,
   ethToUsdRate,
+  usdcToUsdRate,
   accountAddress,
   fetchBetDetails,
   setMessage,
@@ -49,9 +50,43 @@ const BetCard: React.FC<BetCardProps> = ({
   const { makerWagerEth, takerWagerEth, makerWagerUsd, takerWagerUsd } =
     useWagerConversion(bet.totalWager, bet.wagerRatio);
 
-  const totalWagerEth = ethers.utils.formatEther(bet.totalWager);
-  const totalWagerUsd = convertEthToUsd(totalWagerEth, ethToUsdRate);
-  const formattedTotalWagerEth = formatCurrency(totalWagerEth, "ETH");
+  const isUsdcBet = bet.wagerCurrency !== ethers.constants.AddressZero;
+
+  const getTotalWager = () => {
+    if (isUsdcBet) {
+      try {
+        const totalWagerUsdc = ethers.utils.formatUnits(bet.totalWager, 6);
+        const totalWagerUsdcNumber = parseFloat(totalWagerUsdc);
+
+        if (isNaN(totalWagerUsdcNumber)) {
+          console.error("Invalid USDC amount:", bet.totalWager);
+          return "Invalid Amount";
+        }
+
+        if (typeof usdcToUsdRate !== "number" || isNaN(usdcToUsdRate)) {
+          console.error("Invalid USDC to USD rate:", usdcToUsdRate);
+          return `$${totalWagerUsdcNumber.toFixed(2)}`;
+        }
+
+        const totalWagerUsd = totalWagerUsdcNumber * usdcToUsdRate;
+        return `$${totalWagerUsd.toFixed(2)}`;
+      } catch (error) {
+        console.error("Error calculating USDC wager:", error);
+        return "Error calculating wager";
+      }
+    } else {
+      try {
+        const totalWagerEth = ethers.utils.formatEther(bet.totalWager);
+        const totalWagerUsd = convertEthToUsd(totalWagerEth, ethToUsdRate);
+        return `${totalWagerUsd} (${formatCurrency(totalWagerEth, "ETH")})`;
+      } catch (error) {
+        console.error("Error calculating ETH wager:", error);
+        return "Error calculating wager";
+      }
+    }
+  };
+
+  const totalWagerDisplay = getTotalWager();
 
   const userIsMaker = accountAddress.toLowerCase() === bet.maker.toLowerCase();
   const userIsTaker = accountAddress.toLowerCase() === bet.taker.toLowerCase();
@@ -162,9 +197,7 @@ const BetCard: React.FC<BetCardProps> = ({
           </div>
           <div className="inline-block mt-2 px-4 py-2 bg-blue-500 text-font rounded-lg">
             <div className="bold text-lg mb-1">Total Pot</div>
-            <div>
-              {totalWagerUsd} USD ({formattedTotalWagerEth})
-            </div>
+            <div>{totalWagerDisplay}</div>
           </div>
           {bet.status === 3 && bet.winner && (
             <div className="mt-2">
@@ -192,7 +225,7 @@ const BetCard: React.FC<BetCardProps> = ({
               userIsDecider={userIsJudge}
               betStatusText={getBetStatusText()}
               setLocalLoading={setLocalLoading}
-              ethToUsdRate={ethToUsdRate}
+              usdcToUsdRate={usdcToUsdRate}
             />
           </div>
           <div className="flex justify-end items-center space-x-4 mt-4">
@@ -200,10 +233,12 @@ const BetCard: React.FC<BetCardProps> = ({
               makerDisplay={getDisplayName(bet.makerDisplay)}
               takerDisplay={getDisplayName(bet.takerDisplay)}
               judgeDisplay={getDisplayName(bet.judgeDisplay)}
-              wagerEth={makerWagerEth}
+              wagerEth={isUsdcBet ? undefined : makerWagerEth}
+              wagerUsdc={isUsdcBet ? makerWagerEth : undefined}
               status={bet.status}
               conditions={bet.conditions}
               ethToUsdRate={ethToUsdRate}
+              usdcToUsdRate={usdcToUsdRate}
               address={bet.address}
             />
             <QRCodeModal url={`https://www.okaybet.fun/bet/${bet.address}`} />
