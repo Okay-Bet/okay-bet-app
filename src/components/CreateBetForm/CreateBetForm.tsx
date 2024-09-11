@@ -83,6 +83,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
     handleExpirationChange,
     expirationBlocks,
     formatExpirationTime,
+    usdcBalance,
   } = useCreateBetForm(contract);
 
   // Dummy function for onProceed
@@ -97,7 +98,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
         onClick={() => setIsFormVisible(!isFormVisible)}
         className="text-lg p-2 bg-primary text-quaternary font-bold font-heading italic rounded w-full mb-3 mt-3"
       >
-        {isFormVisible ? "HIDE NEW BET" : "NEW BET"}
+        {isFormVisible ? "NEW BET" : "NEW BET"}
       </button>
       <Collapse in={isFormVisible}>
         <form
@@ -144,11 +145,17 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
               judgeDisplayName !== judgeAddress ? judgeDisplayName : undefined
             }
           />
+          <WagerInput
+            wagerUSD={wagerUSD}
+            setWagerUSD={setWagerUSD}
+            usdcBalance={usdcBalance}
+          />
           <div className="space-y-4 mx-7">
-            <label className="block mb-2 font-heading">
-              Expiration Time
-            </label>
-            <p className="text-sm text-quaternary"> After {formatExpirationTime(expirationBlocks)} this bet will be refunded if there is no Winner</p>
+            <label className="block mb-2 font-heading">Expiration Time</label>
+            <p className="text-sm text-quaternary">
+              After {formatExpirationTime(expirationBlocks)} this bet will be
+              refunded if there is no Winner
+            </p>
             <WhiteSlider
               value={expirationDays}
               onChange={(_, value) => handleExpirationChange(value as number)}
@@ -163,12 +170,6 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
               valueLabelFormat={(value) => `${value} days`}
             />
           </div>
-          <WagerInput
-            wagerUSD={wagerUSD}
-            setWagerUSD={setWagerUSD}
-            convertUsdToEth={convertUsdToEth}
-            ethToUsdRate={ethToUsdRate}
-          />
           <SubmitButton
             isLoading={isLoading}
             isFunding={isFunding}
@@ -185,7 +186,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             setIsFormVisible(false);
           }
         }}
-        onProceed={dummyProceed}
+        onProceed={() => {}}
         showProceed={false}
       />
     </div>

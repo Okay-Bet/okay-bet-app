@@ -1,4 +1,3 @@
-// components/Bet/BetCard.tsx
 import React, { useState } from "react";
 import { Collapse, Tooltip } from "@mui/material";
 import { useSendTransaction } from "thirdweb/react";
@@ -49,9 +48,30 @@ const BetCard: React.FC<BetCardProps> = ({
   const { makerWagerEth, takerWagerEth, makerWagerUsd, takerWagerUsd } =
     useWagerConversion(bet.totalWager, bet.wagerRatio);
 
-  const totalWagerEth = ethers.utils.formatEther(bet.totalWager);
-  const totalWagerUsd = convertEthToUsd(totalWagerEth, ethToUsdRate);
-  const formattedTotalWagerEth = formatCurrency(totalWagerEth, "ETH");
+  const isUsdcBet = bet.wagerCurrency !== ethers.constants.AddressZero;
+
+  const getTotalWager = () => {
+    if (isUsdcBet) {
+      try {
+        const totalWagerUsdc = ethers.utils.formatUnits(bet.totalWager, 6);
+        return `$${parseFloat(totalWagerUsdc).toFixed(2)}`;
+      } catch (error) {
+        console.error("Error calculating USDC wager:", error);
+        return "Error calculating wager";
+      }
+    } else {
+      try {
+        const totalWagerEth = ethers.utils.formatEther(bet.totalWager);
+        const totalWagerUsd = convertEthToUsd(totalWagerEth, ethToUsdRate);
+        return `${totalWagerUsd} (${formatCurrency(totalWagerEth, "ETH")})`;
+      } catch (error) {
+        console.error("Error calculating ETH wager:", error);
+        return "Error calculating wager";
+      }
+    }
+  };
+
+  const totalWagerDisplay = getTotalWager();
 
   const userIsMaker = accountAddress.toLowerCase() === bet.maker.toLowerCase();
   const userIsTaker = accountAddress.toLowerCase() === bet.taker.toLowerCase();
@@ -162,9 +182,7 @@ const BetCard: React.FC<BetCardProps> = ({
           </div>
           <div className="inline-block mt-2 px-4 py-2 bg-blue-500 text-font rounded-lg">
             <div className="bold text-lg mb-1">Total Pot</div>
-            <div>
-              {totalWagerUsd} USD ({formattedTotalWagerEth})
-            </div>
+            <div>{totalWagerDisplay}</div>
           </div>
           {bet.status === 3 && bet.winner && (
             <div className="mt-2">
@@ -187,12 +205,10 @@ const BetCard: React.FC<BetCardProps> = ({
               setIsAlertOpen={setIsAlertOpen}
               isLoading={localLoading}
               accountAddress={accountAddress}
-              sendTransaction={sendTransaction}
               canFund={canFund}
               userIsDecider={userIsJudge}
               betStatusText={getBetStatusText()}
               setLocalLoading={setLocalLoading}
-              ethToUsdRate={ethToUsdRate}
             />
           </div>
           <div className="flex justify-end items-center space-x-4 mt-4">
@@ -200,7 +216,8 @@ const BetCard: React.FC<BetCardProps> = ({
               makerDisplay={getDisplayName(bet.makerDisplay)}
               takerDisplay={getDisplayName(bet.takerDisplay)}
               judgeDisplay={getDisplayName(bet.judgeDisplay)}
-              wagerEth={makerWagerEth}
+              wager={bet.totalWager}
+              isUsdcBet={isUsdcBet}
               status={bet.status}
               conditions={bet.conditions}
               ethToUsdRate={ethToUsdRate}
