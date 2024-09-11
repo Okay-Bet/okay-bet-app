@@ -21,7 +21,6 @@ interface BetActionsProps {
   userIsDecider: boolean;
   betStatusText: string;
   setLocalLoading: (isLoading: boolean) => void;
-  usdcToUsdRate: number;
 }
 
 const BetActions: React.FC<BetActionsProps> = ({
@@ -35,7 +34,6 @@ const BetActions: React.FC<BetActionsProps> = ({
   userIsDecider,
   betStatusText,
   setLocalLoading,
-  usdcToUsdRate,
 }) => {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const { emitEvent } = useWebSocket();

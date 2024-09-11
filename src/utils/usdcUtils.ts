@@ -53,12 +53,12 @@ export async function transferUSDC(
 ): Promise<void> {
   try {
     const transaction = transferFrom({
-      contract: usdcContractAddress,
+      contract: usdcContractAddress as any,
       from,
       to,
-      amount,
+      amount: amount.toString(),
     });
-    await transaction.execute();
+    await (transaction as any).execute();
   } catch (error) {
     console.error("Error transferring USDC:", error);
     throw error;

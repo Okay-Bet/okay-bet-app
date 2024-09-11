@@ -173,7 +173,7 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
           <SubmitButton
             isLoading={isLoading}
             isFunding={isFunding}
-            canSubmit={canSubmit}
+            canSubmit={isSubmittable}
           />
         </form>
       </Collapse>

@@ -1,12 +1,15 @@
 "use client";
 import React, { useState } from "react";
 import IosShareIcon from "@mui/icons-material/IosShare";
+import { ethers } from "ethers";
+import { formatCurrency, convertEthToUsd } from "@/utils/currencyUtils";
 
 interface ShareButtonProps {
   makerDisplay: string;
   takerDisplay: string;
   judgeDisplay: string;
-  wagerEth: string;
+  wager: string;
+  isUsdcBet: boolean;
   status: number;
   conditions: string;
   ethToUsdRate: number;
@@ -17,7 +20,8 @@ const ShareButton: React.FC<ShareButtonProps> = ({
   makerDisplay,
   takerDisplay,
   judgeDisplay,
-  wagerEth,
+  wager,
+  isUsdcBet,
   status,
   conditions,
   ethToUsdRate,
@@ -30,18 +34,36 @@ const ShareButton: React.FC<ShareButtonProps> = ({
       ? `${address.slice(0, 6)}...${address.slice(-4)}`
       : address || "Unknown";
 
-  const wagerInUsd = (
-    parseFloat(wagerEth || "0") * (ethToUsdRate || 0)
-  ).toFixed(2);
+  const getWagerText = () => {
+    if (isUsdcBet) {
+      try {
+        const wagerUsdc = ethers.utils.formatUnits(wager, 6);
+        return `$${parseFloat(wagerUsdc).toFixed(2)}`;
+      } catch (error) {
+        console.error("Error calculating USDC wager:", error);
+        return "Error calculating wager";
+      }
+    } else {
+      try {
+        const wagerEth = ethers.utils.formatEther(wager);
+        const wagerUsd = convertEthToUsd(wagerEth, ethToUsdRate);
+        return `${wagerUsd} (${formatCurrency(wagerEth, "ETH")})`;
+      } catch (error) {
+        console.error("Error calculating ETH wager:", error);
+        return "Error calculating wager";
+      }
+    }
+  };
+
   const statusText =
-    status === 4 ? "Resolved" : status === 5 ? "Invalidated" : "Open";
+    status === 3 ? "Resolved" : status === 4 ? "Invalidated" : "Open";
 
   const shareText = `Okay Bet Alert
 Conditions: ${conditions || "N/A"}
 Maker: ${shortenAddress(makerDisplay)}
 Taker: ${shortenAddress(takerDisplay)}
 Judge: ${shortenAddress(judgeDisplay)}
-Wager: $${wagerInUsd} USD (${wagerEth || "0"} ETH)
+Wager: ${getWagerText()}
 Status: ${statusText}
 ${address ? `https://www.okaybet.fun/bet/${address}` : "URL not available"}
 `;

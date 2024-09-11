@@ -16,7 +16,6 @@ import { formatCurrency, convertEthToUsd } from "@/utils/currencyUtils";
 interface BetCardProps {
   bet: BetDetailsType;
   ethToUsdRate: number;
-  usdcToUsdRate: number;
   accountAddress: string;
   fetchBetDetails: (betAddress: string) => Promise<BetDetailsType | null>;
   setMessage: (message: string) => void;
@@ -34,7 +33,6 @@ type DisplayNameType =
 const BetCard: React.FC<BetCardProps> = ({
   bet,
   ethToUsdRate,
-  usdcToUsdRate,
   accountAddress,
   fetchBetDetails,
   setMessage,
@@ -56,20 +54,7 @@ const BetCard: React.FC<BetCardProps> = ({
     if (isUsdcBet) {
       try {
         const totalWagerUsdc = ethers.utils.formatUnits(bet.totalWager, 6);
-        const totalWagerUsdcNumber = parseFloat(totalWagerUsdc);
-
-        if (isNaN(totalWagerUsdcNumber)) {
-          console.error("Invalid USDC amount:", bet.totalWager);
-          return "Invalid Amount";
-        }
-
-        if (typeof usdcToUsdRate !== "number" || isNaN(usdcToUsdRate)) {
-          console.error("Invalid USDC to USD rate:", usdcToUsdRate);
-          return `$${totalWagerUsdcNumber.toFixed(2)}`;
-        }
-
-        const totalWagerUsd = totalWagerUsdcNumber * usdcToUsdRate;
-        return `$${totalWagerUsd.toFixed(2)}`;
+        return `$${parseFloat(totalWagerUsdc).toFixed(2)}`;
       } catch (error) {
         console.error("Error calculating USDC wager:", error);
         return "Error calculating wager";
@@ -220,12 +205,10 @@ const BetCard: React.FC<BetCardProps> = ({
               setIsAlertOpen={setIsAlertOpen}
               isLoading={localLoading}
               accountAddress={accountAddress}
-              sendTransaction={sendTransaction}
               canFund={canFund}
               userIsDecider={userIsJudge}
               betStatusText={getBetStatusText()}
               setLocalLoading={setLocalLoading}
-              usdcToUsdRate={usdcToUsdRate}
             />
           </div>
           <div className="flex justify-end items-center space-x-4 mt-4">
@@ -233,12 +216,11 @@ const BetCard: React.FC<BetCardProps> = ({
               makerDisplay={getDisplayName(bet.makerDisplay)}
               takerDisplay={getDisplayName(bet.takerDisplay)}
               judgeDisplay={getDisplayName(bet.judgeDisplay)}
-              wagerEth={isUsdcBet ? undefined : makerWagerEth}
-              wagerUsdc={isUsdcBet ? makerWagerEth : undefined}
+              wager={bet.totalWager}
+              isUsdcBet={isUsdcBet}
               status={bet.status}
               conditions={bet.conditions}
               ethToUsdRate={ethToUsdRate}
-              usdcToUsdRate={usdcToUsdRate}
               address={bet.address}
             />
             <QRCodeModal url={`https://www.okaybet.fun/bet/${bet.address}`} />
