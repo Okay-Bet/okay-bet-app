@@ -28,6 +28,10 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
     judgeAddress,
     wagerUSD,
     setWagerUSD,
+    wagerRatio,
+    setWagerRatio,
+    isTiltedBet,
+    toggleTiltedBet,
     conditions,
     setConditions,
     message,
@@ -112,6 +116,10 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             wagerUSD={wagerUSD}
             setWagerUSD={setWagerUSD}
             usdcBalance={usdcBalance}
+            isTiltedBet={isTiltedBet}
+            toggleTiltedBet={toggleTiltedBet}
+            wagerRatio={wagerRatio}
+            setWagerRatio={setWagerRatio}
           />
           <ExpirationInput
             expirationDays={expirationDays}

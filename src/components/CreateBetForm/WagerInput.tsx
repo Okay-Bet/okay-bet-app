@@ -6,6 +6,10 @@ interface WagerInputProps {
   wagerUSD: string;
   setWagerUSD: (value: string) => void;
   usdcBalance: ethers.BigNumber;
+  isTiltedBet: boolean;
+  toggleTiltedBet: () => void;
+  wagerRatio: number;
+  setWagerRatio: (value: number) => void;
 }
 
 const WhiteSlider = styled(Slider)(({ theme }) => ({
@@ -49,11 +53,11 @@ const WagerInput: React.FC<WagerInputProps> = ({
   wagerUSD,
   setWagerUSD,
   usdcBalance,
+  isTiltedBet,
+  toggleTiltedBet,
+  wagerRatio,
+  setWagerRatio,
 }) => {
-  const [ratio, setRatio] = useState<number>(50);
-  const [isTilted, setIsTilted] = useState<boolean>(false);
-  const [manualRatio, setManualRatio] = useState<string>("50.00");
-
   const handleWagerChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (/^\d*\.?\d{0,6}$/.test(value) || value === "") {
@@ -62,32 +66,20 @@ const WagerInput: React.FC<WagerInputProps> = ({
   };
 
   const handleRatioChange = (event: Event, newValue: number | number[]) => {
-    const newRatio = newValue as number;
-    setRatio(newRatio);
-    setManualRatio(newRatio.toFixed(2));
+    setWagerRatio(newValue as number);
   };
 
   const handleManualRatioChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (/^\d{1,3}(\.\d{0,2})?$/.test(value) && parseFloat(value) <= 100) {
-      setManualRatio(value);
-      setRatio(parseFloat(value));
-    } else if (value === "") {
-      setManualRatio("");
-    }
-  };
-
-  const toggleTiltedBet = () => {
-    setIsTilted(!isTilted);
-    if (!isTilted) {
-      setRatio(50);
-      setManualRatio("50.00");
+      setWagerRatio(parseFloat(value));
     }
   };
 
   const formattedBalance = ethers.utils.formatUnits(usdcBalance, 6);
-  const makerWager = parseFloat(wagerUSD) * (ratio / 100);
-  const takerWager = parseFloat(wagerUSD) * ((100 - ratio) / 100);
+  const makerWager = parseFloat(wagerUSD) * (wagerRatio / 100);
+  const takerWager = parseFloat(wagerUSD) * ((100 - wagerRatio) / 100);
+
 
   return (
     <div className="space-y-4">
@@ -117,7 +109,7 @@ const WagerInput: React.FC<WagerInputProps> = ({
         <label className="font-heading text-white text-xl">Bet Type</label>
         <Tooltip
           title={
-            isTilted
+            isTiltedBet
               ? "Tilted Bet: Allows uneven wager amounts between Maker and Taker"
               : "Even Bet: Both Maker and Taker contribute equally to the pot"
           }
@@ -129,15 +121,15 @@ const WagerInput: React.FC<WagerInputProps> = ({
             size="small"
             className="font-bold px-4 py-1"
           >
-            {isTilted ? "Tilted Bet" : "Even Bet"}
+            {isTiltedBet ? "Tilted Bet" : "Even Bet"}
           </StyledButton>
         </Tooltip>
       </div>
-      {isTilted && (
+      {isTiltedBet && (
         <div className="mt-4">
           <div className="flex items-center space-x-4 mb-2">
             <WhiteSlider
-              value={ratio}
+              value={wagerRatio}
               onChange={handleRatioChange}
               aria-labelledby="wager-ratio-slider"
               valueLabelDisplay="auto"
@@ -146,7 +138,7 @@ const WagerInput: React.FC<WagerInputProps> = ({
               max={99}
             />
             <TextField
-              value={manualRatio}
+              value={wagerRatio.toFixed(2)}
               onChange={handleManualRatioChange}
               variant="outlined"
               size="small"

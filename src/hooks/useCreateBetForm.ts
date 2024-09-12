@@ -24,7 +24,6 @@ export const useCreateBetForm = (contract: any) => {
   const [taker, setTaker] = useState<string>("");
   const [judge, setJudge] = useState<string>("");
   const [wagerUSD, setWagerUSD] = useState<string>("");
-  const [wagerRatio, setWagerRatio] = useState<BigNumber>(BigNumber.from(5000)); // Default to 50% (5000 basis points)
   const [conditions, setConditions] = useState<string>("");
   const [wagerCurrency, setWagerCurrency] = useState<string>(
     ethers.constants.AddressZero
@@ -65,6 +64,9 @@ export const useCreateBetForm = (contract: any) => {
   const [takerAddress, setTakerAddress] = useState<string | null>(null);
   const [judgeAddress, setJudgeAddress] = useState<string | null>(null);
 
+  const [isTiltedBet, setIsTiltedBet] = useState<boolean>(false);
+  const [wagerRatio, setWagerRatio] = useState<number>(50); // Store as percentage
+
   const ethToUsdRate = useFetchEthToUsdRate();
   const { mutateAsync: sendTransaction } = useSendTransaction();
   const account = useActiveAccount();
@@ -76,7 +78,8 @@ export const useCreateBetForm = (contract: any) => {
     setTaker("");
     setJudge("");
     setWagerUSD("");
-    setWagerRatio(BigNumber.from(5000));
+    setWagerRatio(50);
+    setIsTiltedBet(false);
     setConditions("");
     setExpirationBlocks(302400);
     setWagerCurrency(ethers.constants.AddressZero);
@@ -211,44 +214,60 @@ export const useCreateBetForm = (contract: any) => {
     return ethAmount.toFixed(6);
   };
 
+  const handleSetWagerRatio = (value: number) => {
+    setWagerRatio(value);
+  };
+
+  const toggleTiltedBet = () => {
+    setIsTiltedBet(!isTiltedBet);
+    if (!isTiltedBet) {
+      setWagerRatio(50); 
+    }
+  };
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setIsLoading(true);
     setMessage("");
     setIsAlertOpen(false);
-  
+
     try {
       if (!resolvedMaker || !resolvedTaker || !resolvedJudge) {
         throw new Error("Failed to resolve one or more addresses");
       }
-  
+
       const wagerInUsdc = ethers.utils.parseUnits(wagerUSD, 6); // USDC has 6 decimal places
-  
+
+      // Convert wagerRatio to basis points for the contract
+      const wagerRatioBasisPoints = isTiltedBet
+        ? BigNumber.from(Math.round(wagerRatio * 100))
+        : BigNumber.from(5000); // 50% in basis points for even bets
+
       const transaction = createBet({
         contract,
         maker: resolvedMaker,
         taker: resolvedTaker,
         judge: resolvedJudge,
         totalWager: BigInt(wagerInUsdc.toString()),
-        wagerRatio: BigInt(wagerRatio.toNumber()),
+        wagerRatio: BigInt(wagerRatioBasisPoints.toString()),
         conditions,
         expirationBlocks: BigInt(expirationBlocks),
         wagerCurrency: USDC_ADDRESS,
       });
-  
+
       const provider = new ethers.providers.JsonRpcProvider(BASE_MAINNET_RPC);
       const startBlock = await provider.getBlockNumber();
-  
+
       const txResponse = await sendTransaction(transaction);
-  
+
       const receipt = await provider.waitForTransaction(
         txResponse.transactionHash
       );
-  
+
       if (receipt.status === 0) {
         throw new Error("Bet creation transaction failed");
       }
-  
+
       let newBetAddress = "";
       const checkForEvent = async () => {
         const currentBlock = await provider.getBlockNumber();
@@ -276,7 +295,7 @@ export const useCreateBetForm = (contract: any) => {
         }
         return false;
       };
-  
+
       // Wait for the bet creation event
       for (let i = 0; i < 15; i++) {
         await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -284,18 +303,18 @@ export const useCreateBetForm = (contract: any) => {
           break;
         }
       }
-  
+
       if (!newBetAddress) {
         throw new Error("Failed to retrieve the new bet address");
       }
-  
+
       if (
         account &&
         account.address.toLowerCase() === resolvedMaker.toLowerCase()
       ) {
         setIsFunding(true);
         const isBetReady = await waitForBetReady(newBetAddress);
-  
+
         if (isBetReady) {
           await handleFundBet(
             newBetAddress,
@@ -318,7 +337,7 @@ export const useCreateBetForm = (contract: any) => {
         setMessage("Bet created successfully!");
         setIsAlertOpen(true);
       }
-  
+
       resetForm();
     } catch (error: any) {
       console.error("Error creating or funding bet:", error);
@@ -328,9 +347,6 @@ export const useCreateBetForm = (contract: any) => {
       setIsLoading(false);
       setIsFunding(false);
     }
-  };
-  const handleSetWagerRatio = (value: number) => {
-    setWagerRatio(BigNumber.from(value * 100)); // Convert percentage to basis points
   };
 
   const canSubmit =
@@ -345,8 +361,10 @@ export const useCreateBetForm = (contract: any) => {
     setJudge,
     wagerUSD,
     setWagerUSD,
-    wagerRatio: wagerRatio.toNumber() / 100, // Convert basis points to percentage
+    wagerRatio,
     setWagerRatio: handleSetWagerRatio,
+    isTiltedBet,
+    toggleTiltedBet,
     conditions,
     setConditions,
     expirationDays,
