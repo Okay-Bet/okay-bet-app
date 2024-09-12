@@ -1,5 +1,5 @@
-import React from "react";
-import { Slider, styled } from "@mui/material";
+import React, { useState, useEffect } from "react";
+import { Slider, styled, Button, Tooltip } from "@mui/material";
 
 interface ExpirationInputProps {
   expirationDays: number;
@@ -8,9 +8,10 @@ interface ExpirationInputProps {
   expirationBlocks: number;
 }
 
-// Styled Slider component
 const WhiteSlider = styled(Slider)(({ theme }) => ({
   color: "white",
+  width: "90%",
+  margin: "0 auto",
   "& .MuiSlider-thumb": {
     backgroundColor: "white",
   },
@@ -27,17 +28,21 @@ const WhiteSlider = styled(Slider)(({ theme }) => ({
     color: "white",
     fontWeight: "bold",
     fontSize: "0.875rem",
-    '&[data-index="0"]': {
-      transform: "translateX(0%)",
-    },
-    '&[data-index="1"]': {
-      transform: "translateX(-100%)",
-    },
   },
   "& .MuiSlider-valueLabel": {
     backgroundColor: "white",
-    color: theme.palette.primary.main,
+    color: "black",
     fontWeight: "bold",
+  },
+}));
+
+const StyledButton = styled(Button)(({ theme }) => ({
+  color: "white",
+  borderColor: "white",
+  "&:hover": {
+    backgroundColor: "orange",
+    borderColor: "orange",
+    color: "black",
   },
 }));
 
@@ -47,26 +52,64 @@ const ExpirationInput: React.FC<ExpirationInputProps> = ({
   formatExpirationTime,
   expirationBlocks,
 }) => {
+  const [isAdjustable, setIsAdjustable] = useState(false);
+
+  useEffect(() => {
+    if (expirationDays === 0) {
+      handleExpirationChange(30);
+    }
+  }, []);
+
+  const toggleAdjustable = () => {
+    setIsAdjustable(!isAdjustable);
+  };
+
+  const buttonText =
+    expirationDays === 30 ? "1 Month" : `${expirationDays} days`;
+
   return (
-    <div className="space-y-4 mx-7">
-      <label className="block mb-2 font-heading">Expiration Time</label>
-      <p className="text-sm text-quaternary">
-        After {formatExpirationTime(expirationBlocks)} this bet will be
-        refunded if there is no Winner
-      </p>
-      <WhiteSlider
-        value={expirationDays}
-        onChange={(_, value) => handleExpirationChange(value as number)}
-        min={7}
-        max={365}
-        step={1}
-        marks={[
-          { value: 7, label: "1 week" },
-          { value: 365, label: "1 year" },
-        ]}
-        valueLabelDisplay="auto"
-        valueLabelFormat={(value) => `${value} days`}
-      />
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+      <label className="font-heading text-white text-xl">Expiration Time</label>
+      <Tooltip
+          title={
+            isAdjustable
+              ? "Click to hide expiration time adjustment"
+              : "Click to adjust expiration time"
+          }
+          arrow
+        >
+          <StyledButton
+            variant="outlined"
+            onClick={toggleAdjustable}
+            size="small"
+            className="mr-4 font-bold"
+          >
+            {buttonText}
+          </StyledButton>
+        </Tooltip>
+      </div>
+      {isAdjustable && (
+        <div className="mt-4">
+          <p className="text-sm text-quaternary mb-2 mx-5">
+            After {formatExpirationTime(expirationBlocks)} this bet will be
+            refunded if there is no Winner
+          </p>
+          <WhiteSlider
+            value={expirationDays}
+            onChange={(_, value) => handleExpirationChange(value as number)}
+            min={7}
+            max={365}
+            step={1}
+            marks={[
+              { value: 7, label: "1 week" },
+              { value: 365, label: "1 year" },
+            ]}
+            valueLabelDisplay="auto"
+            valueLabelFormat={(value) => `${value} days`}
+          />
+        </div>
+      )}
     </div>
   );
 };

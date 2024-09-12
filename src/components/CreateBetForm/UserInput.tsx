@@ -69,14 +69,14 @@ const UserInput: React.FC<UserInputProps> = ({
       <label htmlFor={label.toLowerCase()} className="block mb-2 font-heading">
         {label}
       </label>
-      <div className="flex items-center bg-white">
+      <div className="flex items-center bg-white text-xl">
         <input
           id={label.toLowerCase()}
           value={value}
           onChange={(e: ChangeEvent<HTMLInputElement>) => setValue(e.target.value)}
           required
           placeholder={`Enter ${label} (username, ENS, or address)`}
-          className="w-full p-2 border text-black"
+          className="w-full p-2 border text-black text-lg"
         />
         {renderValidationIcon()}
       </div>

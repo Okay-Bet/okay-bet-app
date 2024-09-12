@@ -10,6 +10,7 @@ interface WagerInputProps {
 
 const WhiteSlider = styled(Slider)(({ theme }) => ({
   color: "white",
+  width: "100%",
   "& .MuiSlider-thumb": {
     backgroundColor: "white",
   },
@@ -29,7 +30,7 @@ const WhiteSlider = styled(Slider)(({ theme }) => ({
   },
   "& .MuiSlider-valueLabel": {
     backgroundColor: "white",
-    color: theme.palette.primary.main,
+    color: "black",
     fontWeight: "bold",
   },
 }));
@@ -91,7 +92,7 @@ const WagerInput: React.FC<WagerInputProps> = ({
   return (
     <div className="space-y-4">
       <div>
-        <label htmlFor="wager" className="block mb-2 font-heading">
+        <label htmlFor="wager" className="block mb-2 font-heading text-xl">
           Total Pot in USDC
         </label>
         <input
@@ -100,19 +101,20 @@ const WagerInput: React.FC<WagerInputProps> = ({
           value={wagerUSD}
           onChange={handleWagerChange}
           required
-          className="w-full p-2 border text-black"
+          className="w-full text-center p-2 border text-black text-xl"
           placeholder="How much do you want to bet?"
         />
         <p className="text-sm text-quaternary mt-1">
           Your Balance: {formattedBalance} USDC
         </p>
         {parseFloat(wagerUSD) > parseFloat(formattedBalance) && (
-          <p className="text-sm text-red-500 mt-1">
+          <p className="text-sm text-quaternary mt-1">
             Warning: Wager amount exceeds your USDC balance
           </p>
         )}
       </div>
-      <div>
+      <div className="flex justify-between items-center">
+        <label className="font-heading text-white text-xl">Bet Type</label>
         <Tooltip
           title={
             isTilted
@@ -124,53 +126,58 @@ const WagerInput: React.FC<WagerInputProps> = ({
           <StyledButton
             variant="outlined"
             onClick={toggleTiltedBet}
-            className="mb-2 font-bold"
+            size="small"
+            className="font-bold px-4 py-1"
           >
             {isTilted ? "Tilted Bet" : "Even Bet"}
           </StyledButton>
         </Tooltip>
-        {isTilted && (
-          <div className="mt-4">
-            <div className="flex items-center space-x-4 mb-2">
-              <WhiteSlider
-                value={ratio}
-                onChange={handleRatioChange}
-                aria-labelledby="wager-ratio-slider"
-                valueLabelDisplay="auto"
-                step={0.01}
-                min={1}
-                max={100}
-                sx={{ flex: 1 }}
-              />
-              <TextField
-                value={manualRatio}
-                onChange={handleManualRatioChange}
-                variant="outlined"
-                size="small"
-                inputProps={{ min: 0, max: 100, step: 0.01 }}
-                sx={{
-                  width: "80px",
-                  input: { color: "white" },
-                  "& .MuiOutlinedInput-root": {
-                    "& fieldset": { borderColor: "white" },
-                    "&:hover fieldset": { borderColor: "white" },
-                    "&.Mui-focused fieldset": { borderColor: "white" },
-                  },
-                }}
-              />
-              <span className="text-white">%</span>
-            </div>
-            <div className="flex justify-between text-sm text-white">
-              <span>
-                Maker funds ${makerWager.toFixed(2)} USDC
-              </span>
-              <span>
-                Taker funds ${takerWager.toFixed(2)} USDC
-              </span>
-            </div>
-          </div>
-        )}
       </div>
+      {isTilted && (
+        <div className="mt-4">
+          <div className="flex items-center space-x-4 mb-2">
+            <WhiteSlider
+              value={ratio}
+              onChange={handleRatioChange}
+              aria-labelledby="wager-ratio-slider"
+              valueLabelDisplay="auto"
+              step={0.01}
+              min={1}
+              max={99}
+            />
+            <TextField
+              value={manualRatio}
+              onChange={handleManualRatioChange}
+              variant="outlined"
+              size="small"
+              inputProps={{ min: 0, max: 100, step: 0.01 }}
+              sx={{
+                width: "100px",
+                input: {
+                  color: "white",
+                  textAlign: "center",
+                },
+                "& .MuiOutlinedInput-root": {
+                  "& fieldset": { borderColor: "white" },
+                  "&:hover fieldset": { borderColor: "white" },
+                  "&.Mui-focused fieldset": { borderColor: "white" },
+                },
+              }}
+            />
+            <span className="text-white">%</span>
+          </div>
+          {wagerUSD && parseFloat(wagerUSD) > 0 && (
+            <div className="flex justify-between text-sm text-white">
+              <span className="font-bold">
+                Maker funds ${makerWager.toFixed(2)}
+              </span>
+              <span className="font-bold">
+                Taker funds ${takerWager.toFixed(2)}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
