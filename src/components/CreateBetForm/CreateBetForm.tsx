@@ -1,48 +1,16 @@
 import React from "react";
-import { Collapse, Slider, styled } from "@mui/material";
+import { Collapse } from "@mui/material";
 import AlertModal from "../Common/AlertModal";
 import { useCreateBetForm } from "@/hooks/useCreateBetForm";
 import ConditionsInput from "./ConditionsInput";
 import UserInput from "./UserInput";
 import WagerInput from "./WagerInput";
 import SubmitButton from "./SubmitButton";
+import ExpirationInput from "./ExpirationInput";
 
 interface CreateBetFormProps {
   contract: any;
 }
-
-// Styled Slider component
-const WhiteSlider = styled(Slider)(({ theme }) => ({
-  color: "white",
-  "& .MuiSlider-thumb": {
-    backgroundColor: "white",
-  },
-  "& .MuiSlider-track": {
-    backgroundColor: "white",
-  },
-  "& .MuiSlider-rail": {
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
-  },
-  "& .MuiSlider-mark": {
-    backgroundColor: "white",
-  },
-  "& .MuiSlider-markLabel": {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: "0.875rem",
-    '&[data-index="0"]': {
-      transform: "translateX(0%)",
-    },
-    '&[data-index="1"]': {
-      transform: "translateX(-100%)",
-    },
-  },
-  "& .MuiSlider-valueLabel": {
-    backgroundColor: "white",
-    color: theme.palette.primary.main,
-    fontWeight: "bold",
-  },
-}));
 
 const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
   const {
@@ -73,8 +41,6 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
     makerValid,
     takerValid,
     judgeValid,
-    ethToUsdRate,
-    convertUsdToEth,
     makerLoading,
     takerLoading,
     judgeLoading,
@@ -85,9 +51,6 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
     formatExpirationTime,
     usdcBalance,
   } = useCreateBetForm(contract);
-
-  // Dummy function for onProceed
-  const dummyProceed = () => {};
 
   // Convert canSubmit to boolean
   const isSubmittable = Boolean(canSubmit);
@@ -150,26 +113,12 @@ const CreateBetForm: React.FC<CreateBetFormProps> = ({ contract }) => {
             setWagerUSD={setWagerUSD}
             usdcBalance={usdcBalance}
           />
-          <div className="space-y-4 mx-7">
-            <label className="block mb-2 font-heading">Expiration Time</label>
-            <p className="text-sm text-quaternary">
-              After {formatExpirationTime(expirationBlocks)} this bet will be
-              refunded if there is no Winner
-            </p>
-            <WhiteSlider
-              value={expirationDays}
-              onChange={(_, value) => handleExpirationChange(value as number)}
-              min={7}
-              max={365}
-              step={1}
-              marks={[
-                { value: 7, label: "1 week" },
-                { value: 365, label: "1 year" },
-              ]}
-              valueLabelDisplay="auto"
-              valueLabelFormat={(value) => `${value} days`}
-            />
-          </div>
+          <ExpirationInput
+            expirationDays={expirationDays}
+            handleExpirationChange={handleExpirationChange}
+            formatExpirationTime={formatExpirationTime}
+            expirationBlocks={expirationBlocks}
+          />
           <SubmitButton
             isLoading={isLoading}
             isFunding={isFunding}
