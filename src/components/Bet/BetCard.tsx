@@ -43,12 +43,23 @@ const BetCard: React.FC<BetCardProps> = ({
   const [localLoading, setLocalLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isOpen, setIsOpen] = useState(initialOpen);
+
   const { makerWagerEth, takerWagerEth, makerWagerUsd, takerWagerUsd } =
     useWagerConversion(bet.totalWager, bet.wagerRatio);
 
   const isUsdcBet = bet.wagerCurrency !== ethers.constants.AddressZero;
 
-  const displayWagerInfo = () => {
+  const displayWagerInfo = ({
+    makerWagerUsd,
+    takerWagerUsd,
+    makerWagerEth,
+    takerWagerEth,
+  }: {
+    makerWagerUsd: string | number;
+    takerWagerUsd: string | number;
+    makerWagerEth: string | number;
+    takerWagerEth: string | number;
+  }) => {
     if (isUsdcBet) {
       const totalWagerUsdc = ethers.utils.formatUnits(bet.totalWager, 6);
       const makerWagerUsdc = (
@@ -62,26 +73,24 @@ const BetCard: React.FC<BetCardProps> = ({
       return (
         <div className="mt-3 bg-yellow-500 text-black px-2 py-1 rounded shadow-lg  mb-2">
           <span className="inline-block">
-            Maker's Wager: ${makerWagerUsdc}
+            Maker&#39;s Wager: ${makerWagerUsdc}
           </span>
           <br />
           <span className="inline-block">
-            Taker's Wager: ${takerWagerUsdc}
+            Taker&#39;s Wager: ${takerWagerUsdc}
           </span>
         </div>
       );
     } else {
-      const { makerWagerEth, takerWagerEth, makerWagerUsd, takerWagerUsd } =
-        useWagerConversion(bet.totalWager, bet.wagerRatio);
       return (
         <div className="mt-3">
           <span className="bg-yellow-500 text-black px-2 py-1 rounded shadow-lg inline-block mb-2">
-            Maker's Wager: {formatCurrency(makerWagerUsd, "USD")} (
+            Maker&#39;s Wager: {formatCurrency(makerWagerUsd, "USD")} (
             {formatCurrency(makerWagerEth, "ETH")})
           </span>
           <br />
           <span className="bg-yellow-500 text-black px-2 py-1 rounded shadow-lg inline-block">
-            Taker's Wager: {formatCurrency(takerWagerUsd, "USD")} (
+            Taker&#39;s Wager: {formatCurrency(takerWagerUsd, "USD")} (
             {formatCurrency(takerWagerEth, "ETH")})
           </span>
         </div>
@@ -202,14 +211,16 @@ const BetCard: React.FC<BetCardProps> = ({
         className={`p-6 ${bgColorClass} text-font cursor-pointer`}
         onClick={() => !disableCollapse && setIsOpen(!isOpen)}
       >
-        <h4 className="text-2xl font-bold break-words">{bet.conditions}</h4>
+        <h4 className="text-2xl font-bold break-words">
+          {bet.conditions.replace(/'/g, "&#39;")}
+        </h4>
         <div className="mt-3 text-sm text-right">
           {isTiltedBet ? (
             <span className="bg-yellow-500 text-black px-2 py-1 rounded shadow-lg">
               Tilted Bet: {makerPercentage}/{takerPercentage}
             </span>
           ) : (
-            <span className="bg-blue-500 text-white px-2 py-1 shadow-lg rounded ">
+            <span className="bg-blue-500 text-white px-2 py-1 shadow-lg rounded">
               Even Bet
             </span>
           )}
@@ -238,7 +249,13 @@ const BetCard: React.FC<BetCardProps> = ({
             <div className="bold text-lg mb-1">Total Pot</div>
             <div>{totalWagerDisplay}</div>
           </div>
-          {isTiltedBet && displayWagerInfo()}
+          {isTiltedBet &&
+            displayWagerInfo({
+              makerWagerUsd,
+              takerWagerUsd,
+              makerWagerEth,
+              takerWagerEth,
+            })}
           {bet.status === 3 && bet.winner && (
             <div className="mt-2">
               <span>

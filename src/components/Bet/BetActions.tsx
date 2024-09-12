@@ -52,7 +52,25 @@ const BetActions: React.FC<BetActionsProps> = ({
 
   const calculateFundingAmount = () => {
     const totalWager = ethers.utils.formatUnits(betDetails.totalWager, 6); // USDC has 6 decimal places
-    const requiredFunding = parseFloat(totalWager) / 2; // Assuming 50/50 split
+    const makerPercentage = betDetails.wagerRatio / 10000; // Convert basis points to percentage
+    const takerPercentage = 1 - makerPercentage;
+
+    // Determine if the user is the Maker or the Taker to calculate their specific funding amount
+    const userIsMaker =
+      accountAddress.toLowerCase() === betDetails.maker.toLowerCase();
+    const userIsTaker =
+      accountAddress.toLowerCase() === betDetails.taker.toLowerCase();
+
+    let requiredFunding;
+
+    if (userIsMaker) {
+      requiredFunding = parseFloat(totalWager) * makerPercentage;
+    } else if (userIsTaker) {
+      requiredFunding = parseFloat(totalWager) * takerPercentage;
+    } else {
+      requiredFunding = parseFloat(totalWager) / 2; // Default to 50/50 split if neither Maker nor Taker
+    }
+
     const usdcAmount = formatCurrency(requiredFunding, "USD");
     return `${usdcAmount}`;
   };
