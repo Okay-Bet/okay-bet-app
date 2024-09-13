@@ -70,7 +70,7 @@ const ExpirationInput: React.FC<ExpirationInputProps> = ({
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-      <label className="font-heading text-white text-xl">Expiration Time</label>
+      <label className="font-heading text-white text-xl">Expiration</label>
       <Tooltip
           title={
             isAdjustable

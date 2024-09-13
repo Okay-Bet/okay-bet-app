@@ -1,4 +1,3 @@
-// components/CreateBetForm/UserInput.tsx
 import React, { ChangeEvent } from "react";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
@@ -59,7 +58,9 @@ const UserInput: React.FC<UserInputProps> = ({
     if (resolvedUsername && resolvedUsername !== value) {
       return <p className="text-xs mt-1">Username: {resolvedUsername}</p>;
     } else if (resolvedAddress && resolvedAddress !== value) {
-      return <p className="text-xs mt-1 text-white">Address: {resolvedAddress}</p>;
+      return (
+        <p className="text-xs mt-1 text-white">Address: {resolvedAddress}</p>
+      );
     }
     return null;
   };
@@ -73,16 +74,18 @@ const UserInput: React.FC<UserInputProps> = ({
         <input
           id={label.toLowerCase()}
           value={value}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => setValue(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+            setValue(e.target.value)
+          }
           required
-          placeholder={`Enter ${label} (username, ENS, or address)`}
-          className="w-full p-2 border text-black text-lg"
+          placeholder={`${label} username/address/ENS`}
+          className="w-full p-2 border text-black text-base sm:text-lg"
         />
         {renderValidationIcon()}
       </div>
       {renderAdditionalInfo()}
       {warning && (
-        <p className="text-font flex items-center mt-2">
+        <p className="text-font flex items-center mt-2 text-sm">
           <WarningIcon fontSize="small" className="mr-1" />
           {warning}
         </p>

@@ -6,7 +6,10 @@ interface ConditionsInputProps {
   setConditions: (value: string) => void;
 }
 
-const ConditionsInput: React.FC<ConditionsInputProps> = ({ conditions, setConditions }) => {
+const ConditionsInput: React.FC<ConditionsInputProps> = ({
+  conditions,
+  setConditions,
+}) => {
   return (
     <div>
       <label htmlFor="conditions" className="block mb-2 font-heading text-xl">
@@ -19,9 +22,9 @@ const ConditionsInput: React.FC<ConditionsInputProps> = ({ conditions, setCondit
           setConditions(e.target.value)
         }
         required
-        className="w-full p-2 border text-black text-lg"
+        className="w-full p-2 border text-black text-base sm:text-lg"
         rows={4}
-        placeholder="Describe the conditions of the bet"
+        placeholder="Describe the bet conditions"
       />
     </div>
   );

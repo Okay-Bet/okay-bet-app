@@ -1,4 +1,4 @@
-import React, { ChangeEvent, useState } from "react";
+import React, { ChangeEvent } from "react";
 import { ethers } from "ethers";
 import { Slider, styled, Button, TextField, Tooltip } from "@mui/material";
 
@@ -80,7 +80,6 @@ const WagerInput: React.FC<WagerInputProps> = ({
   const makerWager = parseFloat(wagerUSD) * (wagerRatio / 100);
   const takerWager = parseFloat(wagerUSD) * ((100 - wagerRatio) / 100);
 
-
   return (
     <div className="space-y-4">
       <div>
@@ -93,20 +92,22 @@ const WagerInput: React.FC<WagerInputProps> = ({
           value={wagerUSD}
           onChange={handleWagerChange}
           required
-          className="w-full text-center p-2 border text-black text-xl"
-          placeholder="How much do you want to bet?"
+          className="w-full text-center p-2 border text-black text-base sm:text-xl"
+          placeholder="Bet amount"
         />
         <p className="text-sm text-quaternary mt-1">
           Your Balance: {formattedBalance} USDC
         </p>
         {parseFloat(wagerUSD) > parseFloat(formattedBalance) && (
           <p className="text-sm text-quaternary mt-1">
-            Warning: Wager amount exceeds your USDC balance
+            Warning: Wager exceeds balance
           </p>
         )}
       </div>
       <div className="flex justify-between items-center">
-        <label className="font-heading text-white text-xl">Bet Type</label>
+        <label className="font-heading text-white text-base sm:text-xl">
+          Bet Type
+        </label>
         <Tooltip
           title={
             isTiltedBet
@@ -119,7 +120,7 @@ const WagerInput: React.FC<WagerInputProps> = ({
             variant="outlined"
             onClick={toggleTiltedBet}
             size="small"
-            className="font-bold px-4 py-1"
+            className="font-bold px-2 py-1 sm:px-4 sm:py-1 text-sm sm:text-base"
           >
             {isTiltedBet ? "Tilted Bet" : "Even Bet"}
           </StyledButton>
@@ -127,7 +128,7 @@ const WagerInput: React.FC<WagerInputProps> = ({
       </div>
       {isTiltedBet && (
         <div className="mt-4">
-          <div className="flex items-center space-x-4 mb-2">
+          <div className="flex items-center space-x-2 sm:space-x-4 mb-2">
             <WhiteSlider
               value={wagerRatio}
               onChange={handleRatioChange}
@@ -136,18 +137,30 @@ const WagerInput: React.FC<WagerInputProps> = ({
               step={0.01}
               min={1}
               max={99}
+              className="flex-grow"
             />
             <TextField
               value={wagerRatio.toFixed(2)}
               onChange={handleManualRatioChange}
               variant="outlined"
               size="small"
-              inputProps={{ min: 0, max: 100, step: 0.01 }}
+              inputProps={{
+                min: 0,
+                max: 100,
+                step: 0.01,
+                style: { textAlign: "center", padding: "4px" },
+              }}
               sx={{
-                width: "100px",
+                width: "70px",
+                "@media (min-width: 640px)": {
+                  width: "100px",
+                },
                 input: {
                   color: "white",
-                  textAlign: "center",
+                  fontSize: "0.875rem",
+                  "@media (min-width: 640px)": {
+                    fontSize: "1rem",
+                  },
                 },
                 "& .MuiOutlinedInput-root": {
                   "& fieldset": { borderColor: "white" },
@@ -156,16 +169,12 @@ const WagerInput: React.FC<WagerInputProps> = ({
                 },
               }}
             />
-            <span className="text-white">%</span>
+            <span className="text-white text-sm sm:text-base">%</span>
           </div>
           {wagerUSD && parseFloat(wagerUSD) > 0 && (
-            <div className="flex justify-between text-sm text-white">
-              <span className="font-bold">
-                Maker funds ${makerWager.toFixed(2)}
-              </span>
-              <span className="font-bold">
-                Taker funds ${takerWager.toFixed(2)}
-              </span>
+            <div className="flex justify-between text-xs sm:text-sm text-white">
+              <span className="font-bold">Maker: ${makerWager.toFixed(2)}</span>
+              <span className="font-bold">Taker: ${takerWager.toFixed(2)}</span>
             </div>
           )}
         </div>
