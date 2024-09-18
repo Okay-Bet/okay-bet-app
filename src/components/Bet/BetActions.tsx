@@ -253,7 +253,7 @@ const getAvailableActions = (
 
   userRoles.forEach((role) => {
     if ((role === "maker" || role === "taker") && canFund) {
-      if (betStatus === 0 || betStatus === 1 || betStatus === 2) {
+      if (betStatus === 0 || betStatus === 1 ) {
         actions.add("fundBet");
       }
     }
