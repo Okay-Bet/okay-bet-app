@@ -10,7 +10,6 @@ export default function AlertModal({
   if (!isOpen) return null;
 
   let displayMessage = message;
-
   // Handle boolean messages
   if (typeof message === "boolean") {
     console.warn(
@@ -26,11 +25,10 @@ export default function AlertModal({
 
   const trimmedMessage =
     typeof displayMessage === "string" ? displayMessage.trim() : displayMessage;
-
   if (!trimmedMessage) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[9999]">
       <div className="bg-tertiary text-font p-8 sm:p-10 rounded-lg opacity-90 shadow-lg w-3/4 sm:w-1/2 lg:w-1/3">
         <p className="mb-4 font-heading text-center">{trimmedMessage}</p>
         <div className="flex justify-center space-x-4">
