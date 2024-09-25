@@ -15,6 +15,10 @@ import { format, parseISO } from "date-fns";
 
 const formatXAxis = (tickItem: string) => format(parseISO(tickItem), "MMM dd");
 
+const formatUsd = (value: number) => {
+  return isNaN(value) ? "N/A" : `$${value.toFixed(2)}`;
+};
+
 export const TotalBetsChart: React.FC<{
   data: { date: string; totalBets: number }[];
 }> = ({ data }) => (
@@ -60,7 +64,7 @@ export const CumulativeUniqueBettorsChart: React.FC<{
 );
 
 export const CumulativeWagersChart: React.FC<{
-  data: { date: string; totalWagered: string }[];
+  data: { date: string; totalWageredUsd: number }[];
 }> = ({ data }) => (
   <ResponsiveContainer width="100%" height={300}>
     <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
@@ -69,17 +73,14 @@ export const CumulativeWagersChart: React.FC<{
       <YAxis />
       <Tooltip
         labelFormatter={(label) => format(parseISO(label), "MMM dd, yyyy")}
-        formatter={(value: string) => [
-          (BigInt(value) / BigInt(1e18)).toString(),
-          "ETH",
-        ]}
+        formatter={(value: number) => [formatUsd(value), "USD"]}
       />
       <Legend />
       <Line
         type="monotone"
-        dataKey="totalWagered"
+        dataKey="totalWageredUsd"
         stroke="#ffc658"
-        name="Cumulative Wagers (ETH)"
+        name="Cumulative Wagers (USD)"
       />
     </LineChart>
   </ResponsiveContainer>
