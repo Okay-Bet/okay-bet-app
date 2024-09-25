@@ -12,7 +12,7 @@ const SUBGRAPH_URL =
 
 const GET_ANALYTICS_DATA = gql`
   query GetAnalyticsData {
-    bets(where: { status_gt: 0 }) {
+    bets(where: { status_gt: 0 }, orderBy: createdAt, orderDirection: asc) {
       id
       maker
       taker
@@ -95,8 +95,8 @@ export const useAnalyticsData = (): {
       >();
 
       bets.forEach((bet) => {
-        uniqueWallets.add(bet.maker);
-        uniqueWallets.add(bet.taker);
+        uniqueWallets.add(bet.maker.toLowerCase());
+        uniqueWallets.add(bet.taker.toLowerCase());
 
         let wagerAmountUsd = 0;
         if (bet.wagerCurrency.toLowerCase() === ETH_ADDRESS.toLowerCase()) {
@@ -126,31 +126,33 @@ export const useAnalyticsData = (): {
             totalWageredUsd: 0,
           };
           dayData.totalBets += 1;
-          dayData.uniqueBettors.add(bet.maker);
-          dayData.uniqueBettors.add(bet.taker);
+          dayData.uniqueBettors.add(bet.maker.toLowerCase());
+          dayData.uniqueBettors.add(bet.taker.toLowerCase());
           dayData.totalWageredUsd += wagerAmountUsd;
           timeSeriesMap.set(date, dayData);
         }
       });
 
-      let cumulativeUniqueBettors = 0;
-      let cumulativeTotalWageredUsd = 0;
-
+      const allUniqueBettors = new Set<string>();
       const timeSeriesBets: { date: string; totalBets: number }[] = [];
       const timeSeriesUniqueBettors: { date: string; uniqueBettors: number }[] =
         [];
       const timeSeriesWagersUsd: { date: string; totalWageredUsd: number }[] =
         [];
 
+      let cumulativeTotalBets = 0;
+      let cumulativeTotalWageredUsd = 0;
+
       Array.from(timeSeriesMap.entries())
         .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
         .forEach(([date, data]) => {
-          timeSeriesBets.push({ date, totalBets: data.totalBets });
+          cumulativeTotalBets += data.totalBets;
+          timeSeriesBets.push({ date, totalBets: cumulativeTotalBets });
 
-          cumulativeUniqueBettors += data.uniqueBettors.size;
+          data.uniqueBettors.forEach((bettor) => allUniqueBettors.add(bettor));
           timeSeriesUniqueBettors.push({
             date,
-            uniqueBettors: cumulativeUniqueBettors,
+            uniqueBettors: allUniqueBettors.size,
           });
 
           cumulativeTotalWageredUsd += data.totalWageredUsd;
