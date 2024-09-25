@@ -25,7 +25,6 @@ const commonChartProps = {
 };
 
 const commonAreaProps = {
-  type: "monotone",
   strokeWidth: 2,
   fillOpacity: 0.3,
 };
@@ -58,6 +57,7 @@ export const TotalBetsChart: React.FC<{
         content={<CustomTooltip valueFormatter={(value: number) => value} />}
       />
       <Area
+        type="monotone"
         dataKey="totalBets"
         stroke="#8B5CF6"
         fill="#8B5CF6"
@@ -80,6 +80,7 @@ export const CumulativeUniqueBettorsChart: React.FC<{
         content={<CustomTooltip valueFormatter={(value: number) => value} />}
       />
       <Area
+        type="monotone"
         dataKey="uniqueBettors"
         stroke="#EC4899"
         fill="#EC4899"
@@ -100,6 +101,7 @@ export const CumulativeWagersChart: React.FC<{
       <YAxis stroke="#9CA3AF" />
       <Tooltip content={<CustomTooltip valueFormatter={formatUsd} />} />
       <Area
+        type="monotone"
         dataKey="totalWageredUsd"
         stroke="#10B981"
         fill="#10B981"
