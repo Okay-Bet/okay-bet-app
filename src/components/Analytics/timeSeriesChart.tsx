@@ -2,13 +2,12 @@
 
 import React from "react";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from "recharts";
 import { format, parseISO } from "date-fns";
@@ -19,69 +18,94 @@ const formatUsd = (value: number) => {
   return isNaN(value) ? "N/A" : `$${value.toFixed(2)}`;
 };
 
+const commonChartProps = {
+  width: "100%",
+  height: 300,
+  margin: { top: 10, right: 30, left: 0, bottom: 0 },
+};
+
+const commonAreaProps = {
+  type: "monotone",
+  strokeWidth: 2,
+  fillOpacity: 0.3,
+};
+
+const CustomTooltip = ({ active, payload, label, valueFormatter }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-gray-800 border border-gray-700 p-4 rounded shadow-lg">
+        <p className="text-red-700">
+          {format(parseISO(label), "MMMM d, yyyy")}
+        </p>
+        <p className="text-orange-500 font-bold">{`${
+          payload[0].name
+        }: ${valueFormatter(payload[0].value)}`}</p>
+      </div>
+    );
+  }
+  return null;
+};
+
 export const TotalBetsChart: React.FC<{
   data: { date: string; totalBets: number }[];
 }> = ({ data }) => (
-  <ResponsiveContainer width="100%" height={300}>
-    <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-      <CartesianGrid strokeDasharray="3 3" />
-      <XAxis dataKey="date" tickFormatter={formatXAxis} />
-      <YAxis />
+  <ResponsiveContainer {...commonChartProps}>
+    <AreaChart data={data}>
+      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+      <XAxis dataKey="date" tickFormatter={formatXAxis} stroke="#9CA3AF" />
+      <YAxis stroke="#9CA3AF" />
       <Tooltip
-        labelFormatter={(label) => format(parseISO(label), "MMM dd, yyyy")}
+        content={<CustomTooltip valueFormatter={(value: number) => value} />}
       />
-      <Legend />
-      <Line
-        type="monotone"
+      <Area
         dataKey="totalBets"
-        stroke="#8884d8"
+        stroke="#8B5CF6"
+        fill="#8B5CF6"
         name="Total Bets"
+        {...commonAreaProps}
       />
-    </LineChart>
+    </AreaChart>
   </ResponsiveContainer>
 );
 
 export const CumulativeUniqueBettorsChart: React.FC<{
   data: { date: string; uniqueBettors: number }[];
 }> = ({ data }) => (
-  <ResponsiveContainer width="100%" height={300}>
-    <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-      <CartesianGrid strokeDasharray="3 3" />
-      <XAxis dataKey="date" tickFormatter={formatXAxis} />
-      <YAxis />
+  <ResponsiveContainer {...commonChartProps}>
+    <AreaChart data={data}>
+      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+      <XAxis dataKey="date" tickFormatter={formatXAxis} stroke="#9CA3AF" />
+      <YAxis stroke="#9CA3AF" />
       <Tooltip
-        labelFormatter={(label) => format(parseISO(label), "MMM dd, yyyy")}
+        content={<CustomTooltip valueFormatter={(value: number) => value} />}
       />
-      <Legend />
-      <Line
-        type="monotone"
+      <Area
         dataKey="uniqueBettors"
-        stroke="#82ca9d"
-        name="Cumulative Unique Bettors"
+        stroke="#EC4899"
+        fill="#EC4899"
+        name="Unique Bettors"
+        {...commonAreaProps}
       />
-    </LineChart>
+    </AreaChart>
   </ResponsiveContainer>
 );
 
 export const CumulativeWagersChart: React.FC<{
   data: { date: string; totalWageredUsd: number }[];
 }> = ({ data }) => (
-  <ResponsiveContainer width="100%" height={300}>
-    <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-      <CartesianGrid strokeDasharray="3 3" />
-      <XAxis dataKey="date" tickFormatter={formatXAxis} />
-      <YAxis />
-      <Tooltip
-        labelFormatter={(label) => format(parseISO(label), "MMM dd, yyyy")}
-        formatter={(value: number) => [formatUsd(value), "USD"]}
-      />
-      <Legend />
-      <Line
-        type="monotone"
+  <ResponsiveContainer {...commonChartProps}>
+    <AreaChart data={data}>
+      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+      <XAxis dataKey="date" tickFormatter={formatXAxis} stroke="#9CA3AF" />
+      <YAxis stroke="#9CA3AF" />
+      <Tooltip content={<CustomTooltip valueFormatter={formatUsd} />} />
+      <Area
         dataKey="totalWageredUsd"
-        stroke="#ffc658"
-        name="Cumulative Wagers (USD)"
+        stroke="#10B981"
+        fill="#10B981"
+        name="Total Wagered (USD)"
+        {...commonAreaProps}
       />
-    </LineChart>
+    </AreaChart>
   </ResponsiveContainer>
 );
