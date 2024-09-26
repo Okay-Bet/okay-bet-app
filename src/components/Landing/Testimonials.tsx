@@ -1,7 +1,7 @@
 import React from "react";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
-import { FaTwitter, FaGithub, FaDiscord, FaBook } from "react-icons/fa";
+import { FaTwitter, FaGithub, FaDiscord, FaBook, FaTelegram } from "react-icons/fa";
 
 const partners = [
   {
@@ -11,6 +11,10 @@ const partners = [
   {
     icon: <FaTwitter style={{ fontSize: 40 }} />,
     link: "https://x.com/okay_bet_app",
+  },
+  {
+    icon: <FaTelegram style={{ fontSize: 40 }} />,
+    link: "https://t.me/+FnKD76WKUxxjYmQx",
   },
   {
     icon: <FaGithub style={{ fontSize: 40 }} />,
