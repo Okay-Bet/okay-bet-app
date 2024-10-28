@@ -15,6 +15,7 @@ import { useBetList } from "@/hooks/useBetList";
 import { contract } from "./client";
 import BetHistory from "@/components/Metrics/BetHistory";
 import Testimonials from "@/components/Landing/Testimonials";
+import PredictionMarkets from "@/components/Polymarket/PredictionMarkets";
 // import ContractEvents from './events';
 // import dynamic from 'next/dynamic';
 
@@ -79,6 +80,13 @@ function HomeContent() {
                 {/* <ContractEvents /> */}
               </div>
             )}
+            <PredictionMarkets
+              searchParams={{
+                tag: "politics",
+                // keyword: "win",
+                active: true,
+              }}
+            />
           </div>
         ) : (
           <Pitch />
