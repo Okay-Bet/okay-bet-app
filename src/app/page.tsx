@@ -1,6 +1,6 @@
 // app/page.tsx
 "use client";
-import React, { Suspense } from "react";
+import React, { act, Suspense } from "react";
 import { useActiveAccount } from "thirdweb/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Image from "next/image";
@@ -82,9 +82,9 @@ function HomeContent() {
             )}
             <PredictionMarkets
               searchParams={{
-                tag: "politics",
-                // keyword: "win",
+                limit: 50,
                 active: true,
+                liquidity_num_min: 1000,
               }}
             />
           </div>
