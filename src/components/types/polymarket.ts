@@ -8,6 +8,7 @@ export type MarketParams = {
   volume_num_min?: number;
 };
 
+
 export interface PredictionMarketsProps {
   searchParams?: MarketParams;
 }
