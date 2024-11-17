@@ -1,9 +1,22 @@
+// MarketCard.tsx
 import React from "react";
-import { MarketCardProps } from "@/components/types/polymarket";
+import { useMarket } from "../../hooks/useMarket";
+import { LoadingState, ErrorState } from "./LoadingState";
 
-export const MarketCard: React.FC<MarketCardProps> = ({ market }) => {
-  // Debug log to see what data we're receiving
-  console.log("Market Data:", market);
+interface MarketCardProps {
+  eventId: string;
+  marketIndex: number;
+}
+
+export const MarketCard: React.FC<MarketCardProps> = ({
+  eventId,
+  marketIndex,
+}) => {
+  const { market, loading, error } = useMarket(eventId, marketIndex);
+
+  if (loading) return <LoadingState />;
+  if (error) return <ErrorState message={error} />;
+  if (!market) return null;
 
   return (
     <div className="mb-6 relative">
@@ -43,7 +56,6 @@ export const MarketCard: React.FC<MarketCardProps> = ({ market }) => {
               </div>
             </div>
           </div>
-
           <div className="p-4 bg-tertiary rounded-lg">
             <div className="text-sm text-gray-300 mb-2">Market Stats</div>
             <div className="grid grid-cols-2 gap-4">
