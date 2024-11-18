@@ -1,7 +1,16 @@
-// MarketCard.tsx
 import React, { useState } from "react";
 import { useMarket } from "../../hooks/useMarket";
 import { LoadingState, ErrorState } from "./LoadingState";
+import { useBetSlip } from "@/app/context/BetSlipContext";
+
+const decimalToMoneyline = (decimal: number): string => {
+  if (decimal >= 1) return "0";
+  if (decimal <= 0.5) {
+    return `+${Math.round(100 / decimal - 100)}`;
+  } else {
+    return `-${Math.round(100 / (1 - decimal) - 100)}`;
+  }
+};
 
 interface MarketCardProps {
   eventId: string;
@@ -19,6 +28,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
   const [activeMarketIndex, setActiveMarketIndex] = useState(marketIndices[0]);
   const [showDetails, setShowDetails] = useState(false);
   const [showMoneyline, setShowMoneyline] = useState(false);
+  const { addBet } = useBetSlip();
 
   const { market, loading, error } = useMarket(eventId, activeMarketIndex);
 
@@ -29,9 +39,16 @@ export const MarketCard: React.FC<MarketCardProps> = ({
   const yesPrice = market.bestAsk || 0;
   const noPrice = 1 - yesPrice;
 
+  const renderPrice = (price: number) => {
+    if (showMoneyline) {
+      return decimalToMoneyline(price);
+    }
+    return `${(price * 100).toFixed(1)}%`;
+  };
+
   return (
     <div className="bg-demo rounded-xl shadow-lg overflow-hidden">
-      {/* Header */}
+      {/* Header section remains the same */}
       <div className="p-4 border-b border-gray-700 flex justify-between items-center">
         <div className="flex-1">
           <h2 className="text-xl font-semibold text-primary">{eventTitle}</h2>
@@ -40,7 +57,13 @@ export const MarketCard: React.FC<MarketCardProps> = ({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span
+          <button
+            onClick={() => setShowMoneyline(!showMoneyline)}
+            className="px-2.5 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-full transition-colors"
+          >
+            {showMoneyline ? "Show %" : "Show ML"}
+          </button>
+          {/* <span
             className={`px-2.5 py-1 rounded-full text-xs font-medium ${
               market.active
                 ? "bg-green-100 text-green-800"
@@ -48,13 +71,13 @@ export const MarketCard: React.FC<MarketCardProps> = ({
             }`}
           >
             {market.active ? "Active" : "Closed"}
-          </span>
+          </span> */}
         </div>
       </div>
 
-      {/* Market Tabs */}
+      {/* Market Tabs section remains the same */}
       <div className="border-b border-gray-700 px-4">
-        <div className="flex -mb-px">
+        <div className="flex mb-px">
           {marketIndices.map((index, i) => (
             <button
               key={index}
@@ -62,7 +85,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
               className={`py-2 px-4 text-sm font-medium ${
                 activeMarketIndex === index
                   ? "border-b-2 border-blue-500 text-blue-500"
-                  : "text-gray-400 hover:text-gray-300"
+                  : "text-gray-800 hover:text-gray-500"
               }`}
             >
               {marketSubTitles[i]}
@@ -79,26 +102,54 @@ export const MarketCard: React.FC<MarketCardProps> = ({
           </h3>
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-tertiary p-3 rounded-lg">
-              <div className="text-sm text-gray-400 mb-1">Yes</div>
+              <div className="text-sm text-gray-800 mb-1">Yes</div>
               <div className="text-lg font-bold text-font">
-                {showMoneyline
-                  ? `${(yesPrice * 100).toFixed(1)}%`
-                  : `$${yesPrice.toFixed(3)}`}
+                {renderPrice(yesPrice)}
               </div>
             </div>
             <div className="bg-tertiary p-3 rounded-lg">
-              <div className="text-sm text-gray-400 mb-1">No</div>
+              <div className="text-sm text-gray-800 mb-1">No</div>
               <div className="text-lg font-bold text-font">
-                {showMoneyline
-                  ? `${(noPrice * 100).toFixed(1)}%`
-                  : `$${noPrice.toFixed(3)}`}
+                {renderPrice(noPrice)}
               </div>
             </div>
           </div>
         </div>
 
+        {/* Actions */}
+        <div className="grid grid-cols-2 gap-3 mb-2">
+          <button
+            onClick={() =>
+              addBet({
+                marketId: market.condition_id,
+                eventTitle: eventTitle,
+                marketQuestion: market.question,
+                position: "YES",
+                price: yesPrice,
+              })
+            }
+            className="py-2 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+          >
+            Buy Yes
+          </button>
+          <button
+            onClick={() =>
+              addBet({
+                marketId: market.condition_id,
+                eventTitle: eventTitle,
+                marketQuestion: market.question,
+                position: "NO",
+                price: noPrice,
+              })
+            }
+            className="py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+          >
+            Buy No
+          </button>
+        </div>
+
         {/* Market Stats */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="grid grid-cols-2 gap-2 mb-4">
           {[
             {
               label: "Volume",
@@ -108,31 +159,20 @@ export const MarketCard: React.FC<MarketCardProps> = ({
               label: "Liquidity",
               value: `$${market.liquidity_num.toLocaleString()}`,
             },
-            { label: "ID", value: market.condition_id.slice(0, 6) },
           ].map((stat, i) => (
             <div key={i} className="bg-tertiary p-2 rounded-lg">
-              <div className="text-xs text-gray-400">{stat.label}</div>
-              <div className="text-sm font-medium text-font truncate">
+              <div className="text-xs text-primary">{stat.label}</div>
+              <div className="text-sm bold font-medium text-font truncate">
                 {stat.value}
               </div>
             </div>
           ))}
         </div>
 
-        {/* Actions */}
-        <div className="grid grid-cols-2 gap-3">
-          <button className="py-2 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
-            Buy Yes
-          </button>
-          <button className="py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors">
-            Buy No
-          </button>
-        </div>
-
         {/* Details Toggle */}
         <button
           onClick={() => setShowDetails(!showDetails)}
-          className="w-full mt-4 flex items-center justify-center gap-2 text-gray-400 hover:text-gray-300 text-sm"
+          className="w-full mt-4 flex items-center justify-center gap-2 text-primary hover:text-gray-500 text-sm"
         >
           {showDetails ? "Hide" : "Show"} Details
           <svg
@@ -152,16 +192,25 @@ export const MarketCard: React.FC<MarketCardProps> = ({
 
         {showDetails && (
           <div className="mt-4 p-4 bg-tertiary rounded-lg text-sm text-gray-300">
-            <p className="mb-3">
-              This market tracks the outcome of the Pennsylvania Senate
-              election.
-            </p>
+            <p className="mb-3">{market.description}</p>
             <div className="space-y-2">
               <div className="text-xs text-gray-400">Resolution Rules</div>
               <p>
-                Market resolves based on Associated Press, Fox News, and NBC
-                confirmation.
+                {market.resolutionSource ||
+                  "Market resolves based on official sources."}
               </p>
+              <div className="mt-4 pt-4 border-t border-gray-700">
+                <div className="text-xs text-gray-400 mb-2">
+                  Trading Information
+                </div>
+                <ul className="space-y-1">
+                  <li>• Total Volume: ${market.volume_num.toLocaleString()}</li>
+                  <li>
+                    • Total Liquidity: ${market.liquidity_num.toLocaleString()}
+                  </li>
+                  <li>• Market ID: {market.condition_id}</li>
+                </ul>
+              </div>
             </div>
           </div>
         )}

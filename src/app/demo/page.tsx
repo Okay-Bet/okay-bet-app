@@ -4,6 +4,8 @@ import PredictionMarkets from "@/components/Polymarket/PredictionMarkets";
 import Image from "next/image";
 import logo from "@public/okay_bet.png";
 import ConnectWallet from "@/components/User/ConnectWallet";
+import { BetSlipProvider } from "../context/BetSlipContext";
+import { BetSlip } from "../../components/Bet/BetSlip";
 
 export default function DemoPage() {
   return (
@@ -27,6 +29,7 @@ export default function DemoPage() {
         </div>
 
         <main className="mt-8">
+          <BetSlipProvider >
           <PredictionMarkets
             searchParams={{
               limit: 50,
@@ -34,6 +37,9 @@ export default function DemoPage() {
               liquidity_num_min: 1000,
             }}
           />
+          <BetSlip />
+          </BetSlipProvider>
+
         </main>
       </div>
     </div>
