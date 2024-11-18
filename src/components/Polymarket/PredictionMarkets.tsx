@@ -2,41 +2,34 @@
 import React from "react";
 import { MarketCard } from "./MarketCard";
 
-// Define market configuration
-const FEATURED_MARKETS = [
+const FEATURED_EVENTS = [
   {
     eventId: "10019",
-    marketIndex: 0,
-    title: "Pennsylvania Senate Election - Democrat",
+    title: "Pennsylvania Senate Election",
+    markets: [
+      { index: 0, subTitle: "Democrat" },
+      { index: 1, subTitle: "Republican" },
+      { index: 2, subTitle: "Other" },
+    ],
   },
-  {
-    eventId: "10019",
-    marketIndex: 1,
-    title: "Pennsylvania Senate Election - Republican",
-  },
-  {
-    eventId: "10019",
-    marketIndex: 2,
-    title: "Pennsylvania Senate Election - Other",
-  },
-  // Add more markets as needed
 ];
 
 const PredictionMarkets: React.FC = () => {
   return (
     <div className="space-y-4">
-      <div className="p-4 bg-secondary text-font rounded-lg">
+      <div className="p-4 bg-background text-primary rounded-lg">
         <h2 className="text-xl font-bold mb-2">Featured Prediction Markets</h2>
-        <p className="text-sm text-gray-300">
-          Showing {FEATURED_MARKETS.length} curated markets
+        <p className="text-sm text-primary">
+          Showing {FEATURED_EVENTS.length} events
         </p>
       </div>
-
-      {FEATURED_MARKETS.map((market, index) => (
+      {FEATURED_EVENTS.map((event) => (
         <MarketCard
-          key={`${market.eventId}-${market.marketIndex}`}
-          eventId={market.eventId}
-          marketIndex={market.marketIndex}
+          key={event.eventId}
+          eventId={event.eventId}
+          eventTitle={event.title}
+          marketIndices={event.markets.map((m) => m.index)}
+          marketSubTitles={event.markets.map((m) => m.subTitle)}
         />
       ))}
     </div>
