@@ -19,6 +19,18 @@ interface MarketCardProps {
   marketSubTitles: string[];
 }
 
+interface Market {
+  end_date_iso: string;
+  condition_id: string;
+  question: string;
+  description?: string;
+  resolutionSource?: string;
+  volume_num: number;
+  liquidity_num: number;
+  bestAsk?: number;
+  active?: boolean;
+}
+
 export const MarketCard: React.FC<MarketCardProps> = ({
   eventId,
   eventTitle,
@@ -32,12 +44,14 @@ export const MarketCard: React.FC<MarketCardProps> = ({
 
   const { market, loading, error } = useMarket(eventId, activeMarketIndex);
 
-  if (loading) return <LoadingState />;
-  if (error) return <ErrorState message={error} />;
-  if (!market) return null;
-
-  const yesPrice = market.bestAsk || 0;
-  const noPrice = 1 - yesPrice;
+  const formatExpiryDate = (dateStr: string | undefined) => {
+    if (!dateStr) return "No expiry date";
+    try {
+      return new Date(dateStr).toLocaleDateString();
+    } catch (e) {
+      return "Invalid date";
+    }
+  };
 
   const renderPrice = (price: number) => {
     if (showMoneyline) {
@@ -46,14 +60,21 @@ export const MarketCard: React.FC<MarketCardProps> = ({
     return `${(price * 100).toFixed(1)}%`;
   };
 
+  if (loading) return <LoadingState />;
+  if (error) return <ErrorState message={error} />;
+  if (!market) return null;
+
+  const yesPrice = market.bestAsk || 0;
+  const noPrice = 1 - yesPrice;
+
   return (
     <div className="bg-demo rounded-xl shadow-lg overflow-hidden">
-      {/* Header section remains the same */}
+      {/* Header section */}
       <div className="p-4 border-b border-gray-700 flex justify-between items-center">
         <div className="flex-1">
           <h2 className="text-xl font-semibold text-primary">{eventTitle}</h2>
           <p className="text-sm text-gray-700">
-            Expires {new Date(market.end_date_iso).toLocaleDateString()}
+            Expires {formatExpiryDate(market.end_date_iso)}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -63,19 +84,10 @@ export const MarketCard: React.FC<MarketCardProps> = ({
           >
             {showMoneyline ? "Show %" : "Show ML"}
           </button>
-          {/* <span
-            className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-              market.active
-                ? "bg-green-100 text-green-800"
-                : "bg-red-100 text-red-800"
-            }`}
-          >
-            {market.active ? "Active" : "Closed"}
-          </span> */}
         </div>
       </div>
 
-      {/* Market Tabs section remains the same */}
+      {/* Market Tabs section */}
       <div className="border-b border-gray-700 px-4">
         <div className="flex mb-px">
           {marketIndices.map((index, i) => (
@@ -192,7 +204,9 @@ export const MarketCard: React.FC<MarketCardProps> = ({
 
         {showDetails && (
           <div className="mt-4 p-4 bg-tertiary rounded-lg text-sm text-gray-300">
-            <p className="mb-3">{market.description}</p>
+            <p className="mb-3">
+              {market.description || "No description available"}
+            </p>{" "}
             <div className="space-y-2">
               <div className="text-xs text-gray-400">Resolution Rules</div>
               <p>

@@ -1,3 +1,4 @@
+// src/app/demo/page.tsx
 "use client";
 import React from "react";
 import PredictionMarkets from "@/components/Polymarket/PredictionMarkets";
@@ -27,19 +28,11 @@ export default function DemoPage() {
             <ConnectWallet />
           </div>
         </div>
-
         <main className="mt-8">
-          <BetSlipProvider >
-          <PredictionMarkets
-            searchParams={{
-              limit: 50,
-              active: true,
-              liquidity_num_min: 1000,
-            }}
-          />
-          <BetSlip />
+          <BetSlipProvider>
+            <PredictionMarkets/>
+            <BetSlip />
           </BetSlipProvider>
-
         </main>
       </div>
     </div>

@@ -1,13 +1,33 @@
 import { useState, useEffect } from "react";
-import { Market } from "../components/types/polymarket";
 
-const GAMMA_API_URL = "https://gamma-api.polymarket.com";
+export interface Market {
+  id: string;
+  question: string;
+  liquidity_num: number;
+  volume_num: number;
+  condition_id: string;
+  active: boolean;
+  closed: boolean;
+  enableOrderBook: boolean;
+  bestBid: number;
+  bestAsk: number;
+  end_date_iso: string;
+  description?: string;
+  resolutionSource?: string;
+  outcomes: Array<{
+    id: string;
+    index: string;
+    complement: string;
+  }>;
+}
 
 export interface MarketData {
   market: Market | null;
   loading: boolean;
   error: string | null;
 }
+
+const GAMMA_API_URL = "https://gamma-api.polymarket.com";
 
 export const useMarket = (eventId: string, marketIndex: number): MarketData => {
   const [marketData, setMarketData] = useState<MarketData>({
@@ -29,13 +49,13 @@ export const useMarket = (eventId: string, marketIndex: number): MarketData => {
 
         const data = await response.json();
         const event = data[0];
-        
+
         if (!event || !event.markets || !event.markets[marketIndex]) {
           throw new Error("Market not found");
         }
 
         const rawMarket = event.markets[marketIndex];
-        
+
         // Process the market data
         const processedMarket: Market = {
           id: rawMarket.conditionId,
@@ -49,12 +69,16 @@ export const useMarket = (eventId: string, marketIndex: number): MarketData => {
           bestBid: Number(rawMarket.bestBid || 0),
           bestAsk: Number(rawMarket.bestAsk || 0),
           end_date_iso: rawMarket.endDateIso,
+          description: rawMarket.description || undefined,
+          resolutionSource: rawMarket.resolutionSource || undefined,
           outcomes: rawMarket.outcomes
-            ? JSON.parse(rawMarket.outcomes).map((outcome: string, index: number) => ({
-                id: index.toString(),
-                index: outcome,
-                complement: outcome,
-              }))
+            ? JSON.parse(rawMarket.outcomes).map(
+                (outcome: string, index: number) => ({
+                  id: index.toString(),
+                  index: outcome,
+                  complement: outcome,
+                })
+              )
             : [],
         };
 
@@ -68,7 +92,8 @@ export const useMarket = (eventId: string, marketIndex: number): MarketData => {
         setMarketData({
           market: null,
           loading: false,
-          error: err instanceof Error ? err.message : "Failed to fetch market data",
+          error:
+            err instanceof Error ? err.message : "Failed to fetch market data",
         });
       }
     };
