@@ -1,6 +1,6 @@
 // app/page.tsx
 "use client";
-import React, { Suspense } from "react";
+import React, { act, Suspense } from "react";
 import { useActiveAccount } from "thirdweb/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Image from "next/image";
@@ -79,6 +79,7 @@ function HomeContent() {
                 {/* <ContractEvents /> */}
               </div>
             )}
+
           </div>
         ) : (
           <Pitch />

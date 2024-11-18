@@ -17,3 +17,12 @@ export interface BetDetailsType {
   finalized: boolean;
   wagerCurrency: string;
 }
+
+// types.ts
+export interface Bet {
+  marketId: string;
+  eventTitle: string;
+  marketQuestion: string;
+  position: 'YES' | 'NO';
+  price: number;
+}

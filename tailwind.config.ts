@@ -18,6 +18,7 @@ const config: Config = {
         tertiary: "#DC5F00",
         quaternary: "#EEEEEE",
         font: "#EEEEEE",
+        demo: "#F4E0B9",
       },
       backgroundImage: {
         'geometric-circle': 'radial-gradient(circle at center, var(--tw-gradient-stops))',
