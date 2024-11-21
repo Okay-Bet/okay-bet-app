@@ -15,13 +15,6 @@ import { useBetList } from "@/hooks/useBetList";
 import { contract } from "./client";
 import BetHistory from "@/components/Metrics/BetHistory";
 import Testimonials from "@/components/Landing/Testimonials";
-// import ContractEvents from './events';
-// import dynamic from 'next/dynamic';
-
-// const PushNotificationSubscriber = dynamic(
-//   () => import('@/components/Notifications/PushNotificationSubscriber'),
-//   { ssr: false }
-// );
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,9 +46,6 @@ function HomeContent() {
         </div>
         <ConnectWallet />
         <Username />
-        {/* <Suspense fallback={<div>Loading push notification component...</div>}>
-          <PushNotificationSubscriber />
-        </Suspense> */}
         {account ? (
           <div className="w-full max-w-md mx-auto">
             <CreateBetForm contract={contract} />
@@ -76,7 +66,6 @@ function HomeContent() {
                   accountAddress={account.address}
                 />
                 <Testimonials />
-                {/* <ContractEvents /> */}
               </div>
             )}
 
