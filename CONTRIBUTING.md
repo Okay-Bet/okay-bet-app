@@ -1,6 +1,6 @@
-# Contributing to [Project Name]
+# Contributing to Okay Bet
 
-Thanks for your interest in contributing! This guide will help you get started.
+Welcome aboard! This guide will help you get started.
 
 ## Getting Started
 
