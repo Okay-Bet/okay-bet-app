@@ -6,28 +6,8 @@ const FAQ = () => {
 
   const faqs = [
     {
-      question: "Where does my money go when I bet?",
-      answer: "The money is held in an escrow smart contract. Only the judge may control which bettor gets the pot, but they are not able to keep the money for themselves.",
-    },
-    {
-      question: "How do I get paid when I win?",
-      answer: "The money is sent to your wallet when the judge settles the bet.",
-    },
-    {
-      question: "Can a bet be cancelled?",
-      answer: "If a bet is not yet fully funded, then any of the 3 parties may cancel it. If a bet is fully funded, then only the judge may cancel and refund the bettors.",
-    },
-    {
-      question: "Who should be the Judge?",
-      answer: "The judge is someone that both parties trust to be fair. This could be one of the bettors for simplicity, or a mutual friend. Be careful who you pick, their decision is final!",
-    },
-    {
-      question: "What money is the bet in?",
-      answer: "The bet is made in Ether (ETH) on the Base Ethereum network. Because of this, the USD value of the bet may change due to the volatility of the market.",
-    },
-    {
-      question: "Is this safe?",
-      answer: "While the contracts are extensively tested, there is always a risk when using smart contracts. Please only bet what you can afford to lose. This is for fun, not investment.",
+      question: "How does the aggregation work?",
+      answer: "When you make an order a quote is generated for relayers to execute it on the other chains for a minimal fee.",
     },
   ];
   

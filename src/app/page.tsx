@@ -1,37 +1,24 @@
 // app/page.tsx
+// landing page of the app
+
 "use client";
-import React, { act, Suspense } from "react";
+import React from "react";
 import { useActiveAccount } from "thirdweb/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Image from "next/image";
 import logo from "@public/okay_bet.png";
-import CreateBetForm from "../components/CreateBetForm/CreateBetForm";
-import OpenBets from "../components/Bet/OpenBets";
-import UnfundedBets from "../components/Bet/UnfundedBets";
 import Pitch from "@/components/Landing/Pitch";
 import ConnectWallet from "@/components/User/ConnectWallet";
-import Username from "@/components/User/Username";
-import { useBetList } from "@/hooks/useBetList";
-import { contract } from "./client";
-import BetHistory from "@/components/Metrics/BetHistory";
+import { BetSlipProvider } from "./context/BetSlipContext";
+import { BetSlip } from "@/components/Bet/BetSlip";
+import PredictionMarkets from "@/components/Polymarket/PredictionMarkets";
 import Testimonials from "@/components/Landing/Testimonials";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 60 * 1000,
-    },
-  },
-});
 
-function HomeContent() {
+export default function Home() {
   const account = useActiveAccount();
-  const { openBets, unfundedBets, betHistory, isLoading } = useBetList({
-    accountAddress: account?.address || "",
-  });
 
   return (
-    <main className="min-h-screen width-full flex-col items-center justify-center max-w-4xl mx-auto px-4">
+    <main className=" width-full flex-col items-center justify-center">
       <div className="py-10 text-center">
         <div className="m-3">
           <Image
@@ -45,31 +32,16 @@ function HomeContent() {
           />
         </div>
         <ConnectWallet />
-        <Username />
         {account ? (
-          <div className="w-full max-w-md mx-auto">
-            <CreateBetForm contract={contract} />
-            {isLoading ? (
-              <p>Loading...</p>
-            ) : (
-              <div>
-                <OpenBets
-                  betAddresses={openBets}
-                  accountAddress={account.address}
-                />
-                <UnfundedBets
-                  betAddresses={unfundedBets}
-                  accountAddress={account.address}
-                />
-                <BetHistory
-                  betAddresses={betHistory}
-                  accountAddress={account.address}
-                />
-                <Testimonials />
-              </div>
-            )}
-
-          </div>
+          <div className="w-full">
+        <main className="mt-8 mb-4">
+          <BetSlipProvider>
+            <PredictionMarkets/>
+            <BetSlip />
+          </BetSlipProvider>
+        </main>
+        <Testimonials />
+        </div>
         ) : (
           <Pitch />
         )}
@@ -78,10 +50,3 @@ function HomeContent() {
   );
 }
 
-export default function Home() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <HomeContent />
-    </QueryClientProvider>
-  );
-}

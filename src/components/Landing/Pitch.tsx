@@ -1,56 +1,54 @@
-// components/Landing/Pitch.tsx
-import FAQ from './FAQ';
-import Testimonials from './Testimonials';
+import React from "react";
+import FAQ from "./FAQ";
+import Testimonials from "./Testimonials";
+import { Hub, PersonAddAlt1, Casino } from "@mui/icons-material";
 
-const Pitch: React.FC = () => {
+const FeatureCard = ({ Icon, title, description }) => (
+  <div className="flex flex-col items-center text-center px-6 flex-1">
+    <div className="bg-quaternary/10 rounded-full p-6 mb-4">
+      <Icon sx={{ fontSize: 48 }} className="text-quaternary" />
+    </div>
+    <h3 className="text-xl font-bold text-font mb-2">{title}</h3>
+    <p className="text-font text-lg">{description}</p>
+  </div>
+);
+
+const Pitch = () => {
+  const features = [
+    {
+      Icon: Hub,
+      title: "Aggregation",
+      description: "Compare prices, rules, and volume between similar prediction markets on any chain.",
+    },
+    {
+      Icon: PersonAddAlt1,
+      title: "Reputation",
+      description: "Connect your socials and build your prediction credibility. Get your followers to invest in you and your predictions.",
+    },
+    {
+      Icon: Casino,
+      title: "Leverage",
+      description: "Parlay any unrelated markets together for much higher payouts.",
+    },
+  ];
+
   return (
-    <div className="max-w-md mx-auto">
-      <section className="flex flex-col items-center justify-center  bg-secondary p-10 text-center">
-        <h1 className="text-3xl md:text-4xl font-heading text-quaternary tracking-tighter italic mb-4">
-          GAMBLING FOR YOUR GROUPCHAT
+    <div className="max-w-4xl mx-auto">
+      <section className="flex flex-col items-center bg-secondary py-16 px-8 text-center">
+        <h1 className="text-4xl md:text-5xl font-heading text-quaternary tracking-tighter italic mb-6">
+          BET BETTER
         </h1>
-        <p className="text-lg md:text-xl text-quaternary mb-8">
-          Make a bet on anything you can think of with your friend and have the
-          winner decided by another friend.
+        <p className="text-xl text-quaternary mb-12 max-w-2xl">
+          Manage positions on any prediction market on any chain from Okay Bet.
         </p>
+        <h2 className="text-3xl md:text-4xl font-heading text-font tracking-tighter italic mb-16">
+          COMING SOON
+        </h2>
 
-        <h1 className="text-3xl md:text-4xl font-heading text-font tracking-tighter italic mb-10">
-          HOW IT WORKS
-        </h1>
-        <div className="flex flex-col md:flex-row justify-center items-center space-y-6 md:space-y-0 md:space-x-2 mb-6">
-          <div className="text-center">
-            <img
-              src="/better1.png"
-              alt="Better 1"
-              className="w-28 h-28  mx-auto mb-2"
-            />
-            <p className="text-lg md:text-xl font-bold text-font">Maker</p>
-            <p className=" md:text-base text-font">
-              Creates bet, picks an opponent and judge
-            </p>
-          </div>
-          <div className="text-center">
-            <img
-              src="/better2.png"
-              alt="Better 2"
-              className="w-28 h-28  mx-auto mb-2"
-            />
-            <p className="text-lg md:text-xl font-bold text-font">Taker</p>
-            <p className=" md:text-base text-font">
-              Accepts the terms and funds their side of it or rejects the bet
-            </p>
-          </div>
-          <div className="text-center">
-            <img
-              src="/decider.png"
-              alt="Decider"
-              className="w-28 h-28  mx-auto mb-2"
-            />
-            <p className="text-lg md:text-xl font-bold text-font">Judge</p>
-            <p className=" md:text-base text-font">
-              Chooses who wins, or if it should be cancelled
-            </p>
-          </div>
+        <div className="flex flex-col md:flex-row gap-8 w-full max-w-4xl">
+          {features.map((feature, index) => (
+            <FeatureCard key={index} {...feature} />
+          ))}
         </div>
       </section>
       <FAQ />
