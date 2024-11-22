@@ -4,12 +4,10 @@ import { MarketCard } from "./MarketCard";
 
 const FEATURED_EVENTS = [
   {
-    eventId: "10019",
-    title: "Pennsylvania Senate Election",
+    eventId: "12114",
+    title: "Elon Musk to Cabinet",
     markets: [
-      { index: 0, subTitle: "Democrat" },
-      { index: 1, subTitle: "Republican" },
-      { index: 2, subTitle: "Other" },
+      { index: 0, subTitle: "Yes/No" },
     ],
   },
   {
@@ -30,10 +28,10 @@ const FEATURED_EVENTS = [
     ],
   },
   {
-    eventId: "14532",
-    title: "NFL Week 11: Steelers v Browns",
+    eventId: "14542",
+    title: "NFL Week 11: Cardinals vs. Seahawks",
     markets: [
-      { index: 0, subTitle: "Yes for Steelers" },
+      { index: 0, subTitle: "Yes for Cardinals" },
     ],
   },
 ];
@@ -48,9 +46,9 @@ const PredictionMarkets: React.FC = () => {
         </p>
         <p>Open positions in these markets using USDC on Optimism</p>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ">
         {FEATURED_EVENTS.map((event) => (
-          <div key={event.eventId} className="relative isolate">
+          <div key={event.eventId} className="relative isolate items-start">
             <MarketCard
               eventId={event.eventId}
               eventTitle={event.title}

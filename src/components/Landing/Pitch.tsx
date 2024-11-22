@@ -23,7 +23,7 @@ const Pitch = () => {
     {
       Icon: PersonAddAlt1,
       title: "Reputation",
-      description: "Connect your socials and build your prediction credibility. Get your followers to invest in you and your predictions.",
+      description: "Connect your socials and build your credibility.",
     },
     {
       Icon: Casino,
@@ -33,7 +33,7 @@ const Pitch = () => {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-3xl mx-auto">
       <section className="flex flex-col items-center bg-secondary py-16 px-8 text-center">
         <h1 className="text-4xl md:text-5xl font-heading text-quaternary tracking-tighter italic mb-6">
           BET BETTER

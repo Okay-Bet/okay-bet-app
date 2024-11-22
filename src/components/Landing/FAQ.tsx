@@ -9,6 +9,10 @@ const FAQ = () => {
       question: "How does the aggregation work?",
       answer: "When you make an order a quote is generated for relayers to execute it on the other chains for a minimal fee.",
     },
+    {
+      question: "When will this be live?",
+      answer: "Cross chain orders will be available in December, everything else will come out iteratively.",
+    },
   ];
   
 

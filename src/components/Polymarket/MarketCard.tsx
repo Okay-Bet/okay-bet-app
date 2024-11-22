@@ -109,7 +109,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
       {/* Main Content */}
       <div className="p-4">
         <div className="mb-4">
-          <h3 className="text-lg font-medium text-primary mb-2">
+          <h3 className="text-lg font-medium text-primary mb-2 items-start">
             {market.question}
           </h3>
           <div className="grid grid-cols-2 gap-3">
