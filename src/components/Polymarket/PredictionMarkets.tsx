@@ -1,4 +1,7 @@
-// PredictionMarkets.tsx
+// components/Polymarket/PredictionMarkets.tsx
+// parent polymarket component with hardcoded data to feed into marketcard
+
+
 import React from "react";
 import { MarketCard } from "./MarketCard";
 

@@ -1,3 +1,6 @@
+// components/Polymarket/MarketCard.tsx
+// renders a single poly market and lets users interact with it
+
 import React, { useState } from "react";
 import { useMarket } from "../../hooks/useMarket";
 import { LoadingState, ErrorState } from "./LoadingState";

@@ -1,4 +1,6 @@
 // components/Landing/FAQ.tsx
+// Content with FAQ will be updated as we ship real features
+
 import React, { useState } from "react";
 
 const FAQ = () => {

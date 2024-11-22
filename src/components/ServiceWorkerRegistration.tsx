@@ -1,3 +1,6 @@
+// components/ServiceWorkerRegistration.tsx
+// i have no idea what this does
+
 'use client';
 
 import { useEffect } from 'react';

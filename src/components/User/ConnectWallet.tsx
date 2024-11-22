@@ -1,3 +1,6 @@
+// components/User/ConnectWallet.tsx
+// Configures Thirdweb to connect to the user's wallet
+
 "use client";
 import { ConnectButton } from "thirdweb/react";
 import { createWallet, inAppWallet } from "thirdweb/wallets";

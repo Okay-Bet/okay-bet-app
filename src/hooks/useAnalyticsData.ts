@@ -1,3 +1,6 @@
+// hooks/useAnalyticsData.ts
+// logic for getting metrics from Okay Bet subgraph, needs overhauled after we launch
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";

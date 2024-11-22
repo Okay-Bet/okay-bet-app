@@ -1,4 +1,6 @@
 // moneylineUtils.ts
+// converts from prediciton market decimel odds to moneyline odds 
+
 export const decimalToMoneyline = (decimal: number): string => {
     if (decimal >= 1) return "0";
     

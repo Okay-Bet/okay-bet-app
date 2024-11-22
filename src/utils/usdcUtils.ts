@@ -1,3 +1,6 @@
+// utils/usdcUtils.ts
+// logic for using and interacting with USDC
+
 import { ethers } from "ethers";
 import { transferFrom } from "thirdweb/extensions/erc20";
 

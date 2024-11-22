@@ -1,4 +1,6 @@
 // src/app/demo/page.tsx
+// demo page to show polymarket mirror, no longer as needed without the pvp app
+
 "use client";
 import React from "react";
 import PredictionMarkets from "@/components/Polymarket/PredictionMarkets";

@@ -1,3 +1,6 @@
+// components/Notifications/PushNotificationSubscriber.tsx
+// not functional, sidelined for now
+
 'use client';
 
 import React, { useState, useEffect } from 'react';

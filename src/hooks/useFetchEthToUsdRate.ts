@@ -1,4 +1,6 @@
 // hooks/useFetchEthToUsdRate.ts
+// neat lil utility to convert currency
+
 import { useState, useEffect } from "react";
 
 export const useFetchEthToUsdRate = () => {

@@ -1,3 +1,6 @@
+// server.ts
+// This file is the entry point for server code. A lot of this is vestigal but we will need this again
+
 import { createServer } from "http";
 import { parse } from "url";
 import next from "next";

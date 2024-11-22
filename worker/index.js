@@ -1,3 +1,6 @@
+// worker/index.js
+// This is a service worker file that will be registered in the client's browser. It will handle push notifications and display them to the user.
+
 import { precacheAndRoute } from 'workbox-precaching';
 
 precacheAndRoute(self.__WB_MANIFEST);

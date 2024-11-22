@@ -1,3 +1,6 @@
+// hooks/useWebSocket.ts
+// does not work yet
+
 import { useState, useEffect, useCallback } from "react";
 import io, { Socket } from "socket.io-client";
 

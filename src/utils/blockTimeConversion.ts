@@ -1,3 +1,6 @@
+// utils/blockTimeConversion.ts
+// converts from block time to real time
+
 export const BLOCKS_PER_DAY = 43200; // Assuming 2-second block time
 
 export const blocksToTime = (blocks: number): { days: number; hours: number } => {

@@ -1,3 +1,6 @@
+// components/Landing/Pitch.tsx
+// Content for landing page explaining wtf we do
+
 import React from "react";
 import FAQ from "./FAQ";
 import Testimonials from "./Testimonials";

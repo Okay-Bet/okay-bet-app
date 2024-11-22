@@ -1,3 +1,6 @@
+// hooks/useResolveUserAddress.ts
+// hook to convert from address to ens to username, needs major refactor with camp later
+
 import { client } from "@/app/client";
 import { resolveAddress, resolveName } from "thirdweb/extensions/ens";
 import { ethers } from "ethers";
