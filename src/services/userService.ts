@@ -1,4 +1,6 @@
 // /src/services/userService.ts
+// converts phone numbers to wallet addresses, cool maybe keep for a bit
+
 export const getUserWalletAddressByEmail = async (email: string): Promise<string> => {
   try {
     const response = await fetch('/api/getUserWalletAddressByEmail', {

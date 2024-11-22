@@ -1,4 +1,5 @@
 // utils/currencyUtils.ts
+// Utility functions for formatting currency values
 
 export const formatCurrency = (
     amount: number | string,

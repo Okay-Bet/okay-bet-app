@@ -1,4 +1,6 @@
 // hooks/useValidateAddress.ts
+// calls the utility to check if address is valid. needs to be repurposed or deleted
+
 import { useState, useEffect } from "react";
 import resolveUserAddress from "@/utils/resolveUserAddress";
 

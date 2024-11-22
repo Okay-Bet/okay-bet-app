@@ -1,3 +1,7 @@
+// analytics/page.tsx
+// Analytics page, still set up for old PvP app
+// need to determine a key metric and track it here publicly
+
 "use client";
 
 import React from 'react';

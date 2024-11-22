@@ -1,4 +1,7 @@
 // components/Common/CollapsibleSection.tsx
+// ngl I'm not sure if this is used anymore
+
+
 "use client";
 
 import React, { useState, ReactNode } from "react";

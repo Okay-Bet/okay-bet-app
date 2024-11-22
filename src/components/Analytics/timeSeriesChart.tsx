@@ -1,3 +1,6 @@
+// components/Analytics/timeSeriesChart.tsx
+// renders a cumulative graph that's always up and to the right
+
 "use client";
 
 import React from "react";

@@ -1,3 +1,6 @@
+// components/Analytics/analyticsData.tsx
+// Parent component for rendering analytics data
+
 "use client";
 
 import React from "react";

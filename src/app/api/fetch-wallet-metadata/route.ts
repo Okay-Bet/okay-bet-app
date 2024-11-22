@@ -1,3 +1,6 @@
+// api/fetch-wallet-metadata/route.ts
+// fetches wallet metadata from thirdweb for embedded wallet users 
+
 import { NextResponse } from 'next/server';
 
 const THIRD_WEB_CLIENT_SECRET = process.env.SECRET_KEY;

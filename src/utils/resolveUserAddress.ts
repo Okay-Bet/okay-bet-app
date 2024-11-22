@@ -1,4 +1,5 @@
 // utils/resolveUserAddress.ts
+
 import { resolveAddress } from "thirdweb/extensions/ens";
 import { client } from "@/app/client";
 import { getUserWalletAddressByEmail, getUserWalletAddressByPhone } from "@/services/userService";

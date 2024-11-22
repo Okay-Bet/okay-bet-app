@@ -1,4 +1,7 @@
-// /src/pages/api/getUserWalletAddressByPhone/route.ts
+// api/getUserWalletAddressByPhone/route.ts
+// This file contains the logic for fetching the wallet address by email from the ThirdWeb API.
+
+
 import { NextResponse } from 'next/server';
 
 const THIRD_WEB_CLIENT_SECRET = process.env.SECRET_KEY;

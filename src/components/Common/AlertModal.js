@@ -1,3 +1,6 @@
+// Common/AlertModal.js
+// General modal overlay that pops up for alerting users
+
 import React from "react";
 
 export default function AlertModal({

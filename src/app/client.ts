@@ -1,3 +1,6 @@
+// client.ts
+// connects to thirdweb and sets up the contract. Needed to handle sign in
+
 import { createThirdwebClient, getContract, resolveMethod } from "thirdweb";
 import { defineChain } from "thirdweb/chains";
 

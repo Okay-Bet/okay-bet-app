@@ -1,3 +1,6 @@
+// api/subscribe/route.ts
+// Allows user to subscribe to push notifications. not functional yet.
+
 import { NextResponse } from "next/server";
 import webpush from "web-push";
 

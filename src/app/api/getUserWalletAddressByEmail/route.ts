@@ -1,4 +1,5 @@
-// /src/pages/api/getUserWalletAddressByEmail/route.ts
+// api/getUserWalletAddressByEmail/route.ts
+// allows you to fetch the wallet address of a user by email using thirdweb's embedded wallet API.
 import { NextResponse } from 'next/server';
 
 const THIRD_WEB_CLIENT_SECRET = process.env.SECRET_KEY;

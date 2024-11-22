@@ -1,3 +1,6 @@
+// components/Landing/Testimonials.tsx
+// Outward links to all of our socials and docs. poorly named component.
+
 import React from "react";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";

@@ -1,4 +1,6 @@
 // src/app/context/BetSlipContext.tsx
+// Context to manage the entering a new bet position
+
 import React, { createContext, useContext, useState } from "react";
 
 export interface Bet {
@@ -10,7 +12,7 @@ export interface Bet {
 }
 
 interface BetSlipContextType {
-  bet: Bet | null; // Changed from bets array to single bet
+  bet: Bet | null; 
   addBet: (bet: Bet) => void;
   removeBet: (marketId: string) => void;
   clearBets: () => void;
@@ -21,10 +23,10 @@ const BetSlipContext = createContext<BetSlipContextType | undefined>(undefined);
 export const BetSlipProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [bet, setBet] = useState<Bet | null>(null); // Changed from array to single bet
+  const [bet, setBet] = useState<Bet | null>(null);
 
   const addBet = (newBet: Bet) => {
-    setBet(newBet); // Simply replace the existing bet
+    setBet(newBet); 
   };
 
   const removeBet = (marketId: string) => {

@@ -1,3 +1,7 @@
+// layout.tsx
+// wraps around the app content. Provides web3 context, analytics, and service worker registration.
+// push notifications not functional yet.
+
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThirdwebProvider } from "thirdweb/react";
@@ -12,7 +16,7 @@ const PushNotificationSubscriber = dynamic(
 
 export const metadata: Metadata = {
   title: "Okay Bet",
-  description: "P2P PvP Betting Platform",
+  description: "Bet Better",
   manifest: "/manifest.json",
 };
 

@@ -1,3 +1,6 @@
+// utils/getContractInstance.ts
+// used to initialize a contract, not currently using contracts but may change soon
+
 import { useReadContract } from "thirdweb/react";
 import { contract } from "@/app/client";
 

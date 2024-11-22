@@ -1,3 +1,6 @@
+// tailwind.config.js
+// manages the styling
+
 import type { Config } from "tailwindcss";
 
 const config: Config = {

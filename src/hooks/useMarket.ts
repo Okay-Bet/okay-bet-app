@@ -1,3 +1,6 @@
+// hooks/useMarket.ts
+// uses Polymarket gamma api to fetch the market data
+
 import { useState, useEffect } from "react";
 
 export interface Market {

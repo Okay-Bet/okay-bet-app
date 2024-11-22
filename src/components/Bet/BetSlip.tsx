@@ -1,4 +1,6 @@
 // components/BetSlip.tsx
+// Renders entry for of prediction market positions meant to look like a sportsbook
+
 import React, { useState } from "react";
 import { useBetSlip } from "@/app/context/BetSlipContext";
 

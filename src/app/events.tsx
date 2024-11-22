@@ -1,3 +1,6 @@
+// events.tsx
+// this handles receiving websocket events. Websockets not really implemented yet.
+
 import React, { useEffect } from 'react';
 import useWebSocket from '../hooks/useWebSocket';
 

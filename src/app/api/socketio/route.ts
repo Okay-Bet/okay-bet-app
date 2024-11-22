@@ -1,3 +1,6 @@
+// api/socketio/route.ts
+// api for setting up websockets, not very functional right now
+
 import { NextRequest, NextResponse } from "next/server";
 import { Server as ServerIO } from "socket.io";
 import { createServer } from "http";

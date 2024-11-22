@@ -1,3 +1,6 @@
+// api/unsubscribe/route.ts
+// Very nonfunctional api to unsubscribe from push notifications
+
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {

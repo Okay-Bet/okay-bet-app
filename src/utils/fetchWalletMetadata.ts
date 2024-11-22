@@ -1,3 +1,6 @@
+// utils/fetchWalletMetadata.ts
+// checks for address whether its a phone number, wallet or email address
+
 type QueryType = "walletAddress" | "email" | "phone";
 
 interface FetchWalletMetadataProps {

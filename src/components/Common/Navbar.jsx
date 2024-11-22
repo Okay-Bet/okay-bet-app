@@ -1,3 +1,6 @@
+// Common/Navbar.jsx
+// top banner for website, may not be used
+
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
