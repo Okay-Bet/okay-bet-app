@@ -1,9 +1,20 @@
 import React from "react";
 import FAQ from "./FAQ";
 import Testimonials from "./Testimonials";
-import { Hub, PersonAddAlt1, Casino } from "@mui/icons-material";
+import {
+  Hub,
+  PersonAddAlt1,
+  Casino,
+  SvgIconComponent,
+} from "@mui/icons-material";
 
-const FeatureCard = ({ Icon, title, description }) => (
+interface FeatureCardProps {
+  Icon: SvgIconComponent;
+  title: string;
+  description: string;
+}
+
+const FeatureCard = ({ Icon, title, description }: FeatureCardProps) => (
   <div className="flex flex-col items-center text-center px-6 flex-1">
     <div className="bg-quaternary/10 rounded-full p-6 mb-4">
       <Icon sx={{ fontSize: 48 }} className="text-quaternary" />
@@ -14,11 +25,12 @@ const FeatureCard = ({ Icon, title, description }) => (
 );
 
 const Pitch = () => {
-  const features = [
+  const features: FeatureCardProps[] = [
     {
       Icon: Hub,
       title: "Aggregation",
-      description: "Compare prices, rules, and volume between similar prediction markets on any chain.",
+      description:
+        "Compare prices, rules, and volume between similar prediction markets on any chain.",
     },
     {
       Icon: PersonAddAlt1,
@@ -28,7 +40,8 @@ const Pitch = () => {
     {
       Icon: Casino,
       title: "Leverage",
-      description: "Parlay any unrelated markets together for much higher payouts.",
+      description:
+        "Parlay any unrelated markets together for much higher payouts.",
     },
   ];
 
@@ -44,7 +57,6 @@ const Pitch = () => {
         <h2 className="text-3xl md:text-4xl font-heading text-font tracking-tighter italic mb-16">
           COMING SOON
         </h2>
-
         <div className="flex flex-col md:flex-row gap-8 w-full max-w-4xl">
           {features.map((feature, index) => (
             <FeatureCard key={index} {...feature} />
