@@ -4,7 +4,7 @@
 "use client";
 import { ConnectButton } from "thirdweb/react";
 import { createWallet, inAppWallet } from "thirdweb/wallets";
-import { base, defineChain, optimism } from "thirdweb/chains";
+import { defineChain, optimism, polygon } from "thirdweb/chains";
 import { client } from "@/app/client";
 
 const externalWallets = [
@@ -16,7 +16,7 @@ const inAppWalletOption = inAppWallet({
     options: ["google", "facebook", "apple", "phone", "email"],
   },
   smartAccount: {
-    chain: optimism,
+    chain: optimism, 
     sponsorGas: true,
   },
 });
@@ -27,7 +27,7 @@ const ConnectWallet = () => {
       <ConnectButton
         client={client}
         wallets={[...externalWallets, inAppWalletOption]}
-        chain={defineChain(optimism)}
+        chain={defineChain(polygon)}
         theme={"dark"}
         connectModal={{ size: "wide" }}
         appMetadata={{
