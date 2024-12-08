@@ -1,12 +1,12 @@
-// components/BetSlip.tsx
-// Renders entry for of prediction market positions meant to look like a sportsbook
-
 import React, { useState } from "react";
 import { useBetSlip } from "@/app/context/BetSlipContext";
+import { useOrder } from "@/hooks/useOrder";
 
 export const BetSlip: React.FC = () => {
   const { bet, removeBet, clearBets } = useBetSlip();
+  const { submitOrder, loading, error } = useOrder();
   const [amount, setAmount] = useState<string>("");
+  const [orderError, setOrderError] = useState<string | null>(null);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -19,7 +19,36 @@ export const BetSlip: React.FC = () => {
     return (amount / price).toFixed(2);
   };
 
-  if (!bet) return null; // Hide if no bet
+  const handlePlaceOrder = async () => {
+    try {
+      setOrderError(null);
+      if (!bet || !amount) return;
+
+      // Map betting position to yes/no
+      const side = bet.position.toLowerCase() === 'yes' ? 'yes' : 'no';
+
+      const orderRequest = {
+        market_id: bet.marketId,
+        price: bet.price,
+        amount: parseFloat(amount),
+        side: side as 'yes' | 'no',
+      };
+
+      console.log("Submitting order:", orderRequest); // Debug log
+
+      const result = await submitOrder(orderRequest);
+      if (result.success) {
+        clearBets();
+        setAmount("");
+      }
+    } catch (err) {
+      console.error("Order placement error:", err); // Debug log
+      setOrderError(err instanceof Error ? err.message : "Failed to place order");
+    }
+  };
+
+
+  if (!bet) return null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg">
@@ -34,6 +63,12 @@ export const BetSlip: React.FC = () => {
           </button>
         </div>
 
+        {(orderError || error) && (
+          <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4">
+            {orderError || error}
+          </div>
+        )}
+
         <div className="space-y-4 mb-4">
           <div className="bg-gray-50 p-3 rounded-lg">
             <div className="flex justify-between items-start mb-2">
@@ -41,7 +76,7 @@ export const BetSlip: React.FC = () => {
                 <p className="text-sm font-medium">{bet.eventTitle}</p>
                 <p className="text-xs text-gray-600">{bet.marketQuestion}</p>
                 <p className="text-sm font-medium mt-1">
-                  {bet.position} @ ${(bet.price).toFixed(2)}
+                  {bet.position} @ ${bet.price.toFixed(2)}
                 </p>
               </div>
               <button
@@ -76,10 +111,11 @@ export const BetSlip: React.FC = () => {
             </div>
           </div>
           <button
-            className="px-6 py-2 p-4 bg-tertiary text-font font-heading rounded-lg transition-colors"
-            disabled={!amount || parseFloat(amount) <= 0}
+            className="px-6 py-2 p-4 bg-tertiary text-font font-heading rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!amount || parseFloat(amount) <= 0 || loading}
+            onClick={handlePlaceOrder}
           >
-            Place Order
+            {loading ? "Submitting..." : "Place Order"}
           </button>
         </div>
       </div>

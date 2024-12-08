@@ -1,5 +1,5 @@
 // components/CredentialsButton.tsx
-import { useCredentials } from '@/hooks/useCredentials';
+import { useCredentials } from '@/hooks/useOrder';
 import { useActiveAccount } from 'thirdweb/react';
 
 export const CredentialsButton = () => {

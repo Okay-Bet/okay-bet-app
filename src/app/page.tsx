@@ -12,7 +12,6 @@ import { BetSlipProvider } from "./context/BetSlipContext";
 import { BetSlip } from "@/components/Bet/BetSlip";
 import PredictionMarkets from "@/components/Polymarket/PredictionMarkets";
 import Testimonials from "@/components/Landing/Testimonials";
-import { CredentialsButton } from "@/components/User/CredentialsButton";
 
 
 export default function Home() {
@@ -36,7 +35,6 @@ export default function Home() {
         {account ? (
           <div className="w-full">
         <main className="mt-8 mb-4">
-          <CredentialsButton />
           <BetSlipProvider>
             <PredictionMarkets/>
             <BetSlip />
