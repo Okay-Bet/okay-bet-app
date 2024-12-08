@@ -1,21 +1,26 @@
 import { useState } from "react";
-import { useActiveAccount } from "thirdweb/react";
+import { useActiveAccount, useSendTransaction } from "thirdweb/react";
 
-type OrderSide = "BUY" | "SELL";
+const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"; // Polygon USDC
+const AGENT_WALLET_ADDRESS = process.env.AGENT_WALLET_ADDRESS;
 
 interface OrderRequest {
-  market_id: string;
+  tokenId: string;
   price: number;
   amount: number;
-  side: "yes" | "no";
+  side: "BUY" | "SELL";
+  isYesToken: boolean;
 }
 
-const mapSideToOrderType = (side: "yes" | "no"): OrderSide => {
-  return side === "yes" ? "BUY" : "SELL";
+// Convert to USDC contract format (6 decimals)
+const toUSDCUnits = (value: number): string => {
+  // Multiply by 10^6 and round to handle floating point precision
+  return Math.round(value * 1_000_000).toString();
 };
 
 export const useOrder = () => {
   const account = useActiveAccount();
+  const { mutateAsync: sendTransaction } = useSendTransaction();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,20 +33,18 @@ export const useOrder = () => {
         throw new Error("Wallet not connected");
       }
 
-      const orderSide = mapSideToOrderType(orderRequest.side);
-
       const orderData = {
         user_address: account.address,
-        market_id: orderRequest.market_id,
-        price: Math.floor(orderRequest.price * 1e6), // Convert to base units
-        amount: Math.floor(orderRequest.amount * 1e6), // Convert to base units
-        side: orderSide
+        token_id: orderRequest.tokenId,
+        price: orderRequest.price, 
+        amount: toUSDCUnits(orderRequest.amount),
+        side: orderRequest.side,
+        is_yes_token: orderRequest.isYesToken
       };
 
-      console.log("Sending order data:", orderData);
+      console.log("Validating order...", orderData);
 
-      // Submit the order
-      const response = await fetch("/api/delegated-order", {
+      const validationResponse = await fetch("/api/validate-order", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -49,17 +52,49 @@ export const useOrder = () => {
         body: JSON.stringify(orderData),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (!validationResponse.ok) {
+        const errorData = await validationResponse.json();
         throw new Error(
           errorData.error?.msg ||
             errorData.detail ||
-            `API error: ${response.status}`
+            `Validation error: ${validationResponse.status}`
         );
       }
 
-      const data = await response.json();
-      return data;
+      const validationData = await validationResponse.json();
+
+      // Send USDC to agent
+      console.log("Sending USDC to agent...");
+      const txResult = await sendTransaction({
+        to: USDC_ADDRESS,
+        data: {
+          functionName: "transfer",
+          args: [AGENT_WALLET_ADDRESS, validationData.usdc_amount],
+        },
+      });
+
+      // Submit final order with transaction hash
+      const finalOrderResponse = await fetch("/api/delegated-order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...orderData,
+          usdc_transaction_hash: txResult.transactionHash,
+        }),
+      });
+
+      if (!finalOrderResponse.ok) {
+        const errorData = await finalOrderResponse.json();
+        throw new Error(
+          errorData.error?.msg ||
+            errorData.detail ||
+            `Order submission error: ${finalOrderResponse.status}`
+        );
+      }
+
+      return await finalOrderResponse.json();
     } catch (err) {
       console.error("Error:", err);
       const errorMessage =

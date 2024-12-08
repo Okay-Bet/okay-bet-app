@@ -2,23 +2,24 @@
 import { NextResponse } from "next/server";
 
 const FASTAPI_BASE_URL = process.env.FASTAPI_BASE_URL || "http://167.71.208.166:8000";
+const AGENT_WALLET_ADDRESS = process.env.AGENT_WALLET_ADDRESS;
+console.log("Agent wallet address from api:", AGENT_WALLET_ADDRESS);
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    // Log the received body for debugging
     console.log("Received order body:", body);
 
-    // Update required fields - removed signature and nonce requirements
+    // Validate required fields including USDC transaction hash
     const requiredFields = [
       "user_address",
       "market_id",
       "price",
       "amount",
       "side",
+      "usdc_transaction_hash"
     ];
 
-    // Validate required fields
     for (const field of requiredFields) {
       if (!(field in body)) {
         console.error(`Missing required field: ${field}`);
@@ -38,14 +39,15 @@ export async function POST(request: Request) {
     }
 
     // Forward request to FastAPI
-    console.log("Forwarding to FastAPI:", `${FASTAPI_BASE_URL}/api/delegated-order`);
-    
     const response = await fetch(`${FASTAPI_BASE_URL}/api/delegated-order`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        ...body,
+        agent_wallet: AGENT_WALLET_ADDRESS
+      }),
     });
 
     if (!response.ok) {

@@ -23,16 +23,16 @@ export const BetSlip: React.FC = () => {
     try {
       setOrderError(null);
       if (!bet || !amount) return;
-
+  
       const orderRequest = {
-        tokenId: bet.tokenId, // Using the specific YES/NO token ID
+        tokenId: bet.tokenId,
         price: bet.price,
         amount: parseFloat(amount),
         side: bet.position === "YES" ? "BUY" : "SELL",
+        isYesToken: bet.position === "YES" 
       };
-
+  
       console.log("Submitting order:", orderRequest);
-
       const result = await submitOrder(orderRequest);
       if (result.success) {
         clearBets();
