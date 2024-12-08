@@ -1,10 +1,14 @@
-// hooks/useMarket.ts
-// uses Polymarket gamma api to fetch the market data
-
 import { useState, useEffect } from "react";
 
+// Token interfaces
+interface TokenPair {
+  token_id: string;
+  outcome: string;
+}
+
+// Market interfaces
 export interface Market {
-  id: string;
+  id: string; // condition id
   question: string;
   liquidity_num: number;
   volume_num: number;
@@ -17,17 +21,17 @@ export interface Market {
   end_date_iso: string;
   description?: string;
   resolutionSource?: string;
+  min_size?: string;
+  min_tick_size?: string;
+  tokens: {
+    yes: TokenPair;
+    no: TokenPair;
+  };
   outcomes: Array<{
     id: string;
     index: string;
     complement: string;
   }>;
-}
-
-export interface MarketData {
-  market: Market | null;
-  loading: boolean;
-  error: string | null;
 }
 
 export interface Event {
@@ -41,6 +45,12 @@ export interface Event {
     question: string;
     liquidity: number;
   }>;
+}
+
+export interface MarketData {
+  market: Market | null;
+  loading: boolean;
+  error: string | null;
 }
 
 const GAMMA_API_URL = "https://gamma-api.polymarket.com";
@@ -71,6 +81,27 @@ export const useMarket = (eventId: string, marketIndex: number): MarketData => {
         }
 
         const rawMarket = event.markets[marketIndex];
+        let tokenIds: string[] = [];
+        try {
+          if (rawMarket.clobTokenIds) {
+            tokenIds = JSON.parse(rawMarket.clobTokenIds);
+          }
+        } catch (e) {
+          console.error("Error parsing clobTokenIds:", e);
+        }
+
+        // Map token IDs to YES/NO
+        const tokens = {
+          yes: {
+            token_id: tokenIds[0] || "",
+            outcome: "YES",
+          },
+          no: {
+            token_id: tokenIds[1] || "",
+            outcome: "NO",
+          },
+        };
+
 
         // Process the market data
         const processedMarket: Market = {
@@ -87,6 +118,9 @@ export const useMarket = (eventId: string, marketIndex: number): MarketData => {
           end_date_iso: rawMarket.endDateIso,
           description: rawMarket.description || undefined,
           resolutionSource: rawMarket.resolutionSource || undefined,
+          min_size: rawMarket.minimum_order_size,
+          min_tick_size: rawMarket.minimum_tick_size,
+          tokens,
           outcomes: rawMarket.outcomes
             ? JSON.parse(rawMarket.outcomes).map(
                 (outcome: string, index: number) => ({
@@ -120,10 +154,14 @@ export const useMarket = (eventId: string, marketIndex: number): MarketData => {
   return marketData;
 };
 
-// New function to fetch top liquidity events
-export const fetchTopLiquidityEvents = async (topN: number = 10): Promise<Event[]> => {
+// Maintain the fetchTopLiquidityEvents function for PredictionMarkets component
+export const fetchTopLiquidityEvents = async (
+  topN: number = 10
+): Promise<Event[]> => {
   try {
-    const response = await fetch(`${GAMMA_API_URL}/events?closed=false&limit=500`);
+    const response = await fetch(
+      `${GAMMA_API_URL}/events?closed=false&limit=500`
+    );
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -145,7 +183,9 @@ export const fetchTopLiquidityEvents = async (topN: number = 10): Promise<Event[
     }));
 
     // Sort by liquidity and return the top N
-    return processedEvents.sort((a:Event, b:Event) => b.liquidity - a.liquidity).slice(0, topN);
+    return processedEvents
+      .sort((a: Event, b: Event) => b.liquidity - a.liquidity)
+      .slice(0, topN);
   } catch (error) {
     console.error("Error fetching top liquidity events:", error);
     return [];

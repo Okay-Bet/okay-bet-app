@@ -32,6 +32,16 @@ interface Market {
   liquidity_num: number;
   bestAsk?: number;
   active?: boolean;
+  tokens: {
+    yes: {
+      token_id: string;
+      outcome: string;
+    };
+    no: {
+      token_id: string;
+      outcome: string;
+    };
+  };
 }
 
 export const MarketCard: React.FC<MarketCardProps> = ({
@@ -134,15 +144,16 @@ export const MarketCard: React.FC<MarketCardProps> = ({
         {/* Actions */}
         <div className="grid grid-cols-2 gap-3 mb-2">
           <button
-            onClick={() =>
+            onClick={() => {
               addBet({
                 marketId: market.condition_id,
                 eventTitle: eventTitle,
                 marketQuestion: market.question,
                 position: "YES",
                 price: yesPrice,
-              })
-            }
+                tokenId: market.tokens.yes.token_id,
+              });
+            }}
             className="py-2 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
           >
             Buy Yes
@@ -155,6 +166,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
                 marketQuestion: market.question,
                 position: "NO",
                 price: noPrice,
+                tokenId: market.tokens.no.token_id,
               })
             }
             className="py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"

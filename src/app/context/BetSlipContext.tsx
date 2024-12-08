@@ -9,10 +9,11 @@ export interface Bet {
   marketQuestion: string;
   position: "YES" | "NO";
   price: number;
+  tokenId: string;  // YES or NO token ID
 }
 
 interface BetSlipContextType {
-  bet: Bet | null; 
+  bet: Bet | null;
   addBet: (bet: Bet) => void;
   removeBet: (marketId: string) => void;
   clearBets: () => void;
@@ -26,7 +27,12 @@ export const BetSlipProvider: React.FC<{ children: React.ReactNode }> = ({
   const [bet, setBet] = useState<Bet | null>(null);
 
   const addBet = (newBet: Bet) => {
-    setBet(newBet); 
+    // Validate that we have a token ID
+    if (!newBet.tokenId) {
+      console.error("Attempted to add bet without token ID");
+      return;
+    }
+    setBet(newBet);
   };
 
   const removeBet = (marketId: string) => {

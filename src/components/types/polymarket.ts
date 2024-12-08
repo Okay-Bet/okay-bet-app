@@ -56,7 +56,7 @@ export interface Outcome {
   complement: string;
 }
 
-export type Market = {
+export interface Market {
   id: string;
   question: string;
   liquidity_num: number;
@@ -65,9 +65,23 @@ export type Market = {
   active: boolean;
   closed: boolean;
   enableOrderBook: boolean;
-  bestBid?: number;
-  bestAsk?: number;
-  end_date_iso?: string;
-  outcomes?: Outcome[];
-  oracle?: string;
-};
+  bestBid: number;
+  bestAsk: number;
+  end_date_iso: string;
+  description?: string;
+  tokens: {
+    yes: {
+      token_id: string;
+      outcome: string;
+    };
+    no: {
+      token_id: string;
+      outcome: string;
+    };
+  };
+  outcomes: Array<{
+    id: string;
+    index: string;
+    complement: string;
+  }>;
+}

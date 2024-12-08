@@ -24,17 +24,14 @@ export const BetSlip: React.FC = () => {
       setOrderError(null);
       if (!bet || !amount) return;
 
-      // Map betting position to yes/no
-      const side = bet.position.toLowerCase() === 'yes' ? 'yes' : 'no';
-
       const orderRequest = {
-        market_id: bet.marketId,
+        tokenId: bet.tokenId, // Using the specific YES/NO token ID
         price: bet.price,
         amount: parseFloat(amount),
-        side: side as 'yes' | 'no',
+        side: bet.position === "YES" ? "BUY" : "SELL",
       };
 
-      console.log("Submitting order:", orderRequest); // Debug log
+      console.log("Submitting order:", orderRequest);
 
       const result = await submitOrder(orderRequest);
       if (result.success) {
@@ -42,11 +39,12 @@ export const BetSlip: React.FC = () => {
         setAmount("");
       }
     } catch (err) {
-      console.error("Order placement error:", err); // Debug log
-      setOrderError(err instanceof Error ? err.message : "Failed to place order");
+      console.error("Order placement error:", err);
+      setOrderError(
+        err instanceof Error ? err.message : "Failed to place order"
+      );
     }
   };
-
 
   if (!bet) return null;
 
