@@ -30,6 +30,19 @@ export interface MarketData {
   error: string | null;
 }
 
+export interface Event {
+  id: string;
+  title: string;
+  liquidity: number;
+  volume: number;
+  description?: string;
+  markets: Array<{
+    id: string;
+    question: string;
+    liquidity: number;
+  }>;
+}
+
 const GAMMA_API_URL = "https://gamma-api.polymarket.com";
 
 export const useMarket = (eventId: string, marketIndex: number): MarketData => {
@@ -105,4 +118,36 @@ export const useMarket = (eventId: string, marketIndex: number): MarketData => {
   }, [eventId, marketIndex]);
 
   return marketData;
+};
+
+// New function to fetch top liquidity events
+export const fetchTopLiquidityEvents = async (topN: number = 10): Promise<Event[]> => {
+  try {
+    const response = await fetch(`${GAMMA_API_URL}/events?closed=false&limit=500`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const events = await response.json();
+
+    // Process and sort events by liquidity
+    const processedEvents = events.map((event: any) => ({
+      id: event.id,
+      title: event.title || "Untitled Event",
+      liquidity: parseFloat(event.liquidity || 0),
+      volume: parseFloat(event.volume || 0),
+      description: event.description || "",
+      markets: event.markets.map((market: any) => ({
+        id: market.id,
+        question: market.question || "Untitled Market",
+        liquidity: parseFloat(market.liquidity || 0),
+      })),
+    }));
+
+    // Sort by liquidity and return the top N
+    return processedEvents.sort((a:Event, b:Event) => b.liquidity - a.liquidity).slice(0, topN);
+  } catch (error) {
+    console.error("Error fetching top liquidity events:", error);
+    return [];
+  }
 };
