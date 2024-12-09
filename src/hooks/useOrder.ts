@@ -1,4 +1,3 @@
-// src/hooks/useOrder.ts
 import { useState } from "react";
 import { useActiveAccount, useSendTransaction } from "thirdweb/react";
 import { getContract, prepareContractCall } from "thirdweb";
@@ -68,7 +67,6 @@ export const useOrder = () => {
         is_yes_token: orderRequest.isYesToken,
       };
 
-
       const validationResponse = await fetch("/api/validate-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -86,7 +84,6 @@ export const useOrder = () => {
         data: data as ValidationResponse,
       });
 
-
       return data;
     } catch (err) {
       console.error("Validation error:", err);
@@ -97,10 +94,11 @@ export const useOrder = () => {
     }
   };
 
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
   const sendUsdcTransfer = async (amount: string) => {
     try {
       setStatus({ state: "preparing_transfer" });
-
 
       console.log("Preparing USDC transfer:", {
         to: AGENT_WALLET_ADDRESS,
@@ -124,12 +122,22 @@ export const useOrder = () => {
 
       return new Promise((resolve, reject) => {
         sendTransaction(transaction, {
-          onSuccess: (result) => {
-            setStatus({
-              state: "confirming_transfer",
-              txHash: result.transactionHash,
-            });
-            resolve(result);
+          onSuccess: async (result) => {
+            try {
+              setStatus({
+                state: "confirming_transfer",
+                txHash: result.transactionHash,
+              });
+              
+              console.log("USDC transfer sent, waiting for confirmation...");
+              // Wait for 15 seconds to ensure transaction is confirmed
+              await sleep(15000);
+              console.log("Proceeding with order submission");
+              
+              resolve(result);
+            } catch (error) {
+              reject(error);
+            }
           },
           onError: (error) => reject(error),
         });

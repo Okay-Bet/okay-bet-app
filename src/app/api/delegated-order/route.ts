@@ -9,14 +9,14 @@ export async function POST(request: Request) {
     const body = await request.json();
     console.log("Received order body:", body);
 
-    // Validate required fields including USDC transaction hash
+    // Validate required fields
     const requiredFields = [
       "user_address",
-      "market_id",
+      "token_id",
       "price",
       "amount",
       "side",
-      "usdc_transaction_hash"
+      "is_yes_token"
     ];
 
     for (const field of requiredFields) {
@@ -68,6 +68,7 @@ export async function POST(request: Request) {
 
     const data = await response.json();
     return NextResponse.json(data);
+    
   } catch (error) {
     console.error("NextJS route error:", error);
     return NextResponse.json(
