@@ -123,16 +123,16 @@ export const MarketCard: React.FC<MarketCardProps> = ({
       </div>
 
       {/* Market Tabs section */}
-      <div className="border-b border-gray-700 px-4">
-        <div className="flex mb-px overflow-x-auto whitespace-nowrap scrollbar-hide">
+      <div className="border-b border-gray-700">
+        <div className="flex -mx-4 overflow-x-auto whitespace-nowrap scrollbar-hide">
           {sortedData.map(({ index, subtitle, liquidity }) => (
             <button
               key={index}
               onClick={() => setActiveMarketIndex(index)}
-              className={`py-2 px-4 text-sm font-medium ${
+              className={`py-2 px-3 text-sm font-medium transition-colors shrink-0 whitespace-normal max-w-[150px] min-h-[48px] ${
                 activeMarketIndex === index
-                  ? "border-b-2 border-blue-500 text-blue-500"
-                  : "text-gray-800 hover:text-gray-500"
+                  ? "bg-black text-white hover:bg-secondary"
+                  : "text-primary hover:bg-secondary hover:text-quaternary"
               }`}
             >
               {subtitle}
