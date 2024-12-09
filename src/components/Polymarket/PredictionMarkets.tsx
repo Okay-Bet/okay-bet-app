@@ -24,7 +24,7 @@ const PredictionMarkets: React.FC = () => {
   return (
     <div className="space-y-4">
       <div className="p-4 bg-background text-primary rounded-lg">
-        <h2 className="text-xl font-bold mb-2">Top Liquidity Markets</h2>
+        <h2 className="text-xl font-bold mb-2 font-header">Top Liquidity Markets</h2>
         <p className="text-sm text-primary">
           Showing the top {topEvents.length} events with the highest liquidity.
         </p>
