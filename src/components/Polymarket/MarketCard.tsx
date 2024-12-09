@@ -1,7 +1,4 @@
-// components/Polymarket/MarketCard.tsx
-// renders a single poly market and lets users interact with it
-
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useMarket } from "../../hooks/useMarket";
 import { LoadingState, ErrorState } from "./LoadingState";
 import { useBetSlip } from "@/app/context/BetSlipContext";
@@ -32,6 +29,16 @@ interface Market {
   liquidity_num: number;
   bestAsk?: number;
   active?: boolean;
+  tokens: {
+    yes: {
+      token_id: string;
+      outcome: string;
+    };
+    no: {
+      token_id: string;
+      outcome: string;
+    };
+  };
 }
 
 export const MarketCard: React.FC<MarketCardProps> = ({
@@ -40,12 +47,37 @@ export const MarketCard: React.FC<MarketCardProps> = ({
   marketIndices,
   marketSubTitles,
 }) => {
+  // Set initial active market to first index
   const [activeMarketIndex, setActiveMarketIndex] = useState(marketIndices[0]);
   const [showDetails, setShowDetails] = useState(false);
   const [showMoneyline, setShowMoneyline] = useState(false);
   const { addBet } = useBetSlip();
 
-  const { market, loading, error } = useMarket(eventId, activeMarketIndex);
+  const { market, loading, error, marketLiquidities } = useMarket(
+    eventId,
+    activeMarketIndex
+  );
+
+  // Sort market data by liquidity
+  const sortedData = useMemo(() => {
+    return marketIndices
+      .map((index, i) => ({
+        index,
+        subtitle: marketSubTitles[i],
+        liquidity: marketLiquidities[i] || 0,
+      }))
+      .sort((a, b) => a.liquidity - b.liquidity);
+  }, [marketIndices, marketSubTitles, marketLiquidities]);
+
+  // Set initial market to lowest liquidity only on first load
+  useEffect(() => {
+    if (
+      marketLiquidities.length > 0 &&
+      activeMarketIndex === marketIndices[0]
+    ) {
+      setActiveMarketIndex(sortedData[0].index);
+    }
+  }, [marketLiquidities.length]);
 
   const formatExpiryDate = (dateStr: string | undefined) => {
     if (!dateStr) return "No expiry date";
@@ -91,19 +123,19 @@ export const MarketCard: React.FC<MarketCardProps> = ({
       </div>
 
       {/* Market Tabs section */}
-      <div className="border-b border-gray-700 px-4">
-        <div className="flex mb-px">
-          {marketIndices.map((index, i) => (
+      <div className="border-b border-gray-700">
+        <div className="flex -mx-4 overflow-x-auto whitespace-nowrap scrollbar-hide">
+          {sortedData.map(({ index, subtitle, liquidity }) => (
             <button
               key={index}
               onClick={() => setActiveMarketIndex(index)}
-              className={`py-2 px-4 text-sm font-medium ${
+              className={`py-2 px-3 text-sm font-medium transition-colors shrink-0 whitespace-normal max-w-[150px] min-h-[48px] ${
                 activeMarketIndex === index
-                  ? "border-b-2 border-blue-500 text-blue-500"
-                  : "text-gray-800 hover:text-gray-500"
+                  ? "bg-black text-white hover:bg-secondary"
+                  : "text-primary hover:bg-secondary hover:text-quaternary"
               }`}
             >
-              {marketSubTitles[i]}
+              {subtitle}
             </button>
           ))}
         </div>
@@ -134,15 +166,16 @@ export const MarketCard: React.FC<MarketCardProps> = ({
         {/* Actions */}
         <div className="grid grid-cols-2 gap-3 mb-2">
           <button
-            onClick={() =>
+            onClick={() => {
               addBet({
                 marketId: market.condition_id,
                 eventTitle: eventTitle,
                 marketQuestion: market.question,
                 position: "YES",
                 price: yesPrice,
-              })
-            }
+                tokenId: market.tokens.yes.token_id,
+              });
+            }}
             className="py-2 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
           >
             Buy Yes
@@ -155,6 +188,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
                 marketQuestion: market.question,
                 position: "NO",
                 price: noPrice,
+                tokenId: market.tokens.no.token_id,
               })
             }
             className="py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
@@ -206,27 +240,29 @@ export const MarketCard: React.FC<MarketCardProps> = ({
         </button>
 
         {showDetails && (
-          <div className="mt-4 p-4 bg-tertiary rounded-lg text-sm text-gray-300">
-            <p className="mb-3">
-              {market.description || "No description available"}
-            </p>{" "}
-            <div className="space-y-2">
-              <div className="text-xs text-gray-400">Resolution Rules</div>
-              <p>
-                {market.resolutionSource ||
-                  "Market resolves based on official sources."}
-              </p>
-              <div className="mt-4 pt-4 border-t border-gray-700">
-                <div className="text-xs text-gray-400 mb-2">
-                  Trading Information
-                </div>
-                <ul className="space-y-1">
-                  <li>• Total Volume: ${market.volume_num.toLocaleString()}</li>
-                  <li>
-                    • Total Liquidity: ${market.liquidity_num.toLocaleString()}
-                  </li>
-                  <li>• Market ID: {market.condition_id}</li>
-                </ul>
+          <div className="mt-6">
+            {/* Description Section */}
+            <div className="mb-6">
+              <div className="bg-black text-white text-sm font-medium py-2 px-4 rounded-t-lg">
+                Description
+              </div>
+              <div className="bg-tertiary p-4 rounded-b-lg">
+                <p className="text-base font-medium leading-relaxed text-gray-200">
+                  {market.description || "No description available"}
+                </p>
+              </div>
+            </div>
+
+            {/* Resolution Rules Section */}
+            <div>
+              <div className="bg-black text-white text-sm font-medium py-2 px-4 rounded-t-lg">
+                Resolution Rules
+              </div>
+              <div className="bg-tertiary p-4 rounded-b-lg">
+                <p className="text-base font-medium leading-relaxed text-gray-200">
+                  {market.resolutionSource ||
+                    "Market resolves based on official sources."}
+                </p>
               </div>
             </div>
           </div>

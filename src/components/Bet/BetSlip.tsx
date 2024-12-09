@@ -1,11 +1,66 @@
-// components/BetSlip.tsx
-// Renders entry for of prediction market positions meant to look like a sportsbook
-
 import React, { useState } from "react";
 import { useBetSlip } from "@/app/context/BetSlipContext";
+import { useOrder } from "@/hooks/useOrder";
+
+// Order types
+type OrderSide = "BUY" | "SELL";
+type Position = "YES" | "NO";
+
+interface OrderRequest {
+  tokenId: string;
+  price: number;
+  amount: number;
+  side: OrderSide;
+  isYesToken: boolean;
+}
+
+// Market info types
+interface MarketInfo {
+  current_bid: string;
+  current_ask: string;
+}
+
+// Status types
+type ValidationState =
+  | "validating"
+  | "validated"
+  | "validation_failed"
+  | "error";
+
+interface ValidationStatus {
+  state: ValidationState;
+  data?: {
+    market_info: MarketInfo;
+  };
+  error?: string;
+}
+
+// Bet types
+interface Bet {
+  tokenId: string;
+  marketId: string;
+  eventTitle: string;
+  marketQuestion: string;
+  position: Position;
+  price: number;
+}
+
+// Hook return types
+interface BetSlipHook {
+  bet: Bet | null;
+  removeBet: (marketId: string) => void;
+  clearBets: () => void;
+}
+
+interface OrderHook {
+  submitOrder: (order: OrderRequest) => Promise<void>;
+  status: ValidationStatus;
+  isLoading: boolean;
+}
 
 export const BetSlip: React.FC = () => {
-  const { bet, removeBet, clearBets } = useBetSlip();
+  const { bet, removeBet, clearBets } = useBetSlip() as BetSlipHook;
+  const { submitOrder, status, isLoading } = useOrder() as OrderHook;
   const [amount, setAmount] = useState<string>("");
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -19,7 +74,74 @@ export const BetSlip: React.FC = () => {
     return (amount / price).toFixed(2);
   };
 
-  if (!bet) return null; // Hide if no bet
+  const handlePlaceOrder = async () => {
+    try {
+      if (!bet || !amount) return;
+
+      const orderRequest: OrderRequest = {
+        tokenId: bet.tokenId,
+        price: bet.price,
+        amount: parseFloat(amount),
+        side: bet.position === "YES" ? "BUY" : "SELL",
+        isYesToken: bet.position === "YES",
+      };
+
+      await submitOrder(orderRequest);
+    } catch (err) {
+      console.error("Order placement error:", err);
+    }
+  };
+
+  const renderValidationDetails = () => {
+    if (status.state === "validated" && status.data?.market_info) {
+      const { current_bid, current_ask } = status.data.market_info;
+      return (
+        <div className="text-xs text-gray-600 mt-2">
+          <p>Current Bid: ${parseFloat(current_bid).toFixed(3)}</p>
+          <p>Current Ask: ${parseFloat(current_ask).toFixed(3)}</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const renderStatus = () => {
+    switch (status.state) {
+      case "validating":
+        return (
+          <div className="bg-blue-50 p-3 rounded-lg mb-4">
+            <p className="text-sm text-blue-600">Validating order...</p>
+            <p className="text-xs text-blue-500">Checking market conditions</p>
+          </div>
+        );
+      case "validated":
+        return (
+          <div className="bg-green-50 p-3 rounded-lg mb-4">
+            <p className="text-sm text-green-600">
+              Order validated successfully
+            </p>
+            {renderValidationDetails()}
+          </div>
+        );
+      case "validation_failed":
+        return (
+          <div className="bg-red-50 p-3 rounded-lg mb-4">
+            <p className="text-sm text-red-600">Validation failed</p>
+            <p className="text-xs text-red-500">{status.error}</p>
+          </div>
+        );
+      case "error":
+        return (
+          <div className="bg-red-50 p-3 rounded-lg mb-4">
+            <p className="text-sm text-red-600">{status.error}</p>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  if (!bet) return null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg">
@@ -34,6 +156,8 @@ export const BetSlip: React.FC = () => {
           </button>
         </div>
 
+        {renderStatus()}
+
         <div className="space-y-4 mb-4">
           <div className="bg-gray-50 p-3 rounded-lg">
             <div className="flex justify-between items-start mb-2">
@@ -41,7 +165,7 @@ export const BetSlip: React.FC = () => {
                 <p className="text-sm font-medium">{bet.eventTitle}</p>
                 <p className="text-xs text-gray-600">{bet.marketQuestion}</p>
                 <p className="text-sm font-medium mt-1">
-                  {bet.position} @ ${(bet.price).toFixed(2)}
+                  {bet.position} @ ${bet.price.toFixed(3)}
                 </p>
               </div>
               <button
@@ -69,6 +193,7 @@ export const BetSlip: React.FC = () => {
                 onChange={handleAmountChange}
                 placeholder="0.00"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg pr-12"
+                disabled={isLoading}
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
                 USDC
@@ -76,10 +201,11 @@ export const BetSlip: React.FC = () => {
             </div>
           </div>
           <button
-            className="px-6 py-2 p-4 bg-tertiary text-font font-heading rounded-lg transition-colors"
-            disabled={!amount || parseFloat(amount) <= 0}
+            className="px-6 py-2 bg-tertiary text-font font-heading rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!amount || parseFloat(amount) <= 0 || isLoading}
+            onClick={handlePlaceOrder}
           >
-            Place Order
+            {isLoading ? "Processing..." : "Place Order"}
           </button>
         </div>
       </div>

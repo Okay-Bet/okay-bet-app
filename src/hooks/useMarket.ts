@@ -1,10 +1,14 @@
-// hooks/useMarket.ts
-// uses Polymarket gamma api to fetch the market data
-
 import { useState, useEffect } from "react";
 
+// Token interfaces
+interface TokenPair {
+  token_id: string;
+  outcome: string;
+}
+
+// Market interfaces
 export interface Market {
-  id: string;
+  id: string; // condition id
   question: string;
   liquidity_num: number;
   volume_num: number;
@@ -17,6 +21,12 @@ export interface Market {
   end_date_iso: string;
   description?: string;
   resolutionSource?: string;
+  min_size?: string;
+  min_tick_size?: string;
+  tokens: {
+    yes: TokenPair;
+    no: TokenPair;
+  };
   outcomes: Array<{
     id: string;
     index: string;
@@ -24,10 +34,24 @@ export interface Market {
   }>;
 }
 
+export interface Event {
+  id: string;
+  title: string;
+  liquidity: number;
+  volume: number;
+  description?: string;
+  markets: Array<{
+    id: string;
+    question: string;
+    liquidity: number;
+  }>;
+}
+
 export interface MarketData {
   market: Market | null;
   loading: boolean;
   error: string | null;
+  marketLiquidities: number[];
 }
 
 const GAMMA_API_URL = "https://gamma-api.polymarket.com";
@@ -37,6 +61,7 @@ export const useMarket = (eventId: string, marketIndex: number): MarketData => {
     market: null,
     loading: true,
     error: null,
+    marketLiquidities: [],
   });
 
   useEffect(() => {
@@ -57,7 +82,30 @@ export const useMarket = (eventId: string, marketIndex: number): MarketData => {
           throw new Error("Market not found");
         }
 
+        // Get all liquidities first
+        const liquidities = event.markets.map((m: any) => Number(m.liquidityNum || 0));
+
         const rawMarket = event.markets[marketIndex];
+        let tokenIds: string[] = [];
+        try {
+          if (rawMarket.clobTokenIds) {
+            tokenIds = JSON.parse(rawMarket.clobTokenIds);
+          }
+        } catch (e) {
+          console.error("Error parsing clobTokenIds:", e);
+        }
+
+        // Map token IDs to YES/NO
+        const tokens = {
+          yes: {
+            token_id: tokenIds[0] || "",
+            outcome: "YES",
+          },
+          no: {
+            token_id: tokenIds[1] || "",
+            outcome: "NO",
+          },
+        };
 
         // Process the market data
         const processedMarket: Market = {
@@ -74,6 +122,9 @@ export const useMarket = (eventId: string, marketIndex: number): MarketData => {
           end_date_iso: rawMarket.endDateIso,
           description: rawMarket.description || undefined,
           resolutionSource: rawMarket.resolutionSource || undefined,
+          min_size: rawMarket.minimum_order_size,
+          min_tick_size: rawMarket.minimum_tick_size,
+          tokens,
           outcomes: rawMarket.outcomes
             ? JSON.parse(rawMarket.outcomes).map(
                 (outcome: string, index: number) => ({
@@ -89,6 +140,7 @@ export const useMarket = (eventId: string, marketIndex: number): MarketData => {
           market: processedMarket,
           loading: false,
           error: null,
+          marketLiquidities: liquidities,
         });
       } catch (err) {
         console.error("Error fetching market data:", err);
@@ -97,6 +149,7 @@ export const useMarket = (eventId: string, marketIndex: number): MarketData => {
           loading: false,
           error:
             err instanceof Error ? err.message : "Failed to fetch market data",
+          marketLiquidities: [],
         });
       }
     };
@@ -105,4 +158,42 @@ export const useMarket = (eventId: string, marketIndex: number): MarketData => {
   }, [eventId, marketIndex]);
 
   return marketData;
+};
+
+// Maintain the fetchTopLiquidityEvents function for PredictionMarkets component
+export const fetchTopLiquidityEvents = async (
+  topN: number = 10
+): Promise<Event[]> => {
+  try {
+    const response = await fetch(
+      `${GAMMA_API_URL}/events?closed=false&limit=500`
+    );
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const events = await response.json();
+
+    // Process and sort events by liquidity
+    const processedEvents = events.map((event: any) => ({
+      id: event.id,
+      title: event.title || "Untitled Event",
+      liquidity: parseFloat(event.liquidity || 0),
+      volume: parseFloat(event.volume || 0),
+      description: event.description || "",
+      markets: event.markets.map((market: any) => ({
+        id: market.id,
+        question: market.question || "Untitled Market",
+        liquidity: parseFloat(market.liquidity || 0),
+      })),
+    }));
+
+    // Sort by liquidity and return the top N
+    return processedEvents
+      .sort((a: Event, b: Event) => b.liquidity - a.liquidity)
+      .slice(0, topN);
+  } catch (error) {
+    console.error("Error fetching top liquidity events:", error);
+    return [];
+  }
 };

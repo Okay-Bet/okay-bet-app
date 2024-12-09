@@ -4,6 +4,7 @@ export interface Bet {
   marketId: string;
   eventTitle: string;
   marketQuestion: string;
-  position: 'YES' | 'NO';
+  position: "YES" | "NO";
   price: number;
+  tokenId: string;
 }

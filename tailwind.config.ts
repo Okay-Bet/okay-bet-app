@@ -12,6 +12,7 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
+        header:["'Bebas Neue'", "sans-serif"],
         heading: ["'Monument'", "sans-serif"],
         body: ["'Montserrat'", "sans-serif"],
       },
