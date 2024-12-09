@@ -6,7 +6,6 @@ const FASTAPI_BASE_URL = process.env.FASTAPI_BASE_URL || "http://167.71.208.166:
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        console.log("Validating order:", body);
 
         // Validate required fields
         const requiredFields = [
