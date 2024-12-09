@@ -102,7 +102,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
 
       {/* Market Tabs section */}
       <div className="border-b border-gray-700 px-4">
-        <div className="flex mb-px">
+      <div className="flex mb-px overflow-x-auto whitespace-nowrap scrollbar-hide">
           {marketIndices.map((index, i) => (
             <button
               key={index}
