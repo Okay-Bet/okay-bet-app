@@ -240,27 +240,29 @@ export const MarketCard: React.FC<MarketCardProps> = ({
         </button>
 
         {showDetails && (
-          <div className="mt-4 p-4 bg-tertiary rounded-lg text-sm text-gray-300">
-            <p className="mb-3">
-              {market.description || "No description available"}
-            </p>
-            <div className="space-y-2">
-              <div className="text-xs text-gray-400">Resolution Rules</div>
-              <p>
-                {market.resolutionSource ||
-                  "Market resolves based on official sources."}
-              </p>
-              <div className="mt-4 pt-4 border-t border-gray-700">
-                <div className="text-xs text-gray-400 mb-2">
-                  Trading Information
-                </div>
-                <ul className="space-y-1">
-                  <li>• Total Volume: ${market.volume_num.toLocaleString()}</li>
-                  <li>
-                    • Total Liquidity: ${market.liquidity_num.toLocaleString()}
-                  </li>
-                  <li>• Market ID: {market.condition_id}</li>
-                </ul>
+          <div className="mt-6">
+            {/* Description Section */}
+            <div className="mb-6">
+              <div className="bg-black text-white text-sm font-medium py-2 px-4 rounded-t-lg">
+                Description
+              </div>
+              <div className="bg-tertiary p-4 rounded-b-lg">
+                <p className="text-base font-medium leading-relaxed text-gray-200">
+                  {market.description || "No description available"}
+                </p>
+              </div>
+            </div>
+
+            {/* Resolution Rules Section */}
+            <div>
+              <div className="bg-black text-white text-sm font-medium py-2 px-4 rounded-t-lg">
+                Resolution Rules
+              </div>
+              <div className="bg-tertiary p-4 rounded-b-lg">
+                <p className="text-base font-medium leading-relaxed text-gray-200">
+                  {market.resolutionSource ||
+                    "Market resolves based on official sources."}
+                </p>
               </div>
             </div>
           </div>
