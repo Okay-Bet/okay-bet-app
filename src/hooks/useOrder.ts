@@ -94,7 +94,8 @@ export const useOrder = () => {
     }
   };
 
-  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  const sleep = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
 
   const sendUsdcTransfer = async (amount: string) => {
     try {
@@ -112,10 +113,11 @@ export const useOrder = () => {
         chain: polygon,
       });
 
+      // Convert the amount string to a bigint
       const transaction = prepareContractCall({
         contract: usdcContract,
         method: "function transfer(address to, uint256 amount)",
-        params: [AGENT_WALLET_ADDRESS, amount],
+        params: [AGENT_WALLET_ADDRESS, BigInt(amount)],
       });
 
       setStatus({ state: "awaiting_signature" });
@@ -128,12 +130,12 @@ export const useOrder = () => {
                 state: "confirming_transfer",
                 txHash: result.transactionHash,
               });
-              
+
               console.log("USDC transfer sent, waiting for confirmation...");
               // Wait for 15 seconds to ensure transaction is confirmed
               await sleep(15000);
               console.log("Proceeding with order submission");
-              
+
               resolve(result);
             } catch (error) {
               reject(error);
@@ -158,7 +160,7 @@ export const useOrder = () => {
       }
 
       // Step 2: Send USDC Transfer and wait for confirmation
-      const txResult = await sendUsdcTransfer(validationData.usdc_amount);
+      const txResult: any = await sendUsdcTransfer(validationData.usdc_amount);
 
       // Step 3: Submit Delegated Order
       setStatus({ state: "submitting_order" });

@@ -2,9 +2,65 @@ import React, { useState } from "react";
 import { useBetSlip } from "@/app/context/BetSlipContext";
 import { useOrder } from "@/hooks/useOrder";
 
+// Order types
+type OrderSide = "BUY" | "SELL";
+type Position = "YES" | "NO";
+
+interface OrderRequest {
+  tokenId: string;
+  price: number;
+  amount: number;
+  side: OrderSide;
+  isYesToken: boolean;
+}
+
+// Market info types
+interface MarketInfo {
+  current_bid: string;
+  current_ask: string;
+}
+
+// Status types
+type ValidationState =
+  | "validating"
+  | "validated"
+  | "validation_failed"
+  | "error";
+
+interface ValidationStatus {
+  state: ValidationState;
+  data?: {
+    market_info: MarketInfo;
+  };
+  error?: string;
+}
+
+// Bet types
+interface Bet {
+  tokenId: string;
+  marketId: string;
+  eventTitle: string;
+  marketQuestion: string;
+  position: Position;
+  price: number;
+}
+
+// Hook return types
+interface BetSlipHook {
+  bet: Bet | null;
+  removeBet: (marketId: string) => void;
+  clearBets: () => void;
+}
+
+interface OrderHook {
+  submitOrder: (order: OrderRequest) => Promise<void>;
+  status: ValidationStatus;
+  isLoading: boolean;
+}
+
 export const BetSlip: React.FC = () => {
-  const { bet, removeBet, clearBets } = useBetSlip();
-  const { submitOrder, status, isLoading } = useOrder();
+  const { bet, removeBet, clearBets } = useBetSlip() as BetSlipHook;
+  const { submitOrder, status, isLoading } = useOrder() as OrderHook;
   const [amount, setAmount] = useState<string>("");
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -22,7 +78,7 @@ export const BetSlip: React.FC = () => {
     try {
       if (!bet || !amount) return;
 
-      const orderRequest = {
+      const orderRequest: OrderRequest = {
         tokenId: bet.tokenId,
         price: bet.price,
         amount: parseFloat(amount),
@@ -37,16 +93,12 @@ export const BetSlip: React.FC = () => {
   };
 
   const renderValidationDetails = () => {
-    if (status.state === "validated") {
-      const { current_bid, current_ask, price_impact } =
-        status.data.market_info;
+    if (status.state === "validated" && status.data?.market_info) {
+      const { current_bid, current_ask } = status.data.market_info;
       return (
         <div className="text-xs text-gray-600 mt-2">
-          <p>Current Bid: ${current_bid.toFixed(3)}</p>
-          <p>Current Ask: ${current_ask.toFixed(3)}</p>
-          {price_impact && (
-            <p>Price Impact: {(price_impact * 100).toFixed(2)}%</p>
-          )}
+          <p>Current Bid: ${parseFloat(current_bid).toFixed(3)}</p>
+          <p>Current Ask: ${parseFloat(current_ask).toFixed(3)}</p>
         </div>
       );
     }
