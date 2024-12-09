@@ -51,6 +51,7 @@ export interface MarketData {
   market: Market | null;
   loading: boolean;
   error: string | null;
+  marketLiquidities: number[];
 }
 
 const GAMMA_API_URL = "https://gamma-api.polymarket.com";
@@ -60,6 +61,7 @@ export const useMarket = (eventId: string, marketIndex: number): MarketData => {
     market: null,
     loading: true,
     error: null,
+    marketLiquidities: [],
   });
 
   useEffect(() => {
@@ -79,6 +81,9 @@ export const useMarket = (eventId: string, marketIndex: number): MarketData => {
         if (!event || !event.markets || !event.markets[marketIndex]) {
           throw new Error("Market not found");
         }
+
+        // Get all liquidities first
+        const liquidities = event.markets.map((m: any) => Number(m.liquidityNum || 0));
 
         const rawMarket = event.markets[marketIndex];
         let tokenIds: string[] = [];
@@ -101,7 +106,6 @@ export const useMarket = (eventId: string, marketIndex: number): MarketData => {
             outcome: "NO",
           },
         };
-
 
         // Process the market data
         const processedMarket: Market = {
@@ -136,6 +140,7 @@ export const useMarket = (eventId: string, marketIndex: number): MarketData => {
           market: processedMarket,
           loading: false,
           error: null,
+          marketLiquidities: liquidities,
         });
       } catch (err) {
         console.error("Error fetching market data:", err);
@@ -144,6 +149,7 @@ export const useMarket = (eventId: string, marketIndex: number): MarketData => {
           loading: false,
           error:
             err instanceof Error ? err.message : "Failed to fetch market data",
+          marketLiquidities: [],
         });
       }
     };

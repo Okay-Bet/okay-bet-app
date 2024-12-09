@@ -1,7 +1,4 @@
-// components/Polymarket/MarketCard.tsx
-// renders a single poly market and lets users interact with it
-
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useMarket } from "../../hooks/useMarket";
 import { LoadingState, ErrorState } from "./LoadingState";
 import { useBetSlip } from "@/app/context/BetSlipContext";
@@ -50,12 +47,37 @@ export const MarketCard: React.FC<MarketCardProps> = ({
   marketIndices,
   marketSubTitles,
 }) => {
+  // Set initial active market to first index
   const [activeMarketIndex, setActiveMarketIndex] = useState(marketIndices[0]);
   const [showDetails, setShowDetails] = useState(false);
   const [showMoneyline, setShowMoneyline] = useState(false);
   const { addBet } = useBetSlip();
 
-  const { market, loading, error } = useMarket(eventId, activeMarketIndex);
+  const { market, loading, error, marketLiquidities } = useMarket(
+    eventId,
+    activeMarketIndex
+  );
+
+  // Sort market data by liquidity
+  const sortedData = useMemo(() => {
+    return marketIndices
+      .map((index, i) => ({
+        index,
+        subtitle: marketSubTitles[i],
+        liquidity: marketLiquidities[i] || 0,
+      }))
+      .sort((a, b) => a.liquidity - b.liquidity);
+  }, [marketIndices, marketSubTitles, marketLiquidities]);
+
+  // Set initial market to lowest liquidity only on first load
+  useEffect(() => {
+    if (
+      marketLiquidities.length > 0 &&
+      activeMarketIndex === marketIndices[0]
+    ) {
+      setActiveMarketIndex(sortedData[0].index);
+    }
+  }, [marketLiquidities.length]);
 
   const formatExpiryDate = (dateStr: string | undefined) => {
     if (!dateStr) return "No expiry date";
@@ -102,8 +124,8 @@ export const MarketCard: React.FC<MarketCardProps> = ({
 
       {/* Market Tabs section */}
       <div className="border-b border-gray-700 px-4">
-      <div className="flex mb-px overflow-x-auto whitespace-nowrap scrollbar-hide">
-          {marketIndices.map((index, i) => (
+        <div className="flex mb-px overflow-x-auto whitespace-nowrap scrollbar-hide">
+          {sortedData.map(({ index, subtitle, liquidity }) => (
             <button
               key={index}
               onClick={() => setActiveMarketIndex(index)}
@@ -113,7 +135,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
                   : "text-gray-800 hover:text-gray-500"
               }`}
             >
-              {marketSubTitles[i]}
+              {subtitle}
             </button>
           ))}
         </div>
@@ -221,7 +243,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
           <div className="mt-4 p-4 bg-tertiary rounded-lg text-sm text-gray-300">
             <p className="mb-3">
               {market.description || "No description available"}
-            </p>{" "}
+            </p>
             <div className="space-y-2">
               <div className="text-xs text-gray-400">Resolution Rules</div>
               <p>
