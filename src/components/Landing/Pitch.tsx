@@ -33,7 +33,7 @@ const Pitch = () => {
       Icon: Hub,
       title: "Aggregation",
       description:
-        "Compare prices, rules, and volume between similar prediction markets on any chain.",
+        "Compare prices, rules, and liquidity between similar prediction markets on any chain.",
     },
     {
       Icon: PersonAddAlt1,
@@ -55,7 +55,7 @@ const Pitch = () => {
           BET BETTER
         </h1>
         <p className="text-xl text-quaternary mb-12 max-w-2xl">
-          Manage positions on any prediction market on any chain from Okay Bet.
+          Manage positions on any prediction market and  any chain from Okay Bet.
         </p>
         <h2 className="text-3xl md:text-4xl font-heading text-font tracking-tighter italic mb-16">
           COMING SOON

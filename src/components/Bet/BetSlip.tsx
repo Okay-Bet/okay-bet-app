@@ -63,6 +63,18 @@ export const BetSlip: React.FC = () => {
   const { submitOrder, status, isLoading } = useOrder() as OrderHook;
   const [amount, setAmount] = useState<string>("");
 
+  const MIN_TOKENS = 5.0;
+
+  const getMinimumUSDC = (price: number): number => {
+    return MIN_TOKENS * price;
+  };
+
+  const currentMinimumUSDC = bet ? getMinimumUSDC(bet.price) : 0;
+
+  const calculatePotentialWin = (price: number, amount: number) => {
+    return (amount / price).toFixed(2);
+  };
+
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (/^\d*\.?\d*$/.test(value)) {
@@ -70,18 +82,25 @@ export const BetSlip: React.FC = () => {
     }
   };
 
-  const calculatePotentialWin = (price: number, amount: number) => {
-    return (amount / price).toFixed(2);
-  };
-
   const handlePlaceOrder = async () => {
     try {
       if (!bet || !amount) return;
 
+      const usdcAmount = parseFloat(amount);
+
+      // Check minimum amount before submitting
+      if (usdcAmount < currentMinimumUSDC) {
+        status.state = "error";
+        status.error = `Minimum order size is ${currentMinimumUSDC.toFixed(
+          2
+        )} USDC for this position`;
+        return;
+      }
+
       const orderRequest: OrderRequest = {
         tokenId: bet.tokenId,
         price: bet.price,
-        amount: parseFloat(amount),
+        amount: usdcAmount,
         side: bet.position === "YES" ? "BUY" : "SELL",
         isYesToken: bet.position === "YES",
       };
@@ -199,10 +218,15 @@ export const BetSlip: React.FC = () => {
                 USDC
               </span>
             </div>
+            <p className="text-sm text-gray-600 mt-1">
+              Minimum bet size: {currentMinimumUSDC.toFixed(2)} USDC
+            </p>
           </div>
           <button
             className="px-6 py-2 bg-tertiary text-font font-heading rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!amount || parseFloat(amount) <= 0 || isLoading}
+            disabled={
+              !amount || parseFloat(amount) < currentMinimumUSDC || isLoading
+            }
             onClick={handlePlaceOrder}
           >
             {isLoading ? "Processing..." : "Place Order"}
