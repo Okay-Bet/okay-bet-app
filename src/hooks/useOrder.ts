@@ -141,7 +141,18 @@ export const useOrder = () => {
               reject(error);
             }
           },
-          onError: (error) => reject(error),
+          onError: (error) => {
+            // Add specific handling for insufficient balance error
+            if (
+              error instanceof Error &&
+              error.message.includes("transfer amount exceeds balance")
+            ) {
+              setStatus({ state: "error", error: "Insufficient USDC balance" });
+              reject(new Error("Insufficient USDC balance"));
+              return;
+            }
+            reject(error);
+          },
         });
       });
     } catch (err) {
