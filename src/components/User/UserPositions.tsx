@@ -1,8 +1,38 @@
 // components/UserPositions.tsx
 import { usePositions } from "@/hooks/usePositions";
+import { useSellPosition } from "@/hooks/useSellPosition";
+import { useActiveAccount } from "thirdweb/react"; // Add this import
 
 export default function UserPositions() {
   const { positions, loading, error, isConnected, totalValue } = usePositions();
+  const {
+    sellPosition,
+    loading: sellLoading,
+    error: sellError,
+  } = useSellPosition();
+  const account = useActiveAccount();
+
+  const handleSell = async (
+    tokenId: string,
+    price: number,
+    amount: number,
+    isYesToken: boolean
+  ) => {
+    if (!account?.address) return;
+
+    try {
+      await sellPosition({
+        token_id: tokenId,
+        price,
+        amount,
+        is_yes_token: isYesToken,
+        user_address: account.address,
+      });
+      window.location.reload();
+    } catch (error) {
+      console.error("Failed to sell position:", error);
+    }
+  };
 
   if (!isConnected) {
     return (
@@ -60,21 +90,41 @@ export default function UserPositions() {
                     className="flex justify-between items-center"
                   >
                     <span>{outcome}</span>
-                    <div className="text-right">
-                      <span className="font-medium">
-                        {position.balances[index].toFixed(2)}
-                      </span>
-                      <span className="text-gray-500 ml-2">
-                        @ ${position.prices[index].toFixed(3)}
-                      </span>
-                      {position.balances[index] > 0 && (
-                        <span className="ml-2 text-gray-500">
-                          ($
-                          {(
-                            position.balances[index] * position.prices[index]
-                          ).toFixed(2)}
-                          )
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <span className="font-medium">
+                          {/* Convert raw balance to display format */}
+                          {(position.balances[index] / 1_000_000).toFixed(2)}
                         </span>
+                        <span className="text-gray-500 ml-2">
+                          @ ${position.prices[index].toFixed(3)}
+                        </span>
+                        {position.balances[index] > 0 && (
+                          <span className="ml-2 text-gray-500">
+                            ($
+                            {(
+                              (position.balances[index] / 1_000_000) *
+                              position.prices[index]
+                            ).toFixed(2)}
+                            )
+                          </span>
+                        )}
+                      </div>
+                      {position.balances[index] > 0 && (
+                        <button
+                          onClick={() =>
+                            handleSell(
+                              position.token_id,
+                              position.prices[index],
+                              position.balances[index], // Use raw balance directly
+                              index === 0
+                            )
+                          }
+                          disabled={sellLoading}
+                          className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 disabled:bg-red-300"
+                        >
+                          {sellLoading ? "Selling..." : "Sell"}
+                        </button>
                       )}
                     </div>
                   </div>
@@ -97,6 +147,11 @@ export default function UserPositions() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+      {sellError && (
+        <div className="mt-4 p-4 bg-red-100 text-red-700 rounded">
+          {sellError}
         </div>
       )}
     </div>
