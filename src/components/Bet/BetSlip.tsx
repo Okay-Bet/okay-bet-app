@@ -14,6 +14,16 @@ interface OrderRequest {
   isYesToken: boolean;
 }
 
+interface ValidationResponse {
+  valid: boolean;
+  estimated_total: number;
+  price_impact: number;
+  execution_possible: boolean;
+  warning: string | null;
+  min_order_size: number;
+  max_order_size: number;
+}
+
 // Market info types
 interface MarketInfo {
   current_bid: string;
@@ -29,9 +39,7 @@ type ValidationState =
 
 interface ValidationStatus {
   state: ValidationState;
-  data?: {
-    market_info: MarketInfo;
-  };
+  data?: ValidationResponse;
   error?: string;
 }
 
@@ -90,10 +98,9 @@ export const BetSlip: React.FC = () => {
 
       // Check minimum amount before submitting
       if (usdcAmount < currentMinimumUSDC) {
-        status.state = "error";
         status.error = `Minimum order size is ${currentMinimumUSDC.toFixed(
           2
-        )} USDC for this position`;
+        )} USDC`;
         return;
       }
 
@@ -105,24 +112,29 @@ export const BetSlip: React.FC = () => {
         isYesToken: bet.position === "YES",
       };
 
+      // Submit the order
       await submitOrder(orderRequest);
+
+      // Clear bet slip after successful order
+      clearBets();
+      setAmount("");
     } catch (err) {
       console.error("Order placement error:", err);
     }
   };
 
-  const renderValidationDetails = () => {
-    if (status.state === "validated" && status.data?.market_info) {
-      const { current_bid, current_ask } = status.data.market_info;
-      return (
-        <div className="text-xs text-gray-600 mt-2">
-          <p>Current Bid: ${parseFloat(current_bid).toFixed(3)}</p>
-          <p>Current Ask: ${parseFloat(current_ask).toFixed(3)}</p>
-        </div>
-      );
-    }
-    return null;
-  };
+  // const renderValidationDetails = () => {
+  //   if (status.state === "validated" && status.data?.market_info) {
+  //     const { current_bid, current_ask } = status.data.market_info;
+  //     return (
+  //       <div className="text-xs text-gray-600 mt-2">
+  //         <p>Current Bid: ${parseFloat(current_bid).toFixed(3)}</p>
+  //         <p>Current Ask: ${parseFloat(current_ask).toFixed(3)}</p>
+  //       </div>
+  //     );
+  //   }
+  //   return null;
+  // };
 
   const renderStatus = () => {
     switch (status.state) {
@@ -133,15 +145,63 @@ export const BetSlip: React.FC = () => {
             <p className="text-xs text-blue-500">Checking market conditions</p>
           </div>
         );
+
       case "validated":
+        if (!status.data) return null;
+
+        const priceImpactPercent = (status.data.price_impact * 100).toFixed(2);
+        const estimatedTotal = (
+          status.data.estimated_total / 1_000_000
+        ).toFixed(2);
+
         return (
-          <div className="bg-green-50 p-3 rounded-lg mb-4">
-            <p className="text-sm text-green-600">
-              Order validated successfully
-            </p>
-            {renderValidationDetails()}
+          <div
+            className={`p-3 rounded-lg mb-4 ${
+              status.data.warning ? "bg-yellow-50" : "bg-green-50"
+            }`}
+          >
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-medium text-gray-800">
+                Order Details:
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <p className="text-gray-600">Estimated Total:</p>
+                <p className="text-gray-800">{estimatedTotal} USDC</p>
+
+                <p className="text-gray-600">Price Impact:</p>
+                <p
+                  className={`${
+                    parseFloat(priceImpactPercent) > 5
+                      ? "text-yellow-600"
+                      : "text-gray-800"
+                  }`}
+                >
+                  {priceImpactPercent}%
+                </p>
+
+                <p className="text-gray-600">Execution:</p>
+                <p
+                  className={`${
+                    status.data.execution_possible
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  {status.data.execution_possible
+                    ? "Available"
+                    : "Limited Liquidity"}
+                </p>
+              </div>
+
+              {status.data.warning && (
+                <div className="mt-2 text-sm text-yellow-600 bg-yellow-100 p-2 rounded">
+                  ⚠️ {status.data.warning}
+                </div>
+              )}
+            </div>
           </div>
         );
+
       case "validation_failed":
         return (
           <div className="bg-red-50 p-3 rounded-lg mb-4">
@@ -149,12 +209,14 @@ export const BetSlip: React.FC = () => {
             <p className="text-xs text-red-500">{status.error}</p>
           </div>
         );
+
       case "error":
         return (
           <div className="bg-red-50 p-3 rounded-lg mb-4">
             <p className="text-sm text-red-600">{status.error}</p>
           </div>
         );
+
       default:
         return null;
     }

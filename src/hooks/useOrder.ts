@@ -10,11 +10,22 @@ const AGENT_WALLET_ADDRESS = "0x93c7c3f9394dEf62D2Ad0658c1c9b49919C13Ac5";
 
 interface ValidationResponse {
   valid: boolean;
-  usdc_amount: string;
-  market_info: {
-    current_bid: string;
-    current_ask: string;
-  };
+  estimated_total: number;    
+  price_impact: number;      
+  execution_possible: boolean;
+  warning: string | null;
+  min_order_size: number;
+  max_order_size: number;
+}
+
+interface OrderPayload {
+  user_address: string;
+  token_id: string;
+  price: number;
+  amount: string;           
+  side: "BUY" | "SELL";
+  is_yes_token: boolean;
+  usdc_transaction_hash?: string;
 }
 
 export type OrderStatus =
@@ -67,6 +78,8 @@ export const useOrder = () => {
         is_yes_token: orderRequest.isYesToken,
       };
 
+      console.log("Sending validation request:", orderData);
+
       const validationResponse = await fetch("/api/validate-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -77,6 +90,22 @@ export const useOrder = () => {
 
       if (!validationResponse.ok) {
         throw new Error(data.error?.msg || data.detail || "Validation failed");
+      }
+
+      console.log("Validation response:", data);
+
+      // Check price impact and add warnings
+      if (data.price_impact > 0.05) {
+        console.warn(
+          `High price impact detected: ${(data.price_impact * 100).toFixed(2)}%`
+        );
+      }
+
+      // Check execution possibility
+      if (!data.execution_possible) {
+        throw new Error(
+          "Order execution not possible due to insufficient liquidity"
+        );
       }
 
       setStatus({
@@ -170,8 +199,12 @@ export const useOrder = () => {
         throw new Error("Order validation failed");
       }
 
+      // IMPORTANT: Use estimated_total from validation response
+      const orderAmount = validationData.estimated_total.toString();
+      console.log("Using order amount:", orderAmount);
+
       // Step 2: Send USDC Transfer and wait for confirmation
-      const txResult: any = await sendUsdcTransfer(validationData.usdc_amount);
+      const txResult: any = await sendUsdcTransfer(orderAmount);
 
       // Step 3: Submit Delegated Order
       setStatus({ state: "submitting_order" });
@@ -180,7 +213,7 @@ export const useOrder = () => {
         user_address: account?.address,
         token_id: orderRequest.tokenId,
         price: orderRequest.price,
-        amount: validationData.usdc_amount,
+        amount: orderAmount, // Use the same amount we approved in transfer
         side: orderRequest.side,
         is_yes_token: orderRequest.isYesToken,
       };
