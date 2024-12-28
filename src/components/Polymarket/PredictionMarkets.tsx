@@ -1,36 +1,64 @@
 // components/Polymarket/PredictionMarkets.tsx
-
 import React, { useEffect, useState } from "react";
-import { fetchTopLiquidityEvents, Event } from "../../hooks/useMarket";
 import { MarketCard } from "./MarketCard";
+import MarketSearch, { SearchParams } from "./MarketSearch";
+import { Event } from "../../hooks/useMarket";
 
 const PredictionMarkets: React.FC = () => {
-  const [topEvents, setTopEvents] = useState<Event[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchEvents = async () => {
-      const events = await fetchTopLiquidityEvents(10);
-      setTopEvents(events);
+  const handleSearch = async (searchParams: SearchParams) => {
+    setLoading(true);
+    try {
+      const response = await fetch("/api/markets", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "search",
+          searchParams, // Make sure this is being passed correctly
+        }),
+      });
+  
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+  
+      const data = await response.json();
+      console.log("Search response:", data); // Add this for debugging
+      setEvents(data.events);
+    } catch (error) {
+      console.error("Error searching markets:", error);
+      setError(error instanceof Error ? error.message : "An error occurred");
+    } finally {
       setLoading(false);
-    };
-    fetchEvents();
-  }, []);
+    }
+  };
 
-  if (loading) {
-    return <div className="text-primary">Loading top events...</div>;
-  }
+  // Initial load
+  useEffect(() => {
+    handleSearch({
+      searchTerm: "",
+      sortBy: "liquidity",
+      sortDirection: "desc",
+    });
+  }, []);
 
   return (
     <div className="space-y-4">
-      <div className="p-4 bg-background text-primary rounded-lg">
-        <h2 className="text-xl font-bold mb-2 font-header">Top Liquidity Markets</h2>
-        <p className="text-sm text-primary">
-          Showing the top {topEvents.length} events with the highest liquidity.
-        </p>
-      </div>
+      <MarketSearch onSearch={handleSearch} isLoading={loading} />
+      
+      {error && (
+        <div className="p-4 bg-red-50 text-red-600 rounded-lg">
+          {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {topEvents.map((event) => (
+        {events.map((event) => (
           <div key={event.id} className="relative isolate items-start">
             <MarketCard
               eventId={event.id}
@@ -41,6 +69,12 @@ const PredictionMarkets: React.FC = () => {
           </div>
         ))}
       </div>
+
+      {loading && (
+        <div className="text-center py-4">
+          <span className="text-primary">Loading markets...</span>
+        </div>
+      )}
     </div>
   );
 };
