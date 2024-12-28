@@ -15,7 +15,7 @@ interface ValidationResponse {
   execution_possible: boolean;
   warning: string | null;
   min_order_size: number;
-  max_order_size: number;
+  max_order_size: number ;
 }
 
 interface OrderPayload {

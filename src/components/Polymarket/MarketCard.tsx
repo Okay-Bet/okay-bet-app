@@ -3,15 +3,6 @@ import { useMarket } from "../../hooks/useMarket";
 import { LoadingState, ErrorState } from "./LoadingState";
 import { useBetSlip } from "@/app/context/BetSlipContext";
 
-const decimalToMoneyline = (decimal: number): string => {
-  if (decimal >= 1) return "0";
-  if (decimal <= 0.5) {
-    return `+${Math.round(100 / decimal - 100)}`;
-  } else {
-    return `-${Math.round(100 / (1 - decimal) - 100)}`;
-  }
-};
-
 interface MarketCardProps {
   eventId: string;
   eventTitle: string;
@@ -41,13 +32,44 @@ interface Market {
   };
 }
 
+// Utility functions moved outside component
+const decimalToMoneyline = (decimal: number): string => {
+  if (decimal >= 2) return `+${Math.round((decimal - 1) * 100)}`;
+  if (decimal <= 1) {
+    return `-${Math.round(100 / (decimal - 1))}`;
+  }
+  return "0";
+};
+
+const formatPrice = (price: number, showMoneyline: boolean): string => {
+  if (!price && price !== 0) return "N/A";
+  return showMoneyline
+    ? decimalToMoneyline(price)
+    : `${(price * 100).toFixed(1)}%`;
+};
+
+const formatExpiryDate = (dateStr: string | undefined): string => {
+  if (!dateStr) return "No expiry date";
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) throw new Error("Invalid date");
+    return date.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch (e) {
+    console.warn("Date parsing error:", e);
+    return "Invalid date";
+  }
+};
+
 export const MarketCard: React.FC<MarketCardProps> = ({
   eventId,
   eventTitle,
   marketIndices,
   marketSubTitles,
 }) => {
-  // Set initial active market to first index
   const [activeMarketIndex, setActiveMarketIndex] = useState(marketIndices[0]);
   const [showDetails, setShowDetails] = useState(false);
   const [showMoneyline, setShowMoneyline] = useState(false);
@@ -58,7 +80,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
     activeMarketIndex
   );
 
-  // Sort market data by liquidity
+  // Memoized market sorting
   const sortedData = useMemo(() => {
     return marketIndices
       .map((index, i) => ({
@@ -66,45 +88,51 @@ export const MarketCard: React.FC<MarketCardProps> = ({
         subtitle: marketSubTitles[i],
         liquidity: marketLiquidities[i] || 0,
       }))
-      .sort((a, b) => a.liquidity - b.liquidity);
+      .sort((a, b) => b.liquidity - a.liquidity); // Sort by descending liquidity
   }, [marketIndices, marketSubTitles, marketLiquidities]);
 
-  // Set initial market to lowest liquidity only on first load
+  // Set initial market based on liquidity
   useEffect(() => {
     if (
       marketLiquidities.length > 0 &&
       activeMarketIndex === marketIndices[0]
     ) {
-      setActiveMarketIndex(sortedData[0].index);
+      const highestLiquidityMarket = sortedData[0];
+      if (highestLiquidityMarket) {
+        setActiveMarketIndex(highestLiquidityMarket.index);
+      }
     }
-  }, [marketLiquidities.length]);
+  }, [marketLiquidities, sortedData]);
 
-  const formatExpiryDate = (dateStr: string | undefined) => {
-    if (!dateStr) return "No expiry date";
-    try {
-      return new Date(dateStr).toLocaleDateString();
-    } catch (e) {
-      return "Invalid date";
-    }
-  };
-
-  const renderPrice = (price: number) => {
-    if (showMoneyline) {
-      return decimalToMoneyline(price);
-    }
-    return `${(price * 100).toFixed(1)}%`;
-  };
-
+  // Early returns for loading/error states
   if (loading) return <LoadingState />;
   if (error) return <ErrorState message={error} />;
   if (!market) return null;
 
+  // Calculate prices with validation
   const yesPrice = market.bestAsk || 0;
-  const noPrice = 1 - yesPrice;
+  const noPrice = Math.max(0, Math.min(1, 1 - yesPrice)); // Ensure price is between 0 and 1
+
+  const handleBetClick = (position: "YES" | "NO") => {
+    const price = position === "YES" ? yesPrice : noPrice;
+    const tokenId =
+      position === "YES"
+        ? market.tokens.yes.token_id
+        : market.tokens.no.token_id;
+
+    addBet({
+      marketId: market.condition_id,
+      eventTitle,
+      marketQuestion: market.question,
+      position,
+      price,
+      tokenId,
+    });
+  };
 
   return (
     <div className="bg-demo rounded-xl shadow-lg overflow-hidden">
-      {/* Header section */}
+      {/* Header Section */}
       <div className="p-4 border-b border-gray-700 flex justify-between items-center">
         <div className="flex-1">
           <h2 className="text-xl font-semibold text-primary">{eventTitle}</h2>
@@ -112,28 +140,28 @@ export const MarketCard: React.FC<MarketCardProps> = ({
             Expires {formatExpiryDate(market.end_date_iso)}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowMoneyline(!showMoneyline)}
-            className="px-2.5 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-full transition-colors"
-          >
-            {showMoneyline ? "Show %" : "Show ML"}
-          </button>
-        </div>
+        <button
+          onClick={() => setShowMoneyline(!showMoneyline)}
+          className="px-2.5 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-full transition-colors"
+        >
+          {showMoneyline ? "Show %" : "Show ML"}
+        </button>
       </div>
 
-      {/* Market Tabs section */}
+      {/* Market Tabs */}
       <div className="border-b border-gray-700">
         <div className="flex -mx-4 overflow-x-auto whitespace-nowrap scrollbar-hide">
-          {sortedData.map(({ index, subtitle, liquidity }) => (
+          {sortedData.map(({ index, subtitle }) => (
             <button
               key={index}
               onClick={() => setActiveMarketIndex(index)}
-              className={`py-2 px-3 text-sm font-medium transition-colors shrink-0 whitespace-normal max-w-[150px] min-h-[48px] ${
-                activeMarketIndex === index
-                  ? "bg-black text-white hover:bg-secondary"
-                  : "text-primary hover:bg-secondary hover:text-quaternary"
-              }`}
+              className={`py-2 px-3 text-sm font-medium transition-colors shrink-0 
+                whitespace-normal max-w-[150px] min-h-[48px] 
+                ${
+                  activeMarketIndex === index
+                    ? "bg-black text-white hover:bg-secondary"
+                    : "text-primary hover:bg-secondary hover:text-quaternary"
+                }`}
             >
               {subtitle}
             </button>
@@ -141,57 +169,41 @@ export const MarketCard: React.FC<MarketCardProps> = ({
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Market Content */}
       <div className="p-4">
-        <div className="mb-4">
-          <h3 className="text-lg font-medium text-primary mb-2 items-start">
-            {market.question}
-          </h3>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-tertiary p-3 rounded-lg">
-              <div className="text-sm text-gray-800 mb-1">Yes</div>
-              <div className="text-lg font-bold text-font">
-                {renderPrice(yesPrice)}
-              </div>
+        <h3 className="text-lg font-medium text-primary mb-2">
+          {market.question}
+        </h3>
+
+        {/* Price Display */}
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="bg-tertiary p-3 rounded-lg">
+            <div className="text-sm text-gray-800 mb-1">Yes</div>
+            <div className="text-lg font-bold text-font">
+              {formatPrice(yesPrice, showMoneyline)}
             </div>
-            <div className="bg-tertiary p-3 rounded-lg">
-              <div className="text-sm text-gray-800 mb-1">No</div>
-              <div className="text-lg font-bold text-font">
-                {renderPrice(noPrice)}
-              </div>
+          </div>
+          <div className="bg-tertiary p-3 rounded-lg">
+            <div className="text-sm text-gray-800 mb-1">No</div>
+            <div className="text-lg font-bold text-font">
+              {formatPrice(noPrice, showMoneyline)}
             </div>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="grid grid-cols-2 gap-3 mb-2">
+        {/* Action Buttons */}
+        <div className="grid grid-cols-2 gap-3 mb-4">
           <button
-            onClick={() => {
-              addBet({
-                marketId: market.condition_id,
-                eventTitle: eventTitle,
-                marketQuestion: market.question,
-                position: "YES",
-                price: yesPrice,
-                tokenId: market.tokens.yes.token_id,
-              });
-            }}
+            onClick={() => handleBetClick("YES")}
             className="py-2 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+            disabled={!market.active}
           >
             Buy Yes
           </button>
           <button
-            onClick={() =>
-              addBet({
-                marketId: market.condition_id,
-                eventTitle: eventTitle,
-                marketQuestion: market.question,
-                position: "NO",
-                price: noPrice,
-                tokenId: market.tokens.no.token_id,
-              })
-            }
+            onClick={() => handleBetClick("NO")}
             className="py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+            disabled={!market.active}
           >
             Buy No
           </button>
@@ -199,29 +211,24 @@ export const MarketCard: React.FC<MarketCardProps> = ({
 
         {/* Market Stats */}
         <div className="grid grid-cols-2 gap-2 mb-4">
-          {[
-            {
-              label: "Volume",
-              value: `$${market.volume_num.toLocaleString()}`,
-            },
-            {
-              label: "Liquidity",
-              value: `$${market.liquidity_num.toLocaleString()}`,
-            },
-          ].map((stat, i) => (
-            <div key={i} className="bg-tertiary p-2 rounded-lg">
-              <div className="text-xs text-primary">{stat.label}</div>
-              <div className="text-sm bold font-medium text-font truncate">
-                {stat.value}
-              </div>
+          <div className="bg-tertiary p-2 rounded-lg">
+            <div className="text-xs text-primary">Volume</div>
+            <div className="text-sm bold font-medium text-font truncate">
+              ${market.volume_num.toLocaleString()}
             </div>
-          ))}
+          </div>
+          <div className="bg-tertiary p-2 rounded-lg">
+            <div className="text-xs text-primary">Liquidity</div>
+            <div className="text-sm bold font-medium text-font truncate">
+              ${market.liquidity_num.toLocaleString()}
+            </div>
+          </div>
         </div>
 
-        {/* Details Toggle */}
+        {/* Details Section */}
         <button
           onClick={() => setShowDetails(!showDetails)}
-          className="w-full mt-4 flex items-center justify-center gap-2 text-primary hover:text-gray-500 text-sm"
+          className="w-full flex items-center justify-center gap-2 text-primary hover:text-gray-500 text-sm"
         >
           {showDetails ? "Hide" : "Show"} Details
           <svg
@@ -240,9 +247,8 @@ export const MarketCard: React.FC<MarketCardProps> = ({
         </button>
 
         {showDetails && (
-          <div className="mt-6">
-            {/* Description Section */}
-            <div className="mb-6">
+          <div className="mt-6 space-y-6">
+            <div>
               <div className="bg-black text-white text-sm font-medium py-2 px-4 rounded-t-lg">
                 Description
               </div>
@@ -252,8 +258,6 @@ export const MarketCard: React.FC<MarketCardProps> = ({
                 </p>
               </div>
             </div>
-
-            {/* Resolution Rules Section */}
             <div>
               <div className="bg-black text-white text-sm font-medium py-2 px-4 rounded-t-lg">
                 Resolution Rules
