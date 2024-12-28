@@ -1,15 +1,14 @@
 // hooks/useMarket.ts
 import { useState, useEffect } from "react";
+import type { Market } from "@/components/types/market";
 
-// Cache implementation
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-interface CacheEntry<T> {
-  data: T;
-  timestamp: number;
-}
+// Cache duration constant - 5 minutes
+// We define this at the top for easy configuration
+const CACHE_DURATION = 5 * 60 * 1000;
 
+// Generic cache implementation with type safety
 class Cache<T> {
-  private store: Map<string, CacheEntry<T>> = new Map();
+  private store: Map<string, { data: T; timestamp: number }> = new Map();
 
   set(key: string, data: T) {
     this.store.set(key, {
@@ -21,175 +20,128 @@ class Cache<T> {
   get(key: string): T | null {
     const entry = this.store.get(key);
     if (!entry) return null;
-    
+
     if (Date.now() - entry.timestamp > CACHE_DURATION) {
       this.store.delete(key);
       return null;
     }
-    
+
     return entry.data;
+  }
+
+  clear() {
+    this.store.clear();
   }
 }
 
-// Maintain separate caches for events and markets
-const eventCache = new Cache<Event>();
-const marketCache = new Cache<Market>();
-
-export interface Event {
-  id: string;
-  title: string;
-  liquidity: number;
-  volume: number;
-  description?: string;
-  markets: Array<{
-    id: string;
-    question: string;
-    liquidity: number;
-  }>;
-}
-
-export interface Market {
-  end_date_iso: string;
-  condition_id: string;
-  question: string;
-  description?: string;
-  resolutionSource?: string;
-  volume_num: number;
-  liquidity_num: number;
-  bestAsk?: number;
-  active?: boolean;
-  tokens: {
-    yes: {
-      token_id: string;
-      outcome: string;
-    };
-    no: {
-      token_id: string;
-      outcome: string;
-    };
-  };
-}
-
+// Interface for hook return value - keeps our return type consistent
 interface UseMarketResult {
   market: Market | null;
   loading: boolean;
   error: string | null;
   marketLiquidities: number[];
+  refetch: () => Promise<void>; // Added refetch capability
 }
 
-// Main market hook
-export const useMarket = (
+// Initialize cache at module level for persistence across hook instances
+const marketCache = new Cache<Market[]>();
+
+/**
+ * Hook to fetch and manage market data for a specific event
+ * @param eventId - The ID of the event containing the markets
+ * @param marketIndex - The index of the specific market within the event
+ * @returns Market data, loading state, error state, market liquidities, and refetch function
+ */
+export function useMarket(
   eventId: string,
   marketIndex: number
-): UseMarketResult => {
+): UseMarketResult {
   const [data, setData] = useState<UseMarketResult>({
     market: null,
     loading: true,
     error: null,
     marketLiquidities: [],
+    refetch: async () => {}, // Will be properly initialized in useEffect
   });
 
   useEffect(() => {
     let isMounted = true;
-    const fetchData = async () => {
+
+    // Define the fetch function within useEffect to access isMounted
+    const fetchMarketData = async () => {
       try {
-        // Check cache first
-        const cachedEvent = eventCache.get(eventId);
-        if (cachedEvent) {
+        // First check the cache
+        const cachedMarkets = marketCache.get(eventId);
+        if (cachedMarkets) {
           if (isMounted) {
             setData({
-              market: cachedEvent.markets[marketIndex],
+              market: cachedMarkets[marketIndex] || null,
               loading: false,
               error: null,
-              marketLiquidities: cachedEvent.markets.map(m => m.liquidity),
+              marketLiquidities: cachedMarkets.map((m) => m.liquidity_num),
+              refetch: fetchMarketData,
             });
           }
           return;
         }
 
-        const response = await fetch('/api/markets', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'market',
-            eventId,
-          }),
-        });
+        // If not in cache, fetch from API
+        const response = await fetch(`/api/polymarket-markets/${eventId}`);
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error(
+            `Failed to fetch markets: ${response.status} ${response.statusText}`
+          );
         }
 
-        const result = await response.json();
-        if (result.error) {
-          throw new Error(result.error);
+        const markets: Market[] = await response.json();
+
+        // Validate the marketIndex is within bounds
+        if (marketIndex >= markets.length) {
+          throw new Error(`Market index ${marketIndex} is out of bounds`);
         }
 
-        // Cache the result
-        eventCache.set(eventId, result);
+        // Cache the full markets array
+        marketCache.set(eventId, markets);
 
         if (isMounted) {
           setData({
-            market: result.markets[marketIndex],
+            market: markets[marketIndex],
             loading: false,
             error: null,
-            marketLiquidities: result.markets.map(m => m.liquidity),
+            marketLiquidities: markets.map((m) => m.liquidity_num),
+            refetch: fetchMarketData,
           });
         }
       } catch (error) {
-        console.error('Error fetching market data:', error);
+        console.error("Error fetching market data:", error);
         if (isMounted) {
-          setData(prev => ({
+          setData((prev) => ({
             ...prev,
             loading: false,
-            error: error instanceof Error ? error.message : 'An error occurred',
+            error: error instanceof Error ? error.message : "An error occurred",
+            refetch: fetchMarketData,
           }));
         }
       }
     };
 
-    fetchData();
+    // Initial fetch
+    fetchMarketData();
+
+    // Cleanup function
     return () => {
       isMounted = false;
     };
-  }, [eventId, marketIndex]);
+  }, [eventId, marketIndex]); // Dependencies that trigger refetch
 
   return data;
-};
+}
 
-// Optimized top events fetching
-let lastTopEventsFetch = 0;
-let cachedTopEvents: Event[] = [];
-
-export const fetchTopLiquidityEvents = async (
-  limit: number = 10
-): Promise<Event[]> => {
-  // Return cached results if less than 5 minutes old
-  if (Date.now() - lastTopEventsFetch < CACHE_DURATION) {
-    return cachedTopEvents.slice(0, limit);
-  }
-
-  try {
-    const response = await fetch('/api/markets', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'topEvents',
-        limit,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    cachedTopEvents = data.events || [];
-    lastTopEventsFetch = Date.now();
-    
-    return cachedTopEvents.slice(0, limit);
-  } catch (error) {
-    console.error('Error fetching top events:', error);
-    return [];
-  }
-};
+/**
+ * Helper function to manually clear the market cache
+ * Useful for testing or forcing fresh data fetches
+ */
+export function clearMarketCache(): void {
+  marketCache.clear();
+}

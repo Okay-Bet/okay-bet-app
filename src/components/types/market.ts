@@ -1,20 +1,11 @@
 // types/market.ts
 
-export interface MarketQueryParams {
-    eventId: string;
-    marketIndex: number;
-    sortBy?: 'liquidity' | 'volume' | 'created';
-    sortDirection?: 'asc' | 'desc';
-    searchTerm?: string;
-  }
-  
-  export interface Market {
-    id: string;
+export interface Market {
+    end_date_iso: string;
+    condition_id: string;
     question: string;
     description?: string;
     resolutionSource?: string;
-    end_date_iso: string;
-    condition_id: string;
     volume_num: number;
     liquidity_num: number;
     bestAsk?: number;
@@ -31,8 +22,28 @@ export interface MarketQueryParams {
     };
   }
   
-  export interface MarketResponse {
-    market: Market | null;
-    marketLiquidities: number[];
-    error?: string;
+  export interface Event {
+    id: string;
+    title: string;
+    liquidity: number;
+    volume: number;
+    description?: string;
+    markets: Array<{
+      id: string;
+      question: string;
+      liquidity: number;
+    }>;
+  }
+  
+  export interface SearchParams {
+    searchTerm?: string;
+    sortBy?: "volume" | "liquidity";
+    sortDirection?: "asc" | "desc";
+    endDateMin?: string;
+    endDateMax?: string;
+    volumeMin?: number;
+    volumeMax?: number;
+    liquidityMin?: number;
+    liquidityMax?: number;
+    limit?: number;
   }

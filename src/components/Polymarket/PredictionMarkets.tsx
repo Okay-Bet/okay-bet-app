@@ -12,23 +12,13 @@ const PredictionMarkets: React.FC = () => {
   const handleSearch = async (searchParams: SearchParams) => {
     setLoading(true);
     try {
-      const response = await fetch("/api/markets", {
+      const response = await fetch("/api/polymarket-events", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          type: "search",
-          searchParams, // Make sure this is being passed correctly
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ searchParams }),
       });
-  
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-  
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      console.log("Search response:", data); // Add this for debugging
       setEvents(data.events);
     } catch (error) {
       console.error("Error searching markets:", error);

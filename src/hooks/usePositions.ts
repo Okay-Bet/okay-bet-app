@@ -23,9 +23,6 @@ export function usePositions() {
     const price = position.prices[0];
     const value = balance * price;
 
-    console.log(
-      `Active position value for ${position.market_question}: ${value}`
-    );
     return total + value;
   }, 0);
 
