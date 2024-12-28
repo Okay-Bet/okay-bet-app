@@ -9,6 +9,7 @@ export interface Market {
     volume_num: number;
     liquidity_num: number;
     bestAsk?: number;
+    bestBid: number;
     active?: boolean;
     tokens: {
       yes: {

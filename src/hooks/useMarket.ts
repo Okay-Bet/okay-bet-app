@@ -70,7 +70,8 @@ export function useMarket(
     // Define the fetch function within useEffect to access isMounted
     const fetchMarketData = async () => {
       try {
-        // First check the cache
+
+        // Check cache first
         const cachedMarkets = marketCache.get(eventId);
         if (cachedMarkets) {
           if (isMounted) {
@@ -85,7 +86,6 @@ export function useMarket(
           return;
         }
 
-        // If not in cache, fetch from API
         const response = await fetch(`/api/polymarket-markets/${eventId}`);
 
         if (!response.ok) {
@@ -96,12 +96,12 @@ export function useMarket(
 
         const markets: Market[] = await response.json();
 
-        // Validate the marketIndex is within bounds
+        // Validate the marketIndex
         if (marketIndex >= markets.length) {
           throw new Error(`Market index ${marketIndex} is out of bounds`);
         }
 
-        // Cache the full markets array
+        // Cache the markets
         marketCache.set(eventId, markets);
 
         if (isMounted) {
@@ -114,7 +114,7 @@ export function useMarket(
           });
         }
       } catch (error) {
-        console.error("Error fetching market data:", error);
+        console.error("[Hook] Error in fetchMarketData:", error);
         if (isMounted) {
           setData((prev) => ({
             ...prev,

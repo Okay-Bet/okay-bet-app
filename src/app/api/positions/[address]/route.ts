@@ -10,11 +10,9 @@ export async function GET(
 ) {
   try {
     const { address } = params;
-    console.log(`Fetching positions for address: ${address}`);
 
     // Log the full URL we're attempting to connect to
     const url = `${FASTAPI_BASE_URL}/api/user-orders/${address}`;
-    console.log("Attempting to fetch from:", url);
 
     const response = await fetch(url, {
       method: "GET",
@@ -25,10 +23,6 @@ export async function GET(
       // Add a reasonable timeout
       next: { revalidate: 0 }, // Disable cache
     });
-
-    // Log response status and headers
-    console.log("Response status:", response.status);
-    console.log("Response headers:", Object.fromEntries(response.headers));
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -51,7 +45,6 @@ export async function GET(
     }
 
     const data = await response.json();
-    console.log("Raw FastAPI response:", JSON.stringify(data, null, 2));
 
     // Add CORS headers if needed
     return NextResponse.json(data, {

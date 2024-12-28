@@ -1,7 +1,7 @@
 // app/api/polymarket-events/route.ts
 import { NextResponse } from "next/server";
 import { Event, SearchParams } from "@/app/types/market";
-import { searchEvents, transformEvent } from "@/utils/market";
+import { transformEvent, searchEvents } from "@/utils/transforms";
 
 const GAMMA_API_URL = "https://gamma-api.polymarket.com";
 const MAX_RESULTS = 20;
