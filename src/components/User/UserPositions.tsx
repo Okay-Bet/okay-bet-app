@@ -3,23 +3,30 @@ import { usePositions } from "@/hooks/usePositions";
 import { useSellPosition } from "@/hooks/useSellPosition";
 import { useActiveAccount } from "thirdweb/react";
 
+interface Position {
+  market_id: string;
+  token_id: string;
+  balances: number[];
+  prices: number[];
+  outcome: number;
+  status: string;
+  user_address: string;
+}
+
 export default function UserPositions() {
   const { positions, loading, error, isConnected, totalValue } = usePositions();
   const { sellPosition, loading: sellLoading } = useSellPosition();
   const account = useActiveAccount();
   const [activeTab, setActiveTab] = useState("active");
 
-  // Helper to determine if market is resolved based on prices
   const isMarketResolved = (prices: number[]): boolean => {
     return prices.some((price) => price === 1.0 || price === 0.0);
   };
 
-  // Helper to get winning outcome index
   const getWinningOutcome = (prices: number[]): number => {
     return prices.findIndex((price) => price === 1.0);
   };
 
-  // Filter positions
   const activePositions = positions.filter((p) => !isMarketResolved(p.prices));
   const resolvedPositions = positions.filter((p) => isMarketResolved(p.prices));
 
@@ -67,11 +74,11 @@ export default function UserPositions() {
     );
   }
 
-  const PositionCard = ({ position }) => (
+  const PositionCard = ({ position }: { position: Position }) => (
     <div className="border rounded-lg p-4 bg-white mb-4">
       <div className="flex justify-between items-start mb-3">
-        <h3 className="font-medium text-gray-900">
-          {position.market_question}
+        <h3 className="font-medium text-gray-900 break-all">
+          Market ID: {position.market_id.slice(0, 16)}...
         </h3>
         <span
           className={`px-2 py-1 text-sm rounded-full ${
@@ -85,75 +92,59 @@ export default function UserPositions() {
       </div>
 
       <div className="space-y-2">
-        {position.outcomes.map((outcome, index) => (
-          <div
-            key={index}
-            className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0"
-          >
-            <span className="text-sm text-gray-600">{outcome}</span>
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <span className="font-medium">
-                  {(position.balances[index] / 1_000_000).toFixed(2)}
+        <div className="flex justify-between items-center py-1 border-b border-gray-100">
+          <span className="text-sm text-gray-600">
+            Outcome {position.outcome}
+          </span>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <span className="font-medium">
+                {(position.balances[0] / 1_000_000).toFixed(2)}
+              </span>
+              <span className="text-gray-500 ml-2">
+                @ ${position.prices[0].toFixed(3)}
+              </span>
+              {position.balances[0] > 0 && (
+                <span className="ml-2 text-gray-500">
+                  ($
+                  {(
+                    (position.balances[0] / 1_000_000) *
+                    position.prices[0]
+                  ).toFixed(2)}
+                  )
                 </span>
-                <span className="text-gray-500 ml-2">
-                  @ ${position.prices[index].toFixed(3)}
-                </span>
-                {position.balances[index] > 0 && (
-                  <span className="ml-2 text-gray-500">
-                    ($
-                    {(
-                      (position.balances[index] / 1_000_000) *
-                      position.prices[index]
-                    ).toFixed(2)}
-                    )
-                  </span>
-                )}
-              </div>
-              {position.balances[index] > 0 &&
-                !isMarketResolved(position.prices) && (
-                  <button
-                    onClick={() =>
-                      handleSell(
-                        position.token_id,
-                        position.prices[index],
-                        position.balances[index],
-                        index === 0
-                      )
-                    }
-                    disabled={sellLoading}
-                    className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 
-                           disabled:bg-red-300"
-                  >
-                    {sellLoading ? "Selling..." : "Sell"}
-                  </button>
-                )}
+              )}
             </div>
-          </div>
-        ))}
-      </div>
-
-      {isMarketResolved(position.prices) && (
-        <div className="mt-3 pt-3 border-t border-gray-100">
-          <div className="text-sm text-gray-600">
-            Winning Outcome:{" "}
-            {position.outcomes[getWinningOutcome(position.prices)]}
+            {position.balances[0] > 0 && !isMarketResolved(position.prices) && (
+              <button
+                onClick={() =>
+                  handleSell(
+                    position.token_id,
+                    position.prices[0],
+                    position.balances[0],
+                    position.outcome === 0
+                  )
+                }
+                disabled={sellLoading}
+                className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 
+                         disabled:bg-red-300"
+              >
+                {sellLoading ? "Selling..." : "Sell"}
+              </button>
+            )}
           </div>
         </div>
-      )}
+      </div>
 
       <div className="mt-3 pt-3 border-t border-gray-100">
         <div className="flex justify-between text-sm">
           <span className="text-gray-500">Position Value</span>
           <span className="font-medium">
             $
-            {position.balances
-              .reduce(
-                (sum, balance, index) =>
-                  sum + (balance / 1_000_000) * position.prices[index],
-                0
-              )
-              .toFixed(2)}
+            {(
+              (position.balances[0] / 1_000_000) *
+              position.prices[0]
+            ).toFixed(2)}
           </span>
         </div>
       </div>
@@ -162,7 +153,6 @@ export default function UserPositions() {
 
   return (
     <div className="rounded-lg border border-gray-200 p-6">
-      {/* Header */}
       <div className="flex justify-between items-start mb-6">
         <div>
           <h2 className="text-2xl font-bold">Your Positions</h2>
@@ -176,7 +166,6 @@ export default function UserPositions() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="border-b border-gray-200 mb-4">
         <div className="flex space-x-4">
           <button
@@ -202,7 +191,6 @@ export default function UserPositions() {
         </div>
       </div>
 
-      {/* Content */}
       <div>
         {activeTab === "active" && (
           <div>
