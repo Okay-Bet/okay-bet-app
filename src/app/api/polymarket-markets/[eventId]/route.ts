@@ -11,10 +11,9 @@ export async function GET(
 ) {
   try {
     const { eventId } = params;
-
     const url = `${GAMMA_API_URL}/events?closed=false&id=${eventId}`;
-
     const response = await fetch(url);
+
     if (!response.ok) {
       console.error(
         `[API] Gamma API error: ${response.status} ${response.statusText}`
@@ -26,7 +25,6 @@ export async function GET(
 
     const data = await response.json();
 
-    // Validate that data is an array and has at least one event
     if (!Array.isArray(data) || data.length === 0) {
       console.error("[API] Invalid data format or empty response");
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
@@ -34,7 +32,6 @@ export async function GET(
 
     const event = data[0];
 
-    // Validate event and markets array
     if (!event || !Array.isArray(event.markets)) {
       console.error("[API] Event found but markets array is invalid", {
         event,
@@ -45,19 +42,19 @@ export async function GET(
       );
     }
 
-    // Transform markets with validation
+    // Transform markets directly without the orderbook abstraction
     const transformedMarkets = event.markets
-      .filter((market) => market && typeof market === "object") // Filter out invalid markets
+      .filter((market) => market && typeof market === "object")
       .map((market) => {
         try {
+          // Pass the market data directly to transform
           return transformMarket(market);
         } catch (e) {
           console.error("[API] Error transforming market:", e, { market });
-          // Return null for failed transformations
           return null;
         }
       })
-      .filter((market) => market !== null); // Remove failed transformations
+      .filter((market) => market !== null);
 
     if (transformedMarkets.length === 0) {
       console.error("[API] No valid markets after transformation");

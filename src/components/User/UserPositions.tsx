@@ -35,7 +35,6 @@ export default function UserPositions() {
     return prices.findIndex((price) => price === 1.0);
   };
 
-  // Filter positions based on resolution status
   const activePositions = positions.filter((p) => !isMarketResolved(p.prices));
   const resolvedPositions = positions.filter((p) => isMarketResolved(p.prices));
 
@@ -60,7 +59,6 @@ export default function UserPositions() {
     }
   };
 
-  // Early return states
   if (!isConnected) {
     return (
       <div className="rounded-lg border border-gray-200 p-6">

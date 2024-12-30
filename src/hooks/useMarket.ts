@@ -40,7 +40,7 @@ interface UseMarketResult {
   loading: boolean;
   error: string | null;
   marketLiquidities: number[];
-  refetch: () => Promise<void>; // Added refetch capability
+  refetch: () => Promise<void>; 
 }
 
 // Initialize cache at module level for persistence across hook instances

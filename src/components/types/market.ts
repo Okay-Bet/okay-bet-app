@@ -8,8 +8,10 @@ export interface Market {
     resolutionSource?: string;
     volume_num: number;
     liquidity_num: number;
-    bestAsk?: number;
-    bestBid: number;
+    yesBestAsk?: number;
+    yesBestBid?: number;
+    noBestAsk?: number;
+    noBestBid?: number;
     active?: boolean;
     tokens: {
       yes: {

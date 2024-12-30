@@ -10,39 +10,26 @@ interface MarketCardProps {
   marketSubTitles: string[];
 }
 
-interface Market {
-  end_date_iso: string;
-  condition_id: string;
-  question: string;
-  description?: string;
-  resolutionSource?: string;
-  volume_num: number;
-  liquidity_num: number;
-  bestAsk?: number;
-  active?: boolean;
-  tokens: {
-    yes: {
-      token_id: string;
-      outcome: string;
-    };
-    no: {
-      token_id: string;
-      outcome: string;
-    };
+interface OrderBook {
+  yes: {
+    bid?: number;
+    ask?: number;
+  };
+  no: {
+    bid?: number;
+    ask?: number;
   };
 }
 
-// Utility functions moved outside component
 const decimalToMoneyline = (decimal: number): string => {
   if (decimal >= 2) return `+${Math.round((decimal - 1) * 100)}`;
-  if (decimal <= 1) {
-    return `-${Math.round(100 / (decimal - 1))}`;
-  }
-  return "0";
 };
 
-const formatPrice = (price: number, showMoneyline: boolean): string => {
-  if (!price && price !== 0) return "N/A";
+const formatPrice = (
+  price: number | undefined,
+  showMoneyline: boolean
+): string => {
+  if (!price) return "N/A";
   return showMoneyline
     ? decimalToMoneyline(price)
     : `${(price * 100).toFixed(1)}%`;
@@ -52,7 +39,6 @@ const formatExpiryDate = (dateStr: string | undefined): string => {
   if (!dateStr) return "No expiry date";
   try {
     const date = new Date(dateStr);
-    if (isNaN(date.getTime())) throw new Error("Invalid date");
     return date.toLocaleDateString(undefined, {
       year: "numeric",
       month: "short",
@@ -80,7 +66,22 @@ export const MarketCard: React.FC<MarketCardProps> = ({
     activeMarketIndex
   );
 
-  // Memoized market sorting
+  const orderBook = useMemo((): OrderBook => {
+    if (!market) return { yes: {}, no: {} };
+    
+    return {
+      yes: {
+        bid: market.yesBestBid,
+        ask: market.yesBestAsk
+      },
+      no: {
+        bid: market.noBestBid,
+        ask: market.noBestAsk
+      }
+    };
+  }, [market]);
+
+  // Sort markets by liquidity
   const sortedData = useMemo(() => {
     return marketIndices
       .map((index, i) => ({
@@ -88,7 +89,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
         subtitle: marketSubTitles[i],
         liquidity: marketLiquidities[i] || 0,
       }))
-      .sort((a, b) => b.liquidity - a.liquidity); // Sort by descending liquidity
+      .sort((a, b) => b.liquidity - a.liquidity);
   }, [marketIndices, marketSubTitles, marketLiquidities]);
 
   // Set initial market based on liquidity
@@ -104,22 +105,21 @@ export const MarketCard: React.FC<MarketCardProps> = ({
     }
   }, [marketLiquidities, sortedData]);
 
-  // Early returns for loading/error states
   if (loading) return <LoadingState />;
   if (error) return <ErrorState message={error} />;
   if (!market) return null;
 
-  // Calculate prices with validation
-  const yesPrice = market.bestAsk || 0;
-  const noPrice = Math.max(0, Math.min(1, 1 - yesPrice)); // Ensure price is between 0 and 1
-
   const handleBetClick = (position: "YES" | "NO") => {
-    const price = position === "YES" ? yesPrice : noPrice;
-    const tokenId =
-      position === "YES"
-        ? market.tokens.yes.token_id
-        : market.tokens.no.token_id;
-
+    const price = position === "YES" 
+      ? orderBook.yes.ask  // Use ask price when buying YES
+      : orderBook.no.ask;  // Use ask price when buying NO
+    
+    if (!price) return;
+  
+    const tokenId = position === "YES"
+      ? market.tokens.yes.token_id
+      : market.tokens.no.token_id;
+  
     addBet({
       marketId: market.condition_id,
       eventTitle,
@@ -169,48 +169,50 @@ export const MarketCard: React.FC<MarketCardProps> = ({
         </div>
       </div>
 
-      {/* Market Content */}
+      {/* Price Display */}
       <div className="p-4">
-        <h3 className="text-lg font-medium text-primary mb-2">
+        <h3 className="text-lg font-medium text-primary mb-4">
           {market.question}
         </h3>
 
-        {/* Price Display */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="grid grid-cols-2 gap-4">
+          {/* YES Token */}
           <div className="bg-tertiary p-3 rounded-lg">
-            <div className="text-sm text-gray-800 mb-1">Yes</div>
+            <div className="text-sm text-gray-800">Yes Price</div>
             <div className="text-lg font-bold text-font">
-              {formatPrice(yesPrice, showMoneyline)}
+              {formatPrice(orderBook.yes.ask, showMoneyline)}
             </div>
           </div>
+
+          {/* NO Token */}
           <div className="bg-tertiary p-3 rounded-lg">
-            <div className="text-sm text-gray-800 mb-1">No</div>
+            <div className="text-sm text-gray-800">No Price</div>
             <div className="text-lg font-bold text-font">
-              {formatPrice(noPrice, showMoneyline)}
+              {formatPrice(orderBook.no.ask, showMoneyline)}
             </div>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="grid grid-cols-2 gap-3 mt-4">
           <button
             onClick={() => handleBetClick("YES")}
-            className="py-2 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
-            disabled={!market.active}
+            className="py-2 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!market.active || !orderBook.yes.ask}
           >
             Buy Yes
           </button>
           <button
             onClick={() => handleBetClick("NO")}
-            className="py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
-            disabled={!market.active}
+            className="py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!market.active || !orderBook.no.ask}
           >
             Buy No
           </button>
         </div>
 
         {/* Market Stats */}
-        <div className="grid grid-cols-2 gap-2 mb-4">
+        <div className="grid grid-cols-2 gap-2 mt-4">
           <div className="bg-tertiary p-2 rounded-lg">
             <div className="text-xs text-primary">Volume</div>
             <div className="text-sm bold font-medium text-font truncate">

@@ -1,55 +1,65 @@
-// utils/transforms.ts
 import type { Event, Market } from "@/components/types/market";
 
 /**
  * Safely parses numeric values from API responses
- * @param value - String or undefined value to parse
- * @returns Parsed number or 0 if invalid
  */
-export function safeParseFloat(value: string | undefined): number {
-  if (!value) return 0;
-  const parsed = parseFloat(value);
-  return isNaN(parsed) ? 0 : parsed;
+export function safeParseFloat(
+  value: string | number | undefined
+): number | undefined {
+  if (value === undefined || value === "") return undefined;
+  const parsed = typeof value === "number" ? value : parseFloat(value);
+  return isNaN(parsed) || parsed === 0 ? undefined : parsed;
 }
 
 /**
- * Transforms raw market data from Gamma API into our Market type
- * @param market - Raw market data from API
- * @returns Transformed Market object
+ * Safely parses a JSON string array
  */
+function safeJsonParse(jsonStr: string | undefined): any[] {
+  try {
+    return jsonStr ? JSON.parse(jsonStr) : [];
+  } catch (e) {
+    console.warn("[Transform] Error parsing JSON:", e);
+    return [];
+  }
+}
+
 export function transformMarket(market: any): Market {
-  // Parse token IDs with error handling
+  // Parse bid/ask prices
+  const yesBestBid = safeParseFloat(market.bestBid);
+  const yesBestAsk = safeParseFloat(market.bestAsk);
+
+  // Calculate NO token prices as complement of YES prices
+  const noBestBid = yesBestAsk !== undefined ? 1 - yesBestAsk : undefined;
+  const noBestAsk = yesBestBid !== undefined ? 1 - yesBestBid : undefined;
+
+  // Parse token IDs
   let tokenPairs = {
     yes: { token_id: "", outcome: "YES" },
-    no: { token_id: "", outcome: "NO" }
+    no: { token_id: "", outcome: "NO" },
   };
 
-  try {
-    if (market.clobTokenIds) {
-      const tokenIds = JSON.parse(market.clobTokenIds);
-      if (Array.isArray(tokenIds) && tokenIds.length >= 2) {
-        tokenPairs = {
-          yes: { token_id: tokenIds[0], outcome: "YES" },
-          no: { token_id: tokenIds[1], outcome: "NO" }
-        };
-      }
-    }
-  } catch (e) {
-    console.warn("[Transform] Error parsing clobTokenIds:", e);
+  const tokenIds = safeJsonParse(market.clobTokenIds);
+  if (tokenIds.length >= 2) {
+    tokenPairs = {
+      yes: { token_id: tokenIds[0], outcome: "YES" },
+      no: { token_id: tokenIds[1], outcome: "NO" },
+    };
   }
 
   return {
-    end_date_iso: market.endDateIso || market.endDate?.split('T')[0] || '',
+    end_date_iso: market.endDateIso || market.endDate?.split("T")[0] || "",
     condition_id: market.conditionId || market.id,
-    question: market.question || '',
-    description: market.description || '',
-    resolutionSource: market.resolutionSource || '',
-    volume_num: safeParseFloat(market.volumeNum || market.volume),
-    liquidity_num: safeParseFloat(market.liquidityNum || market.liquidity),
-    bestAsk: safeParseFloat(market.bestAsk),
-    bestBid: safeParseFloat(market.bestBid),
+    question: market.question || "",
+    description: market.description || "",
+    resolutionSource: market.resolutionSource || "",
+    volume_num: safeParseFloat(market.volumeNum || market.volume) ?? 0,
+    liquidity_num: safeParseFloat(market.liquidityNum || market.liquidity) ?? 0,
+    yesBestBid,
+    yesBestAsk,
+    noBestBid,
+    noBestAsk,
     active: Boolean(market.active),
-    tokens: tokenPairs
+    tokens: tokenPairs,
   };
 }
 
@@ -65,13 +75,13 @@ export function transformEvent(event: any): Event {
     liquidity: safeParseFloat(event.liquidity),
     volume: safeParseFloat(event.volume),
     description: event.description || "",
-    markets: Array.isArray(event.markets) 
+    markets: Array.isArray(event.markets)
       ? event.markets.map((market: any) => ({
           id: market.conditionId || market.id,
           question: market.question || "Untitled Market",
-          liquidity: safeParseFloat(market.liquidity)
+          liquidity: safeParseFloat(market.liquidity),
         }))
-      : []
+      : [],
   };
 }
 
@@ -87,12 +97,14 @@ export function searchEvents(
   if (!searchTerm) {
     return events
       .sort((a, b) => {
-        const aValue = sortBy === "volume" 
-          ? safeParseFloat(a.volume) 
-          : safeParseFloat(a.liquidity);
-        const bValue = sortBy === "volume" 
-          ? safeParseFloat(b.volume) 
-          : safeParseFloat(b.liquidity);
+        const aValue =
+          sortBy === "volume"
+            ? safeParseFloat(a.volume)
+            : safeParseFloat(a.liquidity);
+        const bValue =
+          sortBy === "volume"
+            ? safeParseFloat(b.volume)
+            : safeParseFloat(b.liquidity);
         return sortDirection === "asc" ? aValue - bValue : bValue - aValue;
       })
       .slice(0, 20);
@@ -102,9 +114,9 @@ export function searchEvents(
     .toLowerCase()
     .split(" ")
     .filter(Boolean)
-    .map(term => term.trim());
+    .map((term) => term.trim());
 
-  const scoredEvents = events.map(event => {
+  const scoredEvents = events.map((event) => {
     let score = 0;
     const eventTitle = (event.title || "").toLowerCase();
     const eventDesc = (event.description || "").toLowerCase();
@@ -123,18 +135,20 @@ export function searchEvents(
   });
 
   return scoredEvents
-    .filter(item => item.score > 0)
+    .filter((item) => item.score > 0)
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
-      
-      const aValue = sortBy === "volume" 
-        ? safeParseFloat(a.event.volume) 
-        : safeParseFloat(a.event.liquidity);
-      const bValue = sortBy === "volume" 
-        ? safeParseFloat(b.event.volume) 
-        : safeParseFloat(b.event.liquidity);
+
+      const aValue =
+        sortBy === "volume"
+          ? safeParseFloat(a.event.volume)
+          : safeParseFloat(a.event.liquidity);
+      const bValue =
+        sortBy === "volume"
+          ? safeParseFloat(b.event.volume)
+          : safeParseFloat(b.event.liquidity);
       return sortDirection === "asc" ? aValue - bValue : bValue - aValue;
     })
-    .map(item => item.event)
+    .map((item) => item.event)
     .slice(0, 20);
 }

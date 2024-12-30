@@ -4,11 +4,10 @@ import { NextResponse } from "next/server";
 const FASTAPI_BASE_URL =
   process.env.FASTAPI_BASE_URL || "http://167.71.208.166:8000";
 
-// Define TypeScript interfaces for better type safety and documentation
 interface MarketData {
   question: string;
-  outcomes: string; // JSON string of outcomes array
-  outcome_prices: string; // JSON string of prices array
+  outcomes: string; 
+  outcome_prices: string;
 }
 
 interface Position {
@@ -19,11 +18,12 @@ interface Position {
   outcome: number;
   status: string;
   user_address: string;
-  market_data?: MarketData; // Optional because positions with missing token_ids won't have market data
+  market_data?: MarketData; 
 }
 
+
 interface ApiResponse {
-  pending_orders: any[]; // Keep as any[] since we're not using this currently
+  pending_orders: any[]; 
   completed_orders: Position[];
 }
 
@@ -35,11 +35,6 @@ export async function GET(
     const { address } = params;
     const url = `${FASTAPI_BASE_URL}/api/user-orders/${address}`;
 
-    // Debug logging for request
-    console.log("=== Next.js API Route Debug ===");
-    console.log("Requesting URL:", url);
-    console.log("User Address:", address);
-
     const response = await fetch(url, {
       method: "GET",
       headers: {
@@ -47,13 +42,6 @@ export async function GET(
       },
       next: { revalidate: 0 }, // Disable cache as we want real-time position data
     });
-
-    // Log response metadata
-    console.log("FastAPI Response Status:", response.status);
-    console.log(
-      "FastAPI Response Headers:",
-      Object.fromEntries(response.headers.entries())
-    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -81,7 +69,6 @@ export async function GET(
 
     const data = (await response.json()) as ApiResponse;
 
-    // Enhanced validation for the new data structure
     if (!data.completed_orders || !Array.isArray(data.completed_orders)) {
       console.error("Invalid data structure received:", data);
       return NextResponse.json(
@@ -90,7 +77,6 @@ export async function GET(
       );
     }
 
-    // Validate market data for positions with token_ids
     data.completed_orders.forEach((position, index) => {
       if (position.token_id && !position.market_data) {
         console.warn(
@@ -99,15 +85,6 @@ export async function GET(
         );
       }
     });
-
-    // Debug logging for successful response
-    console.log("=== Successful Response Data ===");
-    console.log("Pending Orders Count:", data.pending_orders?.length || 0);
-    console.log("Completed Orders Count:", data.completed_orders?.length || 0);
-    console.log(
-      "Sample Position with Market Data:",
-      data.completed_orders.find((p) => p.market_data)
-    );
 
     return NextResponse.json(data, {
       headers: {
