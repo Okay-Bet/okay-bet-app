@@ -1,7 +1,7 @@
 // hooks/usePositions.ts
 import { useState, useEffect } from "react";
 import { useActiveAccount } from "thirdweb/react";
-import type { Position } from "@/components/types/position";
+import type { Position, MarketData } from "@/components/types/position";
 
 export function usePositions() {
   const account = useActiveAccount();
@@ -18,12 +18,10 @@ export function usePositions() {
     if (!position?.prices?.length || isMarketResolved(position.prices)) {
       return total;
     }
-
     // Ensure we have valid balances
     const balance = position.balances?.[0]
       ? position.balances[0] / 1_000_000
       : 0;
-
     const price = position.prices[0] || 0;
     const value = balance * price;
     return total + value;
@@ -32,13 +30,11 @@ export function usePositions() {
   useEffect(() => {
     const fetchPositions = async () => {
       if (!account?.address) return;
-
       setLoading(true);
       setError(null);
 
       try {
         const response = await fetch(`/api/positions/${account.address}`);
-
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(
@@ -49,12 +45,11 @@ export function usePositions() {
         }
 
         const data = await response.json();
-
         if (data.completed_orders) {
           // Filter out positions without required data
           const validPositions = data.completed_orders.filter(
             (position: Position) =>
-              position?.market_id &&
+              position?.condition_id && // Changed from market_id
               position?.prices?.length &&
               position?.balances?.length
           );

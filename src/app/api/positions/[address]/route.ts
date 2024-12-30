@@ -1,7 +1,31 @@
 // app/api/positions/[address]/route.ts
 import { NextResponse } from "next/server";
 
-const FASTAPI_BASE_URL = process.env.FASTAPI_BASE_URL || "http://167.71.208.166:8000";
+const FASTAPI_BASE_URL =
+  process.env.FASTAPI_BASE_URL || "http://167.71.208.166:8000";
+
+// Define TypeScript interfaces for better type safety and documentation
+interface MarketData {
+  question: string;
+  outcomes: string; // JSON string of outcomes array
+  outcome_prices: string; // JSON string of prices array
+}
+
+interface Position {
+  condition_id: string;
+  token_id: string | null;
+  balances: number[];
+  prices: number[];
+  outcome: number;
+  status: string;
+  user_address: string;
+  market_data?: MarketData; // Optional because positions with missing token_ids won't have market data
+}
+
+interface ApiResponse {
+  pending_orders: any[]; // Keep as any[] since we're not using this currently
+  completed_orders: Position[];
+}
 
 export async function GET(
   request: Request,
@@ -10,40 +34,44 @@ export async function GET(
   try {
     const { address } = params;
     const url = `${FASTAPI_BASE_URL}/api/user-orders/${address}`;
-    
-    // Log the request details
-    console.log('=== Next.js API Route Debug ===');
-    console.log('Requesting URL:', url);
-    console.log('User Address:', address);
+
+    // Debug logging for request
+    console.log("=== Next.js API Route Debug ===");
+    console.log("Requesting URL:", url);
+    console.log("User Address:", address);
 
     const response = await fetch(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
       },
-      next: { revalidate: 0 },
+      next: { revalidate: 0 }, // Disable cache as we want real-time position data
     });
 
-    // Log the response status and headers
-    console.log('FastAPI Response Status:', response.status);
-    console.log('FastAPI Response Headers:', Object.fromEntries(response.headers.entries()));
+    // Log response metadata
+    console.log("FastAPI Response Status:", response.status);
+    console.log(
+      "FastAPI Response Headers:",
+      Object.fromEntries(response.headers.entries())
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('=== Error Response Details ===');
-      console.error('Status:', response.status);
-      console.error('Raw Error Text:', errorText);
-      console.error('Response Headers:', Object.fromEntries(response.headers.entries()));
+      console.error("=== Error Response Details ===");
+      console.error("Status:", response.status);
+      console.error("Raw Error Text:", errorText);
+      console.error(
+        "Response Headers:",
+        Object.fromEntries(response.headers.entries())
+      );
 
       try {
         const errorData = JSON.parse(errorText);
-        console.error('Parsed Error Data:', errorData);
         return NextResponse.json(
           { error: errorData.detail || "Failed to fetch positions" },
           { status: response.status }
         );
       } catch (parseError) {
-        console.error('Error Parsing Response:', parseError);
         return NextResponse.json(
           { error: errorText || "Server error" },
           { status: response.status }
@@ -51,22 +79,35 @@ export async function GET(
       }
     }
 
-    const data = await response.json();
-    
-    // Log the successful response data
-    console.log('=== Successful Response Data ===');
-    console.log('Pending Orders Count:', data.pending_orders?.length || 0);
-    console.log('Completed Orders Count:', data.completed_orders?.length || 0);
-    console.log('Sample Completed Order:', data.completed_orders?.[0]);
+    const data = (await response.json()) as ApiResponse;
 
-    // Add validation for expected data structure
+    // Enhanced validation for the new data structure
     if (!data.completed_orders || !Array.isArray(data.completed_orders)) {
-      console.error('Invalid data structure received:', data);
+      console.error("Invalid data structure received:", data);
       return NextResponse.json(
         { error: "Invalid data structure from FastAPI" },
         { status: 500 }
       );
     }
+
+    // Validate market data for positions with token_ids
+    data.completed_orders.forEach((position, index) => {
+      if (position.token_id && !position.market_data) {
+        console.warn(
+          `Position ${index} has token_id but missing market_data:`,
+          position
+        );
+      }
+    });
+
+    // Debug logging for successful response
+    console.log("=== Successful Response Data ===");
+    console.log("Pending Orders Count:", data.pending_orders?.length || 0);
+    console.log("Completed Orders Count:", data.completed_orders?.length || 0);
+    console.log(
+      "Sample Position with Market Data:",
+      data.completed_orders.find((p) => p.market_data)
+    );
 
     return NextResponse.json(data, {
       headers: {
@@ -76,17 +117,19 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('=== Critical Error Details ===');
-    console.error('Error Type:', error instanceof Error ? error.constructor.name : typeof error);
-    
+    console.error("=== Critical Error Details ===");
+    console.error(
+      "Error Type:",
+      error instanceof Error ? error.constructor.name : typeof error
+    );
+
     if (error instanceof Error) {
-      console.error('Error Name:', error.name);
-      console.error('Error Message:', error.message);
-      console.error('Error Stack:', error.stack);
-      
-      // Check if it's a network error
-      if (error.message.includes('fetch')) {
-        console.error('Network Error Details:', {
+      console.error("Error Name:", error.name);
+      console.error("Error Message:", error.message);
+      console.error("Error Stack:", error.stack);
+
+      if (error.message.includes("fetch")) {
+        console.error("Network Error Details:", {
           baseUrl: FASTAPI_BASE_URL,
           timestamp: new Date().toISOString(),
         });

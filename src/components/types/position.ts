@@ -1,6 +1,12 @@
 // types/position.ts
+export interface MarketData {
+  question: string;
+  outcomes: string;  
+  outcome_prices: string;
+}
+
 export interface Position {
-  market_id: string;
+  condition_id: string;
   user_address: string;
   outcome: number;
   amount: number;
@@ -10,4 +16,5 @@ export interface Position {
   status: string;
   created_at: string | null;
   updated_at: string | null;
+  market_data?: MarketData;
 }
