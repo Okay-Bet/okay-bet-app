@@ -1,32 +1,36 @@
 import { useState, useCallback } from "react";
 import { useSendTransaction, useActiveAccount } from "thirdweb/react";
-import { optimism, polygon } from "viem/chains";
+import { getAcrossClient } from "../../services/across/client";
 import {
-  getAcrossClient,
-  formatInputAmount,
-} from "../../services/across/client";
-import { AGENT_WALLET_ADDRESS } from "../../services/transaction";
+  AGENT_WALLET_ADDRESS,
+  sleep,
+  prepareBridgeTransaction,
+} from "../../services/transaction";
 
 const CHAIN_CONFIG = {
-  optimism: {
-    chainId: optimism.id,
-    stablecoins: {
-      "USDC.e": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
-      USDC: "0x7F5c764cBc14f9669B88837ca1490cCa17c31607",
-      USDT: "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
-      DAI: "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+  stablecoins: {
+    USDC: {
+      address: "0x7F5c764cBc14f9669B88837ca1490cCa17c31607",
+      decimals: 6,
+      symbol: "USDC",
+    },
+    "USDC.e": {
+      address: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      decimals: 6,
+      symbol: "USDC.e",
+    },
+    USDT: {
+      address: "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+      decimals: 6,
+      symbol: "USDT",
+    },
+    DAI: {
+      address: "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+      decimals: 18,
+      symbol: "DAI",
     },
   },
-  polygon: {
-    chainId: polygon.id,
-    stablecoins: {
-      "USDC.e": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
-      USDC: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
-      USDT: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
-      DAI: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
-    },
-  },
-} as const;
+};
 
 export type BridgeStep =
   | {
@@ -40,6 +44,11 @@ export type BridgeStep =
       txHash?: string;
     };
 
+const normalizeAmount = (amount: string, decimals: number): string => {
+  const parsedAmount = parseFloat(amount) / Math.pow(10, decimals);
+  return parsedAmount.toFixed(6);
+};
+
 export const useBridgeTransfer = () => {
   const { mutateAsync: sendTransaction } = useSendTransaction();
   const account = useActiveAccount();
@@ -49,25 +58,19 @@ export const useBridgeTransfer = () => {
   });
 
   const sendUsdcTransfer = useCallback(
-    async (amount: string): Promise<{ transactionHash: string }> => {
+    async (rawAmount: string): Promise<{ transactionHash: string }> => {
       if (!account) throw new Error("Wallet not connected");
 
       try {
         const client = getAcrossClient();
-
-        // Get all available routes
         const routes = await client.getAvailableRoutes();
 
-        // Find all available stablecoin routes from Optimism to Polygon
         const stablecoinRoutes = routes.filter((route) => {
           const isOptimismToPolygon =
-            route.originChainId === CHAIN_CONFIG.optimism.chainId &&
-            route.destinationChainId === CHAIN_CONFIG.polygon.chainId;
-
+            route.originChainId === 10 && route.destinationChainId === 137;
           const isStablecoin = ["USDC", "USDC.e", "USDT", "DAI"].includes(
             route.inputTokenSymbol
           );
-
           return isOptimismToPolygon && isStablecoin;
         });
 
@@ -80,7 +83,6 @@ export const useBridgeTransfer = () => {
           }))
         );
 
-        // Prioritize stable routes in this order: USDC.e > USDT > DAI
         const preferredRoute =
           stablecoinRoutes.find(
             (route) => route.inputTokenSymbol === "USDC.e"
@@ -89,22 +91,19 @@ export const useBridgeTransfer = () => {
           stablecoinRoutes.find((route) => route.inputTokenSymbol === "DAI");
 
         if (!preferredRoute) {
-          throw new Error(
-            "No available stablecoin bridge routes. Consider implementing swap+bridge flow."
-          );
+          throw new Error("No available stablecoin bridge routes");
         }
 
-        console.log("Selected route:", {
-          token: preferredRoute.inputTokenSymbol,
-          from: preferredRoute.originChainId,
-          to: preferredRoute.destinationChainId,
-        });
+        const tokenConfig =
+          CHAIN_CONFIG.stablecoins[
+            preferredRoute.inputTokenSymbol as keyof typeof CHAIN_CONFIG.stablecoins
+          ];
+        console.log(
+          `Bridging ${normalizeAmount(rawAmount, tokenConfig.decimals)} ${
+            tokenConfig.symbol
+          }`
+        );
 
-        // Format amount properly
-        const formattedAmount = formatInputAmount(amount);
-        console.log("Formatted amount:", formattedAmount.toString());
-
-        // Get quote using the found route
         const quote = await client.getQuote({
           route: {
             originChainId: preferredRoute.originChainId,
@@ -112,7 +111,7 @@ export const useBridgeTransfer = () => {
             inputToken: preferredRoute.inputToken,
             outputToken: preferredRoute.outputToken,
           },
-          inputAmount: formattedAmount,
+          inputAmount: BigInt(rawAmount),
           recipient: AGENT_WALLET_ADDRESS,
         });
 
@@ -122,29 +121,70 @@ export const useBridgeTransfer = () => {
           );
         }
 
-        console.log("Quote received for", preferredRoute.inputTokenSymbol);
-
-        // Execute the bridge transaction
-        setBridgeStep({ step: "bridging", status: "pending" });
-
-        const bridgeTx = {
-          to: quote.deposit.target,
-          data: `${quote.deposit.callData}1dc0def001`,
-          value: BigInt(quote.deposit.value || 0),
-        };
-
-        const result = await sendTransaction(bridgeTx);
-        const txHash = result.transactionHash;
-
-        setBridgeStep({
-          step: "bridging",
-          status: "success",
-          txHash,
+        // Log the deposit data to verify we have what we need
+        console.log("Quote deposit data:", {
+          target: quote.deposit.target,
+          callData: quote.deposit.callData,
+          value: quote.deposit.value,
         });
 
-        return { transactionHash: txHash };
+        if (!quote.deposit.target || !quote.deposit.callData) {
+          throw new Error("Invalid quote data received from Across");
+        }
+
+        console.log(
+          `Quote received for ${normalizeAmount(
+            rawAmount,
+            tokenConfig.decimals
+          )} ${tokenConfig.symbol}`
+        );
+
+        // Prepare the bridge transaction with the required data from quote
+        const transaction = prepareBridgeTransaction(
+          quote.deposit.target, // This is the spokePoolAddress
+          quote.deposit.callData, // This is the encoded call data
+          BigInt(quote.deposit.value || 0) // This is the ETH value to send
+        );
+
+        return new Promise((resolve, reject) => {
+          sendTransaction(transaction, {
+            onSuccess: async (result) => {
+              try {
+                console.log(
+                  "Bridge transaction sent, waiting for confirmation..."
+                );
+                setBridgeStep({
+                  step: "bridging",
+                  status: "pending",
+                  txHash: result.transactionHash,
+                });
+
+                await sleep(15000); // Wait for confirmation
+                console.log("Bridge transaction confirmed");
+
+                setBridgeStep({
+                  step: "bridging",
+                  status: "success",
+                  txHash: result.transactionHash,
+                });
+
+                resolve(result);
+              } catch (error) {
+                reject(error);
+              }
+            },
+            onError: (error) => {
+              console.error("Bridge transaction failed:", error);
+              setBridgeStep({
+                ...bridgeStep,
+                status: "failed",
+              });
+              reject(error);
+            },
+          });
+        });
       } catch (error) {
-        console.error("Bridge transfer failed:", error);
+        console.error("Bridge preparation failed:", error);
         setBridgeStep({
           ...bridgeStep,
           status: "failed",
