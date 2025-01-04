@@ -1,52 +1,56 @@
+// src/hooks/order/useBridgeTransfer.ts
 import { useState, useCallback } from "react";
 import { useSendTransaction, useActiveAccount } from "thirdweb/react";
-import { getAcrossClient } from "../../services/across/client";
+import {
+  getAcrossClient,
+  prepareDepositCalldata,
+} from "../../services/across/client";
 import {
   AGENT_WALLET_ADDRESS,
   sleep,
   prepareBridgeTransaction,
 } from "../../services/transaction";
+import { prepareTokenApproval } from "../../services/across/bridge";
 
-const CHAIN_CONFIG = {
-  stablecoins: {
-    USDC: {
-      address: "0x7F5c764cBc14f9669B88837ca1490cCa17c31607",
-      decimals: 6,
-      symbol: "USDC",
-    },
-    "USDC.e": {
-      address: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
-      decimals: 6,
-      symbol: "USDC.e",
-    },
-    USDT: {
-      address: "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
-      decimals: 6,
-      symbol: "USDT",
-    },
-    DAI: {
-      address: "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
-      decimals: 18,
-      symbol: "DAI",
-    },
-  },
-};
-
-export type BridgeStep =
-  | {
-      step: "approval";
-      status: "pending" | "success" | "failed";
-      txHash?: string;
-    }
-  | {
-      step: "bridging";
-      status: "pending" | "success" | "failed";
-      txHash?: string;
+interface AcrossQuote {
+  deposit: {
+    inputAmount: string;
+    outputAmount: string;
+    recipient: string;
+    message: string;
+    quoteTimestamp: number;
+    exclusiveRelayer: string;
+    exclusivityDeadline: number;
+    spokePoolAddress: string;
+    destinationSpokePoolAddress: string;
+    originChainId: number;
+    destinationChainId: number;
+    inputToken: string;
+    outputToken: string;
+  };
+  limits: {
+    minDeposit: string;
+    maxDeposit: string;
+    maxDepositInstant: string;
+  };
+  fees: {
+    totalRelayFee: {
+      pct: string;
+      total: string;
     };
+  };
+}
 
-const normalizeAmount = (amount: string, decimals: number): string => {
-  const parsedAmount = parseFloat(amount) / Math.pow(10, decimals);
-  return parsedAmount.toFixed(6);
+interface BridgeStep {
+  step: "approval" | "bridging";
+  status: "pending" | "success" | "failed";
+  txHash?: string;
+}
+
+const safeStringify = (obj: any): string => {
+  return JSON.stringify(obj, (_, value) =>
+    typeof value === "bigint" ? value.toString() : value
+  );
 };
 
 export const useBridgeTransfer = () => {
@@ -94,17 +98,16 @@ export const useBridgeTransfer = () => {
           throw new Error("No available stablecoin bridge routes");
         }
 
-        const tokenConfig =
-          CHAIN_CONFIG.stablecoins[
-            preferredRoute.inputTokenSymbol as keyof typeof CHAIN_CONFIG.stablecoins
-          ];
-        console.log(
-          `Bridging ${normalizeAmount(rawAmount, tokenConfig.decimals)} ${
-            tokenConfig.symbol
-          }`
-        );
+        console.log("Getting quote with parameters:", {
+          originChainId: preferredRoute.originChainId,
+          destinationChainId: preferredRoute.destinationChainId,
+          inputToken: preferredRoute.inputToken,
+          outputToken: preferredRoute.outputToken,
+          inputAmount: rawAmount,
+          recipient: AGENT_WALLET_ADDRESS,
+        });
 
-        const quote = await client.getQuote({
+        const quote = (await client.getQuote({
           route: {
             originChainId: preferredRoute.originChainId,
             destinationChainId: preferredRoute.destinationChainId,
@@ -113,53 +116,122 @@ export const useBridgeTransfer = () => {
           },
           inputAmount: BigInt(rawAmount),
           recipient: AGENT_WALLET_ADDRESS,
+        })) as AcrossQuote;
+
+        console.log("Raw quote response:", safeStringify(quote));
+
+        const { deposit } = quote;
+
+        console.log("Quote deposit details:", {
+          spokePoolAddress: deposit.spokePoolAddress,
+          inputAmount: deposit.inputAmount,
+          outputAmount: deposit.outputAmount,
+          quoteTimestamp: deposit.quoteTimestamp,
+          exclusivityDeadline: deposit.exclusivityDeadline,
         });
 
-        if (!quote || !quote.deposit) {
-          throw new Error(
-            `Failed to get quote for ${preferredRoute.inputTokenSymbol} bridge`
-          );
+        if (!deposit.spokePoolAddress) {
+          throw new Error("Missing spoke pool address in quote");
         }
 
-        // Log the deposit data to verify we have what we need
-        console.log("Quote deposit data:", {
-          target: quote.deposit.target,
-          callData: quote.deposit.callData,
-          value: quote.deposit.value,
+        // Step 1: Handle token approval using ThirdWeb
+        console.log("Initiating token approval...");
+        setBridgeStep({
+          step: "approval",
+          status: "pending",
         });
 
-        if (!quote.deposit.target || !quote.deposit.callData) {
-          throw new Error("Invalid quote data received from Across");
-        }
-
-        console.log(
-          `Quote received for ${normalizeAmount(
-            rawAmount,
-            tokenConfig.decimals
-          )} ${tokenConfig.symbol}`
+        const approvalRequest = prepareTokenApproval(
+          deposit.inputToken,
+          deposit.spokePoolAddress,
+          deposit.inputAmount
         );
 
-        // Prepare the bridge transaction with the required data from quote
-        const transaction = prepareBridgeTransaction(
-          quote.deposit.target, // This is the spokePoolAddress
-          quote.deposit.callData, // This is the encoded call data
-          BigInt(quote.deposit.value || 0) // This is the ETH value to send
+        // Execute approval transaction and wait for confirmation
+        await new Promise<void>((resolve, reject) => {
+          sendTransaction(approvalRequest, {
+            onSuccess: async (result) => {
+              try {
+                console.log("Approval transaction sent:", {
+                  hash: result.transactionHash,
+                });
+
+                setBridgeStep({
+                  step: "approval",
+                  status: "pending",
+                  txHash: result.transactionHash,
+                });
+
+                await sleep(15000); // Wait for approval to be mined
+                console.log("Approval transaction confirmed");
+
+                setBridgeStep({
+                  step: "approval",
+                  status: "success",
+                  txHash: result.transactionHash,
+                });
+
+                resolve();
+              } catch (error) {
+                reject(error);
+              }
+            },
+            onError: (error) => {
+              console.error("Approval transaction failed:", error);
+              setBridgeStep({
+                step: "approval",
+                status: "failed",
+              });
+              reject(error);
+            },
+          });
+        });
+
+        // Step 2: Execute the bridge transaction
+        console.log("Initiating bridge transaction...");
+        setBridgeStep({
+          step: "bridging",
+          status: "pending",
+        });
+
+        const encodedCallData = await generateBridgeDepositData(
+          {
+            depositor: account.address,
+            recipient: deposit.recipient,
+            inputToken: deposit.inputToken,
+            outputToken: deposit.outputToken,
+            inputAmount: deposit.inputAmount,
+            outputAmount: deposit.outputAmount,
+            destinationChainId: deposit.destinationChainId,
+            exclusiveRelayer: deposit.exclusiveRelayer,
+            quoteTimestamp: deposit.quoteTimestamp,
+            exclusivityDeadline: deposit.exclusivityDeadline,
+            message: deposit.message || "0x",
+          },
+          deposit.spokePoolAddress
+        );
+
+        const bridgeTx = prepareBridgeTransaction(
+          deposit.spokePoolAddress,
+          encodedCallData,
+          BigInt(0)
         );
 
         return new Promise((resolve, reject) => {
-          sendTransaction(transaction, {
+          sendTransaction(bridgeTx, {
             onSuccess: async (result) => {
               try {
-                console.log(
-                  "Bridge transaction sent, waiting for confirmation..."
-                );
+                console.log("Bridge transaction sent:", {
+                  hash: result.transactionHash,
+                });
+
                 setBridgeStep({
                   step: "bridging",
                   status: "pending",
                   txHash: result.transactionHash,
                 });
 
-                await sleep(15000); // Wait for confirmation
+                await sleep(15000);
                 console.log("Bridge transaction confirmed");
 
                 setBridgeStep({
@@ -176,7 +248,7 @@ export const useBridgeTransfer = () => {
             onError: (error) => {
               console.error("Bridge transaction failed:", error);
               setBridgeStep({
-                ...bridgeStep,
+                step: "bridging",
                 status: "failed",
               });
               reject(error);
