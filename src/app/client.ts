@@ -13,7 +13,7 @@ if (!clientId) {
 export const client = createThirdwebClient({
   clientId: clientId,
 });
-
+8453
 // connect to your contract
 export const contract = getContract({ 
   client, 
