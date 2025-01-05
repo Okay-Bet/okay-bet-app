@@ -67,35 +67,63 @@ export const useBridgeTransfer = () => {
         const client = getAcrossClient();
         const routes = await client.getAvailableRoutes();
 
-        const stablecoinRoutes = routes.filter((route) => {
-          const isOptimismToPolygon =
-            route.originChainId === 10 && route.destinationChainId === 137;
-          const isStablecoin = ["USDC", "USDC.e", "USDT", "DAI"].includes(
-            route.inputTokenSymbol
-          );
-          return isOptimismToPolygon && isStablecoin;
-        });
-
+        // Debug logging - let's see ALL routes first
         console.log(
-          "Available stablecoin routes:",
-          stablecoinRoutes.map((route) => ({
+          "All available routes before filtering:",
+          routes.map((route) => ({
             symbol: route.inputTokenSymbol,
+            originChain: route.originChainId,
+            destChain: route.destinationChainId,
             inputToken: route.inputToken,
             outputToken: route.outputToken,
+            enabled: route.enabled,
+            limits: route.limits,
           }))
         );
 
-        const preferredRoute =
-          stablecoinRoutes.find(
-            (route) => route.inputTokenSymbol === "USDC.e"
-          ) ||
-          stablecoinRoutes.find((route) => route.inputTokenSymbol === "USDT") ||
-          stablecoinRoutes.find((route) => route.inputTokenSymbol === "DAI");
+        // Split our filtering into steps for debugging
+        const optimismToPolygonRoutes = routes.filter((route) => {
+          const isCorrectPath =
+            route.originChainId === 10 && route.destinationChainId === 137;
+          return isCorrectPath;
+        });
+
+        console.log(
+          "Routes after chain filtering:",
+          optimismToPolygonRoutes.map((r) => r.inputTokenSymbol)
+        );
+
+        const stablecoinRoutes = optimismToPolygonRoutes.filter((route) => {
+          const isStablecoin = ["USDC", "USDC.e", "USDT", "DAI"].includes(
+            route.inputTokenSymbol
+          );
+          console.log(
+            `Route ${route.inputTokenSymbol}: Is stablecoin = ${isStablecoin}`
+          );
+          return isStablecoin;
+        });
+
+
+        // Simplified route selection for debugging
+        const preferredRoute = stablecoinRoutes[0];
 
         if (!preferredRoute) {
-          throw new Error("No available stablecoin bridge routes");
+          throw new Error(
+            `No available stablecoin bridge routes. Found ${routes.length} total routes, ` +
+              `${optimismToPolygonRoutes.length} OP->Polygon routes, ` +
+              `${stablecoinRoutes.length} stablecoin routes.`
+          );
         }
 
+        // Log selected route for debugging
+        console.log("Selected route:", {
+          symbol: preferredRoute.inputTokenSymbol,
+          inputToken: preferredRoute.inputToken,
+          outputToken: preferredRoute.outputToken,
+          limits: preferredRoute.limits,
+        });
+
+        // Get quote with enhanced error handling
         console.log("Getting quote with parameters:", {
           originChainId: preferredRoute.originChainId,
           destinationChainId: preferredRoute.destinationChainId,
@@ -120,19 +148,29 @@ export const useBridgeTransfer = () => {
 
         const { deposit } = quote;
 
+        // Validate deposit parameters
+        if (!deposit.spokePoolAddress) {
+          throw new Error("Missing spoke pool address in quote");
+        }
+
+        if (
+          deposit.inputToken.toLowerCase() !==
+          preferredRoute.inputToken.toLowerCase()
+        ) {
+          throw new Error("Quote input token doesn't match selected route");
+        }
+
         console.log("Quote deposit details:", {
           spokePoolAddress: deposit.spokePoolAddress,
+          inputToken: deposit.inputToken,
+          outputToken: deposit.outputToken,
           inputAmount: deposit.inputAmount,
           outputAmount: deposit.outputAmount,
           quoteTimestamp: deposit.quoteTimestamp,
           exclusivityDeadline: deposit.exclusivityDeadline,
         });
 
-        if (!deposit.spokePoolAddress) {
-          throw new Error("Missing spoke pool address in quote");
-        }
-
-        // Step 1: Handle token approval using ThirdWeb
+        // Step 1: Handle token approval
         console.log("Initiating token approval...");
         setBridgeStep({
           step: "approval",
@@ -145,13 +183,16 @@ export const useBridgeTransfer = () => {
           deposit.inputAmount
         );
 
-        // Execute approval transaction and wait for confirmation
+        // Execute approval with enhanced error handling
         await new Promise<void>((resolve, reject) => {
           sendTransaction(approvalRequest, {
             onSuccess: async (result) => {
               try {
                 console.log("Approval transaction sent:", {
                   hash: result.transactionHash,
+                  token: deposit.inputToken,
+                  spender: deposit.spokePoolAddress,
+                  amount: deposit.inputAmount,
                 });
 
                 setBridgeStep({
@@ -160,7 +201,7 @@ export const useBridgeTransfer = () => {
                   txHash: result.transactionHash,
                 });
 
-                await sleep(15000); // Wait for approval to be mined
+                await sleep(15000);
                 console.log("Approval transaction confirmed");
 
                 setBridgeStep({
@@ -171,6 +212,7 @@ export const useBridgeTransfer = () => {
 
                 resolve();
               } catch (error) {
+                console.error("Approval confirmation failed:", error);
                 reject(error);
               }
             },
@@ -185,7 +227,7 @@ export const useBridgeTransfer = () => {
           });
         });
 
-        // Step 2: Execute the bridge transaction
+        // Step 2: Execute bridge transaction
         console.log("Initiating bridge transaction...");
         setBridgeStep({
           step: "bridging",
@@ -203,7 +245,7 @@ export const useBridgeTransfer = () => {
             destinationChainId: deposit.destinationChainId,
             exclusiveRelayer: deposit.exclusiveRelayer,
             quoteTimestamp: deposit.quoteTimestamp,
-            exclusivityPeriod: deposit.exclusivityDeadline, 
+            exclusivityPeriod: deposit.exclusivityDeadline,
             message: deposit.message || "0x",
           },
           deposit.spokePoolAddress
@@ -214,6 +256,22 @@ export const useBridgeTransfer = () => {
           encodedCallData,
           BigInt(0)
         );
+        
+        // Validate the transaction object
+        if (!bridgeTx.to || !bridgeTx.overrides?.data) {
+          console.error("Invalid transaction object:", {
+            has_to: !!bridgeTx.to,
+            has_data: !!bridgeTx.overrides?.data,
+            tx: bridgeTx
+          });
+          throw new Error("Transaction preparation failed - missing required fields");
+        }
+        
+        console.log("Pre-send transaction validation:", {
+          to: bridgeTx.to,
+          dataLength: bridgeTx.overrides.data.length,
+          value: bridgeTx.value?.toString() || '0',
+        });
 
         return new Promise((resolve, reject) => {
           sendTransaction(bridgeTx, {
@@ -221,6 +279,9 @@ export const useBridgeTransfer = () => {
               try {
                 console.log("Bridge transaction sent:", {
                   hash: result.transactionHash,
+                  spokePool: deposit.spokePoolAddress,
+                  inputToken: deposit.inputToken,
+                  amount: deposit.inputAmount,
                 });
 
                 setBridgeStep({
@@ -240,11 +301,16 @@ export const useBridgeTransfer = () => {
 
                 resolve(result);
               } catch (error) {
+                console.error("Bridge confirmation failed:", error);
                 reject(error);
               }
             },
             onError: (error) => {
-              console.error("Bridge transaction failed:", error);
+              console.error("Bridge transaction failed:", {
+                error,
+                spokePool: deposit.spokePoolAddress,
+                inputToken: deposit.inputToken,
+              });
               setBridgeStep({
                 step: "bridging",
                 status: "failed",

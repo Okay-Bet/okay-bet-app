@@ -2,7 +2,7 @@
 import { getContract, prepareContractCall } from "thirdweb";
 import { optimism } from "thirdweb/chains";
 import { client } from "@/app/client";
-import { parseAbiItem, encodeFunctionData } from "viem";
+import { encodeFunctionData } from "viem";
 import { DepositParams } from "../../components/types/bridge";
 import { SPOKE_POOL_ABI } from "@/constants/spoke-pool-abi";
 
@@ -160,19 +160,8 @@ export function prepareBridgeTransaction(
   });
 
   try {
-    const validatedSpokePool = validateAddress(
-      spokePoolAddress,
-      "spokePoolAddress"
-    );
+    const validatedSpokePool = validateAddress(spokePoolAddress, "spokePoolAddress");
 
-    if (!callData || typeof callData !== "string") {
-      throw new Error("Invalid callData: must be a non-empty string");
-    }
-
-    // Log the full calldata for debugging
-    console.log("Raw calldata:", callData);
-
-    // Use the complete ABI when creating the contract instance
     const spokePoolContract = getContract({
       client,
       address: validatedSpokePool,
@@ -180,11 +169,23 @@ export function prepareBridgeTransaction(
       abi: SPOKE_POOL_ABI,
     });
 
+    console.log("Contract instance check:", {
+      address: spokePoolContract.address,
+      hasABI: !!spokePoolContract.abi,
+      // Log available methods for debugging
+      availableMethods: spokePoolContract.abi
+        .filter(item => item.type === 'function')
+        .map(item => item.name)
+    });
+
+    // Key change: Use just the method name, not the full signature
     const transaction = prepareContractCall({
       contract: spokePoolContract,
+      // Just use the method name - ThirdWeb will find the matching function in the ABI
       method: "depositV3",
+      // These params must match the ABI exactly
       params: [
-        ZERO_ADDRESS, // These will be overridden by callData
+        ZERO_ADDRESS,
         ZERO_ADDRESS,
         ZERO_ADDRESS,
         ZERO_ADDRESS,
@@ -195,7 +196,7 @@ export function prepareBridgeTransaction(
         BigInt(0),
         BigInt(0),
         BigInt(0),
-        "0x",
+        "0x"
       ] as const,
       overrides: {
         data: callData,
@@ -203,30 +204,54 @@ export function prepareBridgeTransaction(
       },
     });
 
-    // Safe logging of transaction details
-    console.log("Final transaction:", {
-      to: transaction.to,
-      dataLength: transaction.data ? transaction.data.length : 0,
-      value: transaction.value?.toString(),
-      chain: transaction.chain?.id,
+    console.log("Transaction preparation details:", {
+      contractAddress: spokePoolContract.address,
+      method: "depositV3",
+      hasData: !!transaction.overrides?.data,
+      dataLength: transaction.overrides?.data?.length,
+      fullTransaction: {
+        to: transaction.to,
+        data: transaction.overrides?.data?.slice(0, 66) + '...',
+        value: transaction.value?.toString(),
+      }
     });
 
     return transaction;
   } catch (error) {
-    console.error("Bridge transaction preparation failed:", error);
-    // Add detailed error logging
-    if ((error as any).code === "CALL_EXCEPTION") {
-      const errorData = (error as any).data;
-      console.log("Contract error data:", errorData);
-      // Try to decode the error if possible
-      try {
-        const errorInterface = new Interface(SPOKE_POOL_ABI);
-        const decodedError = errorInterface.parseError(errorData);
-        console.log("Decoded error:", decodedError);
-      } catch (decodeError) {
-        console.log("Could not decode error:", errorData);
-      }
-    }
+    // Enhanced error logging
+    console.error("Bridge transaction preparation failed:", {
+      error,
+      errorName: error.name,
+      errorMessage: error.message,
+      spokePool: spokePoolAddress,
+      callDataLength: callData?.length,
+      // Log contract methods if available
+      availableMethods: spokePoolContract?.abi
+        ?.filter(item => item.type === 'function')
+        .map(item => item.name)
+    });
     throw error;
+  }
+}
+
+export async function isRouteEnabled(
+  spokePoolContract: any,
+  inputToken: string,
+  destinationChainId: number
+): Promise<boolean> {
+  try {
+    const isEnabled = await spokePoolContract.enabledDepositRoutes(
+      inputToken,
+      destinationChainId
+    );
+    console.log("Route status check:", {
+      inputToken,
+      destinationChainId,
+      isEnabled,
+    });
+    return isEnabled;
+  } catch (error) {
+    console.error("Failed to check route status:", error);
+    return false;
   }
 }
