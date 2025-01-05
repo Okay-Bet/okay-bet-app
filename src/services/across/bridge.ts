@@ -3,53 +3,16 @@ import { getContract, prepareContractCall } from "thirdweb";
 import { optimism } from "thirdweb/chains";
 import { client } from "@/app/client";
 import { parseAbiItem, encodeFunctionData } from "viem";
+import { DepositParams } from "../../components/types/bridge";
+import { SPOKE_POOL_ABI } from "@/constants/spoke-pool-abi";
 
 // Constants
 const ACROSS_IDENTIFIER = "1dc0def001";
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const SPOKE_POOL_ADDRESS = "0x6f26Bf09B1C792e3228e5467807a900A503c0281";
 
-// Complete ABI including function and potential errors
-const SPOKE_POOL_ABI = [
-  // Main deposit function
-  {
-    type: "function",
-    name: "depositV3",
-    inputs: [
-      { name: "depositor", type: "address" },
-      { name: "recipient", type: "address" },
-      { name: "inputToken", type: "address" },
-      { name: "outputToken", type: "address" },
-      { name: "inputAmount", type: "uint256" },
-      { name: "outputAmount", type: "uint256" },
-      { name: "destinationChainId", type: "uint256" },
-      { name: "exclusiveRelayer", type: "address" },
-      { name: "quoteTimestamp", type: "uint32" },
-      { name: "fillDeadline", type: "uint32" },
-      { name: "exclusivityDeadline", type: "uint32" },
-      { name: "message", type: "bytes" },
-    ],
-    outputs: [],
-    stateMutability: "payable",
-  },
-  // Common errors that might occur
-  {
-    type: "error",
-    name: "InvalidDeposit",
-    inputs: [{ name: "reason", type: "string" }],
-  },
-  {
-    type: "error",
-    name: "InvalidQuote",
-    inputs: [{ name: "reason", type: "string" }],
-  },
-  {
-    type: "error",
-    name: "InvalidAmount",
-    inputs: [{ name: "reason", type: "string" }],
-  },
-];
-
-const ERC20_ABI = [
+// ERC20 minimum ABI
+export const ERC20_ABI = [
   {
     inputs: [
       { name: "spender", type: "address" },
@@ -61,20 +24,6 @@ const ERC20_ABI = [
     type: "function",
   },
 ];
-
-interface DepositParams {
-  depositor: string;
-  recipient: string;
-  inputToken: string;
-  outputToken: string;
-  inputAmount: string;
-  outputAmount: string;
-  destinationChainId: number;
-  exclusiveRelayer: string;
-  quoteTimestamp: number;
-  exclusivityDeadline: number;
-  message: string;
-}
 
 // Validation utilities
 const validateAddress = (address: string, paramName: string): string => {
@@ -91,6 +40,21 @@ const validateBigInt = (value: string | bigint, paramName: string): bigint => {
     throw new Error(
       `Invalid ${paramName}: ${value}. Must be a valid numeric value.`
     );
+  }
+};
+
+const validateQuoteTimestamp = (timestamp: number): void => {
+  const currentTime = Math.floor(Date.now() / 1000);
+  const BUFFER = 300; // 5 minutes buffer
+  if (timestamp < currentTime - BUFFER || timestamp > currentTime) {
+    throw new Error("Quote timestamp must be within 5 minutes of current time");
+  }
+};
+
+const validateFillDeadline = (deadline: number): void => {
+  const currentTime = Math.floor(Date.now() / 1000);
+  if (deadline <= currentTime) {
+    throw new Error("Fill deadline must be in the future");
   }
 };
 
@@ -141,6 +105,12 @@ export async function generateBridgeDepositData(
 
   const fillDeadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
 
+  console.log("Deposit timing parameters:", {
+    quoteTimestamp: params.quoteTimestamp,
+    currentTime: Math.floor(Date.now() / 1000),
+    fillDeadline: fillDeadline.toString(),
+  });
+
   const depositParams = [
     validateAddress(params.depositor, "depositor"),
     validateAddress(params.recipient, "recipient"),
@@ -152,7 +122,7 @@ export async function generateBridgeDepositData(
     validateAddress(params.exclusiveRelayer, "exclusiveRelayer"),
     validateBigInt(params.quoteTimestamp, "quoteTimestamp"),
     fillDeadline,
-    validateBigInt(params.exclusivityDeadline, "exclusivityDeadline"),
+    validateBigInt(params.exclusivityPeriod, "exclusivityPeriod"), // Updated parameter name
     params.message || "0x",
   ] as const;
 
@@ -161,11 +131,10 @@ export async function generateBridgeDepositData(
     fillDeadline: fillDeadline.toString(),
   });
 
-  // Use the full ABI for encoding
   const baseCalldata = encodeFunctionData({
     abi: SPOKE_POOL_ABI,
-    args: depositParams,
     functionName: "depositV3",
+    args: depositParams,
   });
 
   const finalCalldata = appendIdentifier(baseCalldata);
@@ -190,53 +159,74 @@ export function prepareBridgeTransaction(
     value: value.toString(),
   });
 
-  const validatedSpokePool = validateAddress(
-    spokePoolAddress,
-    "spokePoolAddress"
-  );
+  try {
+    const validatedSpokePool = validateAddress(
+      spokePoolAddress,
+      "spokePoolAddress"
+    );
 
-  if (!callData || typeof callData !== "string") {
-    throw new Error("Invalid callData: must be a non-empty string");
+    if (!callData || typeof callData !== "string") {
+      throw new Error("Invalid callData: must be a non-empty string");
+    }
+
+    // Log the full calldata for debugging
+    console.log("Raw calldata:", callData);
+
+    // Use the complete ABI when creating the contract instance
+    const spokePoolContract = getContract({
+      client,
+      address: validatedSpokePool,
+      chain: optimism,
+      abi: SPOKE_POOL_ABI,
+    });
+
+    const transaction = prepareContractCall({
+      contract: spokePoolContract,
+      method: "depositV3",
+      params: [
+        ZERO_ADDRESS, // These will be overridden by callData
+        ZERO_ADDRESS,
+        ZERO_ADDRESS,
+        ZERO_ADDRESS,
+        BigInt(0),
+        BigInt(0),
+        BigInt(1),
+        ZERO_ADDRESS,
+        BigInt(0),
+        BigInt(0),
+        BigInt(0),
+        "0x",
+      ] as const,
+      overrides: {
+        data: callData,
+        value,
+      },
+    });
+
+    // Safe logging of transaction details
+    console.log("Final transaction:", {
+      to: transaction.to,
+      dataLength: transaction.data ? transaction.data.length : 0,
+      value: transaction.value?.toString(),
+      chain: transaction.chain?.id,
+    });
+
+    return transaction;
+  } catch (error) {
+    console.error("Bridge transaction preparation failed:", error);
+    // Add detailed error logging
+    if ((error as any).code === "CALL_EXCEPTION") {
+      const errorData = (error as any).data;
+      console.log("Contract error data:", errorData);
+      // Try to decode the error if possible
+      try {
+        const errorInterface = new Interface(SPOKE_POOL_ABI);
+        const decodedError = errorInterface.parseError(errorData);
+        console.log("Decoded error:", decodedError);
+      } catch (decodeError) {
+        console.log("Could not decode error:", errorData);
+      }
+    }
+    throw error;
   }
-
-  // Use the complete ABI when creating the contract instance
-  const spokePoolContract = getContract({
-    client,
-    address: validatedSpokePool,
-    chain: optimism,
-    abi: SPOKE_POOL_ABI,
-  });
-
-  // These placeholder params match the ABI structure
-  const placeholderParams = [
-    ZERO_ADDRESS, // depositor
-    ZERO_ADDRESS, // recipient
-    ZERO_ADDRESS, // inputToken
-    ZERO_ADDRESS, // outputToken
-    BigInt(0), // inputAmount
-    BigInt(0), // outputAmount
-    BigInt(1), // destinationChainId
-    ZERO_ADDRESS, // exclusiveRelayer
-    BigInt(0), // quoteTimestamp
-    BigInt(0), // fillDeadline
-    BigInt(0), // exclusivityDeadline
-    "0x", // message
-  ] as const;
-
-  console.log("Creating contract call with:", {
-    address: validatedSpokePool,
-    paramsLength: placeholderParams.length,
-    callDataLength: callData.length,
-    valueHex: value.toString(16),
-  });
-
-  return prepareContractCall({
-    contract: spokePoolContract,
-    method: "depositV3",
-    params: placeholderParams,
-    overrides: {
-      data: callData,
-      value,
-    },
-  });
 }

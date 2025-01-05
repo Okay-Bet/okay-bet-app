@@ -1,16 +1,13 @@
+// src/hooks/order/useBridgeTransfer.ts
 import { useState, useCallback } from "react";
 import { useSendTransaction, useActiveAccount } from "thirdweb/react";
+import { getAcrossClient } from "../../services/across/client";
+import { DepositParams } from "../../types/bridge";
+import { AGENT_WALLET_ADDRESS, sleep } from "../../services/transaction";
 import {
-  getAcrossClient,
-} from "../../services/across/client";
-import {
-  AGENT_WALLET_ADDRESS,
-  sleep
-} from "../../services/transaction";
-import { 
-  prepareTokenApproval, 
-  prepareBridgeTransaction, 
-  generateBridgeDepositData 
+  prepareTokenApproval,
+  prepareBridgeTransaction,
+  generateBridgeDepositData,
 } from "../../services/across/bridge";
 
 interface AcrossQuote {
@@ -67,8 +64,6 @@ export const useBridgeTransfer = () => {
       if (!account) throw new Error("Wallet not connected");
 
       try {
-        console.log("Starting USDC transfer with amount:", rawAmount);
-        
         const client = getAcrossClient();
         const routes = await client.getAvailableRoutes();
 
@@ -127,8 +122,8 @@ export const useBridgeTransfer = () => {
 
         console.log("Quote deposit details:", {
           spokePoolAddress: deposit.spokePoolAddress,
-          inputAmount: BigInt(deposit.inputAmount),
-          outputAmount: BigInt(deposit.outputAmount),
+          inputAmount: deposit.inputAmount,
+          outputAmount: deposit.outputAmount,
           quoteTimestamp: deposit.quoteTimestamp,
           exclusivityDeadline: deposit.exclusivityDeadline,
         });
@@ -137,7 +132,7 @@ export const useBridgeTransfer = () => {
           throw new Error("Missing spoke pool address in quote");
         }
 
-        // Step 1: Handle token approval
+        // Step 1: Handle token approval using ThirdWeb
         console.log("Initiating token approval...");
         setBridgeStep({
           step: "approval",
@@ -150,7 +145,7 @@ export const useBridgeTransfer = () => {
           deposit.inputAmount
         );
 
-        // Execute approval transaction
+        // Execute approval transaction and wait for confirmation
         await new Promise<void>((resolve, reject) => {
           sendTransaction(approvalRequest, {
             onSuccess: async (result) => {
@@ -165,7 +160,7 @@ export const useBridgeTransfer = () => {
                   txHash: result.transactionHash,
                 });
 
-                await sleep(15000);
+                await sleep(15000); // Wait for approval to be mined
                 console.log("Approval transaction confirmed");
 
                 setBridgeStep({
@@ -190,19 +185,11 @@ export const useBridgeTransfer = () => {
           });
         });
 
-        // Step 2: Execute bridge transaction
+        // Step 2: Execute the bridge transaction
         console.log("Initiating bridge transaction...");
         setBridgeStep({
           step: "bridging",
           status: "pending",
-        });
-
-        console.log("Generating bridge deposit data with params:", {
-          depositor: account.address,
-          recipient: deposit.recipient,
-          inputAmount: deposit.inputAmount,
-          outputAmount: deposit.outputAmount,
-          destinationChainId: deposit.destinationChainId,
         });
 
         const encodedCallData = await generateBridgeDepositData(
@@ -216,13 +203,11 @@ export const useBridgeTransfer = () => {
             destinationChainId: deposit.destinationChainId,
             exclusiveRelayer: deposit.exclusiveRelayer,
             quoteTimestamp: deposit.quoteTimestamp,
-            exclusivityDeadline: deposit.exclusivityDeadline,
+            exclusivityPeriod: deposit.exclusivityDeadline, 
             message: deposit.message || "0x",
           },
           deposit.spokePoolAddress
         );
-
-        console.log("Generated bridge deposit data length:", encodedCallData.length);
 
         const bridgeTx = prepareBridgeTransaction(
           deposit.spokePoolAddress,
