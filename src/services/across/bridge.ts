@@ -111,19 +111,23 @@ export async function generateBridgeDepositData(
     fillDeadline: fillDeadline,
   });
 
+  // Type cast all address parameters to `0x${string}`
   const depositParams = [
-    validateAddress(params.depositor, "depositor"),
-    validateAddress(params.recipient, "recipient"),
-    validateAddress(params.inputToken, "inputToken"),
-    validateAddress(params.outputToken, "outputToken"),
+    validateAddress(params.depositor, "depositor") as `0x${string}`,
+    validateAddress(params.recipient, "recipient") as `0x${string}`,
+    validateAddress(params.inputToken, "inputToken") as `0x${string}`,
+    validateAddress(params.outputToken, "outputToken") as `0x${string}`,
     validateBigInt(params.inputAmount, "inputAmount"),
     validateBigInt(params.outputAmount, "outputAmount"),
     validateBigInt(params.destinationChainId.toString(), "destinationChainId"),
-    validateAddress(params.exclusiveRelayer, "exclusiveRelayer"),
-    Number(params.quoteTimestamp), // Explicitly convert to number
-    fillDeadline, // Already a number
-    Number(params.exclusivityPeriod), // Explicitly convert to number
-    (params.message || "0x") as `0x${string}`, // Type assertion for hex string
+    validateAddress(
+      params.exclusiveRelayer,
+      "exclusiveRelayer"
+    ) as `0x${string}`,
+    Number(params.quoteTimestamp),
+    fillDeadline,
+    Number(params.exclusivityPeriod),
+    (params.message || "0x") as `0x${string}`,
   ] as const;
 
   console.log("Preparing deposit call with params:", {
@@ -178,32 +182,19 @@ export function prepareBridgeTransaction(
 
     // Define the correct parameter types for depositV3
     const depositParams = [
-      ZERO_ADDRESS,
-      ZERO_ADDRESS,
-      ZERO_ADDRESS,
-      ZERO_ADDRESS,
+      ZERO_ADDRESS as `0x${string}`,
+      ZERO_ADDRESS as `0x${string}`,
+      ZERO_ADDRESS as `0x${string}`,
+      ZERO_ADDRESS as `0x${string}`,
       BigInt(0),
       BigInt(0),
       BigInt(1),
-      ZERO_ADDRESS,
+      ZERO_ADDRESS as `0x${string}`,
       0,
       0,
       0,
       "0x" as `0x${string}`,
-    ] as const satisfies readonly [
-      string,
-      string,
-      string,
-      string,
-      bigint,
-      bigint,
-      bigint,
-      string,
-      number,
-      number,
-      number,
-      `0x${string}`
-    ];
+    ] as const;
 
     const transaction = prepareContractCall({
       contract: spokePoolContract,
