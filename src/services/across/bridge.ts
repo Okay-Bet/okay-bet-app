@@ -1,10 +1,10 @@
 // src/services/across/bridge.ts
 import { getContract, prepareContractCall } from "thirdweb";
 import { optimism } from "thirdweb/chains";
-import { client } from "@/app/client";
+import { client } from "../../app/client";
 import { encodeFunctionData } from "viem";
 import { DepositParams } from "../../components/types/bridge";
-import { SPOKE_POOL_ABI } from "@/constants/spoke-pool-abi";
+import { SPOKE_POOL_ABI } from "../../constants/spoke-pool-abi";
 
 // Constants
 const ACROSS_IDENTIFIER = "1dc0def001";

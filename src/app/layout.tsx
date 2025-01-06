@@ -7,7 +7,7 @@ import "./globals.css";
 import { ThirdwebProvider } from "thirdweb/react";
 import { Analytics } from "@vercel/analytics/react";
 import dynamic from 'next/dynamic';
-import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
+import ServiceWorkerRegistration from '../components/ServiceWorkerRegistration';
 
 const PushNotificationSubscriber = dynamic(
   () => import('../components/Notifications/PushNotificationSubscriber'),
