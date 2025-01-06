@@ -62,14 +62,12 @@
         "web-push": "^3.6.7",
         "webpack-bundle-analyzer": "^4.10.2",
         "web3modal": "^1.9.12",
-        "workbox-webpack-plugin": "^7.1.0"
-    },
-    "devDependencies": {
+        "@types/web-push": "^3.6.3",
+        "workbox-webpack-plugin": "^7.1.0",
         "@types/lodash": "^4.17.7",
         "@types/node": "^20",
         "@types/react": "^18",
         "@types/react-dom": "^18",
-        "@types/react-slick": "^0.23.13",
-        "@types/web-push": "^3.6.3"
-    }
+        "@types/react-slick": "^0.23.13"
+    }      
 }
