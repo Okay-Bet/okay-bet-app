@@ -10,22 +10,6 @@ const nextConfig = {
   webpack: (config, { isServer }) => {
     config.externals.push("pino-pretty", "lokijs", "encoding");
 
-    config.module.rules.push({
-      test: /\.css$/,
-      use: [
-        'style-loader',
-        {
-          loader: 'css-loader',
-          options: {
-            importLoaders: 1,
-            modules: {
-              auto: true, // Enable CSS modules for files matching .module.css
-            },
-          },
-        },
-      ],
-    });
-
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -37,6 +21,7 @@ const nextConfig = {
 
     return config;
   },
+  
   async rewrites() {
     return [
       {
