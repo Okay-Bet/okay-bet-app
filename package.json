@@ -1,13 +1,16 @@
 {
-  "name": "okay-bet",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "ts-node --project tsconfig.server.json src/server.ts",
-    "build": "next build",
-    "start": "NODE_ENV=production ts-node --project tsconfig.server.json src/server.ts",
-    "lint": "next lint"
-  },
+    "name": "okay-bet",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+      "dev": "ts-node --project tsconfig.server.json src/server.ts",
+      "predev": "npm install --legacy-peer-deps",
+      "prebuild": "npm install --legacy-peer-deps",
+      "build": "next build",
+      "start": "NODE_ENV=production ts-node --project tsconfig.server.json src/server.ts",
+      "prestart": "npm install --legacy-peer-deps",
+      "lint": "next lint"
+    },
   "dependencies": {
     "@0x/utils": "^7.0.0",
     "@across-protocol/app-sdk": "^0.0.4",
@@ -28,7 +31,7 @@
     "lucide-react": "^0.469.0",
     "next": "14.1.0",
     "next-pwa": "^5.6.0",
-    "permissionless": "^0.1.31",
+    "permissionless": "^0.1.49",
     "pino-pretty": "^11.2.1",
     "qrcode.react": "^3.1.0",
     "react": "^18.3",
@@ -43,7 +46,7 @@
     "tailwindcss-bg-patterns": "^0.3.0",
     "thirdweb": "^5.45.1",
     "ts-node": "^10.9.2",
-    "viem": "^2.22.2",
+    "viem": "^2.20.1",
     "web-push": "^3.6.7",
     "web3modal": "^1.9.12",
     "workbox-webpack-plugin": "^7.1.0"
