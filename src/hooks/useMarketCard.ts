@@ -1,7 +1,7 @@
 // hooks/useMarketCard.ts
 import { useState } from "react";
 import { Market } from "@/components/types/market";
-import { useBetSlip } from "@/app/context/BetSlipContext";
+import { useBetSlip } from "../app/context/BetSlipContext";
 
 interface UseMarketCardParams {
   eventId: string;

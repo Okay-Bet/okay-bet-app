@@ -5,8 +5,8 @@ import {
   Market,
   SearchParams,
   MARKET_CONSTANTS,
-} from "@/components/types/market";
-import { transformMarket } from "@/utils/transforms";
+} from "../../../components/types/market";
+import { transformMarket } from "../../../utils/transforms";
 
 const GAMMA_API_URL = "https://gamma-api.polymarket.com";
 const MAX_RESULTS = 20;
