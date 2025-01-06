@@ -6,13 +6,13 @@ import React from "react";
 import { useActiveAccount } from "thirdweb/react";
 import Image from "next/image";
 import logo from "../../public/okay_bet.png";
-import Pitch from "@/components/Landing/Pitch";
-import ConnectWallet from "@/components/User/ConnectWallet";
+import Pitch from "../components/Landing/Pitch";
+import ConnectWallet from "../components/User/ConnectWallet";
 import { BetSlipProvider } from "./context/BetSlipContext";
-import { BetSlip } from "@/components/Bet/BetSlip";
-import PredictionMarkets from "@/components/Polymarket/PredictionMarkets";
-import Testimonials from "@/components/Landing/Testimonials";
-import UserPositions from "@/components/User/UserPositions";
+import { BetSlip } from "../components/Bet/BetSlip";
+import PredictionMarkets from "../components/Polymarket/PredictionMarkets";
+import Testimonials from "../components/Landing/Testimonials";
+import UserPositions from "../components/User/UserPositions";
 
 
 export default function Home() {
