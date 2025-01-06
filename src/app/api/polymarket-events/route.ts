@@ -1,35 +1,34 @@
 // app/api/polymarket-events/route.ts
 import { NextResponse } from "next/server";
-import { Event, SearchParams } from "@/app/types/market";
+import {
+  Event,
+  Market,
+  SearchParams,
+  MARKET_CONSTANTS,
+} from "@/components/types/market";
 import { transformMarket } from "@/utils/transforms";
 
 const GAMMA_API_URL = "https://gamma-api.polymarket.com";
 const MAX_RESULTS = 20;
-const MIN_LIQUIDITY = 50;
-const MIN_ACTIVE_PRICE = 0.005;
-const MAX_DEAD_PRICE = 0.995;
+// Using constants from types file instead of magic numbers
+const MIN_LIQUIDITY = MARKET_CONSTANTS.MIN_LIQUIDITY;
+const MIN_ACTIVE_PRICE = MARKET_CONSTANTS.MIN_ACTIVE_PRICE;
+const MAX_DEAD_PRICE = MARKET_CONSTANTS.MAX_DEAD_PRICE;
 
-// Helper function to get comparable YES price for sorting
-function getComparableYesPrice(market: any): number {
-  // Using yesBestAsk (the price to buy YES) for sorting
-  // If no ask price exists, use bid price as fallback
+function getComparableYesPrice(market: Market): number {
   const price = market.yesBestAsk || market.yesBestBid;
-
-  // Return -1 for markets without price data to push them to the end
-  return price || -1;
+  return price ?? -1; // Using nullish coalescing for better type safety
 }
 
-// Function to sort markets by YES price descending
-function sortMarketsByYesPrice(markets: any[]): any[] {
+function sortMarketsByYesPrice(markets: Market[]): Market[] {
   return [...markets].sort((a, b) => {
     const priceA = getComparableYesPrice(a);
     const priceB = getComparableYesPrice(b);
-    return priceB - priceA; // Descending order
+    return priceB - priceA;
   });
 }
 
-function isMarketActive(market: any): boolean {
-
+function isMarketActive(market: Partial<Market>): boolean {
   const transformedMarket = transformMarket(market);
 
   if (!transformedMarket) {
@@ -65,6 +64,12 @@ function isMarketActive(market: any): boolean {
   return true;
 }
 
+interface RawEvent {
+  id: string;
+  title: string;
+  markets: Partial<Market>[];
+}
+
 export async function POST(request: Request) {
   try {
     const {
@@ -89,16 +94,18 @@ export async function POST(request: Request) {
 
     // Process events with proper transformation and sorting
     const processedEvents = data
-      .filter((event: any) => Array.isArray(event.markets))
-      .map((event: any) => {
-
+      .filter((event: RawEvent) => Array.isArray(event.markets))
+      .map((event: RawEvent) => {
         // Transform and filter markets
         const activeMarkets = event.markets
-          .filter((market) => market && typeof market === "object")
-          .filter(isMarketActive)
-          .map((market) => transformMarket(market))
-          .filter(Boolean);
-
+          .filter(
+            (market: Partial<Market>): market is Market =>
+              market !== null &&
+              typeof market === "object" &&
+              isMarketActive(market)
+          )
+          .map(transformMarket)
+          .filter((market): market is Market => market !== null);
 
         if (activeMarkets.length === 0) {
           return null;
@@ -107,26 +114,35 @@ export async function POST(request: Request) {
         // Sort markets by YES price before creating the event object
         const sortedMarkets = sortMarketsByYesPrice(activeMarkets);
 
+        // Calculate both liquidity and volume from active markets
+        const liquidity = activeMarkets.reduce(
+          (sum, market) => sum + (market.liquidity_num || 0),
+          0
+        );
+        const volume = activeMarkets.reduce(
+          (sum, market) => sum + (market.volume_num || 0),
+          0
+        );
+
         return {
           id: event.id,
           title: event.title,
           markets: sortedMarkets,
-          liquidity: activeMarkets.reduce(
-            (sum: number, market: any) => sum + (market.liquidity_num || 0),
-            0
-          ),
-        };
+          liquidity,
+          volume,
+          activeMarketsCount: activeMarkets.length,
+        } satisfies Event;
       })
-      .filter(Boolean);
+      .filter((event: Event | null): event is Event => event !== null);
 
     // Apply search filtering
     let filteredEvents = processedEvents;
     if (searchParams?.searchTerm) {
       const searchLower = searchParams.searchTerm.toLowerCase();
       filteredEvents = processedEvents.filter(
-        (event: any) =>
+        (event: Event) =>
           event.title.toLowerCase().includes(searchLower) ||
-          event.markets.some((market: any) =>
+          event.markets.some((market) =>
             market.question.toLowerCase().includes(searchLower)
           )
       );
@@ -136,7 +152,7 @@ export async function POST(request: Request) {
     const sortBy = searchParams?.sortBy || "liquidity";
     const sortDirection = searchParams?.sortDirection || "desc";
 
-    filteredEvents.sort((a: any, b: any) => {
+    filteredEvents.sort((a: Event, b: Event) => {
       const multiplier = sortDirection === "desc" ? -1 : 1;
       return multiplier * (a[sortBy] - b[sortBy]);
     });

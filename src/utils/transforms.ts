@@ -47,7 +47,7 @@ export function transformMarket(market: any): Market {
   }
 
   return {
-    end_date_iso: market.endDateIso || market.endDate?.split("T")[0] || "",
+    id: market.id || "",
     condition_id: market.conditionId || market.id,
     question: market.question || "",
     description: market.description || "",
@@ -59,27 +59,27 @@ export function transformMarket(market: any): Market {
     noBestBid,
     noBestAsk,
     active: Boolean(market.active),
+    isEffectivelyResolved: Boolean(market.isEffectivelyResolved),
     tokens: tokenPairs,
   };
 }
 
 /**
  * Transforms raw event data from Gamma API into our Event type
- * @param event - Raw event data from API
- * @returns Transformed Event object
+ * Always ensures numeric values have defaults to satisfy the Event interface requirements
  */
 export function transformEvent(event: any): Event {
   return {
     id: event.id,
     title: event.title || "Untitled Event",
-    liquidity: safeParseFloat(event.liquidity),
-    volume: safeParseFloat(event.volume),
+    liquidity: safeParseFloat(event.liquidity) ?? 0, // Provide default of 0
+    volume: safeParseFloat(event.volume) ?? 0, // Provide default of 0
     description: event.description || "",
     markets: Array.isArray(event.markets)
       ? event.markets.map((market: any) => ({
           id: market.conditionId || market.id,
           question: market.question || "Untitled Market",
-          liquidity: safeParseFloat(market.liquidity),
+          liquidity: safeParseFloat(market.liquidity) ?? 0, // Provide default here too
         }))
       : [],
   };
@@ -99,12 +99,12 @@ export function searchEvents(
       .sort((a, b) => {
         const aValue =
           sortBy === "volume"
-            ? safeParseFloat(a.volume)
-            : safeParseFloat(a.liquidity);
+            ? safeParseFloat(a.volume) ?? 0
+            : safeParseFloat(a.liquidity) ?? 0;
         const bValue =
           sortBy === "volume"
-            ? safeParseFloat(b.volume)
-            : safeParseFloat(b.liquidity);
+            ? safeParseFloat(b.volume) ?? 0
+            : safeParseFloat(b.liquidity) ?? 0;
         return sortDirection === "asc" ? aValue - bValue : bValue - aValue;
       })
       .slice(0, 20);
@@ -141,12 +141,12 @@ export function searchEvents(
 
       const aValue =
         sortBy === "volume"
-          ? safeParseFloat(a.event.volume)
-          : safeParseFloat(a.event.liquidity);
+          ? safeParseFloat(a.event.volume) ?? 0
+          : safeParseFloat(a.event.liquidity) ?? 0;
       const bValue =
         sortBy === "volume"
-          ? safeParseFloat(b.event.volume)
-          : safeParseFloat(b.event.liquidity);
+          ? safeParseFloat(b.event.volume) ?? 0
+          : safeParseFloat(b.event.liquidity) ?? 0;
       return sortDirection === "asc" ? aValue - bValue : bValue - aValue;
     })
     .map((item) => item.event)

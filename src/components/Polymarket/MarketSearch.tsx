@@ -1,19 +1,7 @@
-// components/Polymarket/MarketSearch.tsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, SortAsc, SortDesc } from 'lucide-react';
 import debounce from 'lodash/debounce';
-
-interface SearchParams {
-  searchTerm: string;
-  sortBy: 'volume' | 'liquidity';
-  sortDirection: 'asc' | 'desc';
-  endDateMin?: string;
-  endDateMax?: string;
-  volumeMin?: number;
-  volumeMax?: number;
-  liquidityMin?: number;
-  liquidityMax?: number;
-}
+import { SearchParams } from '@/components/types/market';
 
 interface MarketSearchProps {
   onSearch: (params: SearchParams) => void;
@@ -27,45 +15,39 @@ const MarketSearch: React.FC<MarketSearchProps> = ({ onSearch, isLoading }) => {
     sortDirection: 'desc'
   });
 
-  // We'll keep the debounced search for filter changes
   const debouncedSearch = useMemo(
     () => debounce((params: SearchParams) => {
-      if (!params.searchTerm) {  // Only use debounced search when there's no search term
+      if (!params.searchTerm) {
         onSearch(params);
       }
     }, 300),
     [onSearch]
   );
 
-  // Handle search input changes
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newParams = {
+    const newParams: SearchParams = {
       ...searchParams,
       searchTerm: e.target.value
     };
     setSearchParams(newParams);
     
-    // If search term is cleared, trigger immediate search
     if (!e.target.value) {
       onSearch(newParams);
     }
   };
 
-  // Handle explicit search button click
   const handleSearchClick = () => {
     onSearch(searchParams);
   };
 
-  // Handle enter key in search input
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       handleSearchClick();
     }
   };
 
-  // Handle sort changes
   const handleSortChange = (sortBy: 'volume' | 'liquidity') => {
-    const newParams = {
+    const newParams: SearchParams = {
       ...searchParams,
       sortBy,
       sortDirection: 'desc'
@@ -75,9 +57,11 @@ const MarketSearch: React.FC<MarketSearchProps> = ({ onSearch, isLoading }) => {
   };
 
   const toggleSortDirection = () => {
-    const newParams = {
+    // Type-safe way to toggle sort direction
+    const newDirection: 'asc' | 'desc' = searchParams.sortDirection === 'asc' ? 'desc' : 'asc';
+    const newParams: SearchParams = {
       ...searchParams,
-      sortDirection: searchParams.sortDirection === 'asc' ? 'desc' : 'asc'
+      sortDirection: newDirection
     };
     setSearchParams(newParams);
     debouncedSearch(newParams);
@@ -91,10 +75,12 @@ const MarketSearch: React.FC<MarketSearchProps> = ({ onSearch, isLoading }) => {
 
   return (
     <div className="w-full space-y-4 bg-background p-4 rounded-lg shadow-sm">
-      {/* Search Input with Button */}
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+          <Search 
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" 
+            size={20} 
+          />
           <input
             type="text"
             placeholder="Search markets..."
@@ -114,14 +100,13 @@ const MarketSearch: React.FC<MarketSearchProps> = ({ onSearch, isLoading }) => {
         </button>
       </div>
 
-      {/* Sort Controls */}
       <div className="flex items-center space-x-4">
         <span className="text-sm text-gray-500">Sort by:</span>
         <div className="flex items-center space-x-2">
-          {['volume', 'liquidity'].map((option) => (
+          {(['volume', 'liquidity'] as const).map((option) => (
             <button
               key={option}
-              onClick={() => handleSortChange(option as 'volume' | 'liquidity')}
+              onClick={() => handleSortChange(option)}
               className={`px-3 py-1 rounded-md text-sm ${
                 searchParams.sortBy === option
                   ? 'bg-primary text-white'

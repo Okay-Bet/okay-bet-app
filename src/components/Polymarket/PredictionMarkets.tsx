@@ -1,8 +1,9 @@
 // components/Polymarket/PredictionMarkets.tsx
 import React, { useEffect, useState, useCallback } from "react";
 import { MarketCard } from "./MarketCard";
-import MarketSearch, { SearchParams } from "./MarketSearch";
+import MarketSearch from "./MarketSearch";
 import { Event } from "../types/market";
+import { SearchParams } from "../types/market";
 
 const PredictionMarkets: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);

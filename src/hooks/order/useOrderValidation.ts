@@ -1,7 +1,8 @@
 // src/hooks/order/useOrderValidation.ts
 import { useState } from 'react';
 import { useActiveAccount } from 'thirdweb/react';
-import { OrderRequest, ValidationResponse } from '../../components/types/orders';
+import { OrderRequest } from '../../components/types/orders';
+import { ValidationResponse } from '../../components/types/validation';
 import { validateOrderRequest } from '../../services/validation';
 import { toUSDCUnits } from './utils';
 

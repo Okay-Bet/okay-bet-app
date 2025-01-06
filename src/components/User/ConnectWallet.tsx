@@ -27,7 +27,7 @@ const ConnectWallet = () => {
       <ConnectButton
         client={client}
         wallets={[...externalWallets, inAppWalletOption]}
-        chain={defineChain(polygon)}
+        chain={defineChain(optimism)}
         theme={"dark"}
         connectModal={{ size: "wide" }}
         appMetadata={{

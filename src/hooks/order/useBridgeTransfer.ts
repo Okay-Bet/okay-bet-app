@@ -1,8 +1,7 @@
-// src/hooks/order/useBridgeTransfer.ts
 import { useState, useCallback } from "react";
 import { useSendTransaction, useActiveAccount } from "thirdweb/react";
 import { getAcrossClient } from "../../services/across/client";
-import { DepositParams } from "../../types/bridge";
+import { DepositParams, AcrossQuote } from "../../components/types/bridge";
 import { AGENT_WALLET_ADDRESS, sleep } from "../../services/transaction";
 import {
   prepareTokenApproval,
@@ -10,49 +9,125 @@ import {
   generateBridgeDepositData,
 } from "../../services/across/bridge";
 
-interface AcrossQuote {
-  deposit: {
-    inputAmount: string;
-    outputAmount: string;
-    recipient: string;
-    message: string;
-    quoteTimestamp: number;
-    exclusiveRelayer: string;
-    exclusivityDeadline: number;
-    spokePoolAddress: string;
-    destinationSpokePoolAddress: string;
-    originChainId: number;
-    destinationChainId: number;
-    inputToken: string;
-    outputToken: string;
-  };
-  limits: {
-    minDeposit: string;
-    maxDeposit: string;
-    maxDepositInstant: string;
-  };
-  fees: {
-    totalRelayFee: {
-      pct: string;
-      total: string;
-    };
+// Define base types for blockchain transactions
+interface PreparedTransactionBase {
+  to: string;
+  value?: bigint;
+  overrides?: {
+    data?: string;
+    value?: bigint;
+    [key: string]: any;
   };
 }
 
+// Standardize transaction result type
+type TransactionResult = {
+  transactionHash: string;
+};
+
+// Define the transaction function signature
+type SendTransactionFunction = (
+  transaction: PreparedTransactionBase,
+  options?: {
+    onSuccess?: (result: TransactionResult) => void;
+    onError?: (error: Error) => void;
+  }
+) => Promise<TransactionResult>;
+
+// Bridge step tracking interface
 interface BridgeStep {
   step: "approval" | "bridging";
   status: "pending" | "success" | "failed";
   txHash?: string;
 }
 
+// Chain configuration
+const CHAIN_CONFIG = {
+  OPTIMISM_CHAIN_ID: 10,
+  POLYGON_CHAIN_ID: 137,
+} as const;
+
+// Utility function to safely convert bigint to string
+const bigintToString = (value: bigint | string): string => {
+  return typeof value === "bigint" ? value.toString() : value;
+};
+
+// Utility function for safe JSON stringification of bigint values
 const safeStringify = (obj: any): string => {
   return JSON.stringify(obj, (_, value) =>
     typeof value === "bigint" ? value.toString() : value
   );
 };
 
+// Type guard for quote validation
+const isValidQuote = (quote: any): quote is AcrossQuote => {
+  return (
+    quote &&
+    quote.deposit &&
+    typeof quote.deposit.spokePoolAddress === "string" &&
+    typeof quote.deposit.inputToken === "string"
+  );
+};
+
+// Quote transformation function
+const transformQuote = (rawQuote: any): AcrossQuote => {
+  if (!rawQuote || !rawQuote.deposit) {
+    throw new Error("Invalid quote format received from Across");
+  }
+
+  return {
+    deposit: {
+      inputAmount: bigintToString(rawQuote.deposit.inputAmount),
+      outputAmount: bigintToString(rawQuote.deposit.outputAmount),
+      recipient: rawQuote.deposit.recipient,
+      message: rawQuote.deposit.message,
+      quoteTimestamp: Number(rawQuote.deposit.quoteTimestamp),
+      exclusiveRelayer: rawQuote.deposit.exclusiveRelayer,
+      exclusivityDeadline: Number(rawQuote.deposit.exclusivityDeadline),
+      spokePoolAddress: rawQuote.deposit.spokePoolAddress,
+      destinationSpokePoolAddress: rawQuote.deposit.destinationSpokePoolAddress,
+      originChainId: Number(rawQuote.deposit.originChainId),
+      destinationChainId: Number(rawQuote.deposit.destinationChainId),
+      inputToken: rawQuote.deposit.inputToken,
+      outputToken: rawQuote.deposit.outputToken,
+    },
+    limits: {
+      minDeposit: bigintToString(rawQuote.limits.minDeposit),
+      maxDeposit: bigintToString(rawQuote.limits.maxDeposit),
+      maxDepositInstant: bigintToString(rawQuote.limits.maxDepositInstant),
+    },
+    fees: {
+      totalRelayFee: {
+        pct: bigintToString(rawQuote.fees.totalRelayFee.pct),
+        total: bigintToString(rawQuote.fees.totalRelayFee.total),
+      },
+    },
+  };
+};
+
+// Creates a type-safe transaction sender from the thirdweb mutation
+function createTransactionSender(mutateAsync: any): SendTransactionFunction {
+  return async (transaction, options) => {
+    try {
+      const result = await mutateAsync(transaction);
+      if (options?.onSuccess) {
+        options.onSuccess(result);
+      }
+      return result;
+    } catch (error) {
+      if (options?.onError) {
+        options.onError(error as Error);
+      }
+      throw error;
+    }
+  };
+}
+
+// Main hook implementation
 export const useBridgeTransfer = () => {
-  const { mutateAsync: sendTransaction } = useSendTransaction();
+  // Initialize hooks and state
+  const { mutateAsync } = useSendTransaction();
+  const sendTransaction = createTransactionSender(mutateAsync);
   const account = useActiveAccount();
   const [bridgeStep, setBridgeStep] = useState<BridgeStep>({
     step: "approval",
@@ -60,14 +135,17 @@ export const useBridgeTransfer = () => {
   });
 
   const sendUsdcTransfer = useCallback(
-    async (rawAmount: string): Promise<{ transactionHash: string }> => {
+    async (rawAmount: string): Promise<TransactionResult> => {
       if (!account) throw new Error("Wallet not connected");
 
       try {
+        // Initialize client and get available routes
         const client = getAcrossClient();
-        const routes = await client.getAvailableRoutes();
+        const routes = await client.getAvailableRoutes({
+          originChainId: CHAIN_CONFIG.OPTIMISM_CHAIN_ID,
+          destinationChainId: CHAIN_CONFIG.POLYGON_CHAIN_ID,
+        });
 
-        // Debug logging - let's see ALL routes first
         console.log(
           "All available routes before filtering:",
           routes.map((route) => ({
@@ -76,23 +154,16 @@ export const useBridgeTransfer = () => {
             destChain: route.destinationChainId,
             inputToken: route.inputToken,
             outputToken: route.outputToken,
-            enabled: route.enabled,
-            limits: route.limits,
           }))
         );
 
-        // Split our filtering into steps for debugging
-        const optimismToPolygonRoutes = routes.filter((route) => {
-          const isCorrectPath =
-            route.originChainId === 10 && route.destinationChainId === 137;
-          return isCorrectPath;
-        });
-
-        console.log(
-          "Routes after chain filtering:",
-          optimismToPolygonRoutes.map((r) => r.inputTokenSymbol)
+        // Filter for Optimism to Polygon routes
+        const optimismToPolygonRoutes = routes.filter(
+          (route) =>
+            route.originChainId === 10 && route.destinationChainId === 137
         );
 
+        // Filter for stablecoin routes
         const stablecoinRoutes = optimismToPolygonRoutes.filter((route) => {
           const isStablecoin = ["USDC", "USDC.e", "USDT", "DAI"].includes(
             route.inputTokenSymbol
@@ -103,10 +174,7 @@ export const useBridgeTransfer = () => {
           return isStablecoin;
         });
 
-
-        // Simplified route selection for debugging
         const preferredRoute = stablecoinRoutes[0];
-
         if (!preferredRoute) {
           throw new Error(
             `No available stablecoin bridge routes. Found ${routes.length} total routes, ` +
@@ -115,25 +183,8 @@ export const useBridgeTransfer = () => {
           );
         }
 
-        // Log selected route for debugging
-        console.log("Selected route:", {
-          symbol: preferredRoute.inputTokenSymbol,
-          inputToken: preferredRoute.inputToken,
-          outputToken: preferredRoute.outputToken,
-          limits: preferredRoute.limits,
-        });
-
-        // Get quote with enhanced error handling
-        console.log("Getting quote with parameters:", {
-          originChainId: preferredRoute.originChainId,
-          destinationChainId: preferredRoute.destinationChainId,
-          inputToken: preferredRoute.inputToken,
-          outputToken: preferredRoute.outputToken,
-          inputAmount: rawAmount,
-          recipient: AGENT_WALLET_ADDRESS,
-        });
-
-        const quote = (await client.getQuote({
+        // Get quote for the selected route
+        const rawQuote = await client.getQuote({
           route: {
             originChainId: preferredRoute.originChainId,
             destinationChainId: preferredRoute.destinationChainId,
@@ -142,13 +193,17 @@ export const useBridgeTransfer = () => {
           },
           inputAmount: BigInt(rawAmount),
           recipient: AGENT_WALLET_ADDRESS,
-        })) as AcrossQuote;
+        });
 
-        console.log("Raw quote response:", safeStringify(quote));
+        const quote = transformQuote(rawQuote);
+
+        if (!isValidQuote(quote)) {
+          throw new Error("Invalid quote format after transformation");
+        }
 
         const { deposit } = quote;
 
-        // Validate deposit parameters
+        // Validate quote data
         if (!deposit.spokePoolAddress) {
           throw new Error("Missing spoke pool address in quote");
         }
@@ -160,17 +215,7 @@ export const useBridgeTransfer = () => {
           throw new Error("Quote input token doesn't match selected route");
         }
 
-        console.log("Quote deposit details:", {
-          spokePoolAddress: deposit.spokePoolAddress,
-          inputToken: deposit.inputToken,
-          outputToken: deposit.outputToken,
-          inputAmount: deposit.inputAmount,
-          outputAmount: deposit.outputAmount,
-          quoteTimestamp: deposit.quoteTimestamp,
-          exclusivityDeadline: deposit.exclusivityDeadline,
-        });
-
-        // Step 1: Handle token approval
+        // Handle token approval
         console.log("Initiating token approval...");
         setBridgeStep({
           step: "approval",
@@ -181,9 +226,8 @@ export const useBridgeTransfer = () => {
           deposit.inputToken,
           deposit.spokePoolAddress,
           deposit.inputAmount
-        );
+        ) as PreparedTransactionBase;
 
-        // Execute approval with enhanced error handling
         await new Promise<void>((resolve, reject) => {
           sendTransaction(approvalRequest, {
             onSuccess: async (result) => {
@@ -201,7 +245,7 @@ export const useBridgeTransfer = () => {
                   txHash: result.transactionHash,
                 });
 
-                await sleep(15000);
+                await sleep(15000); // Wait for confirmation
                 console.log("Approval transaction confirmed");
 
                 setBridgeStep({
@@ -227,7 +271,7 @@ export const useBridgeTransfer = () => {
           });
         });
 
-        // Step 2: Execute bridge transaction
+        // Execute bridge transaction
         console.log("Initiating bridge transaction...");
         setBridgeStep({
           step: "bridging",
@@ -255,23 +299,18 @@ export const useBridgeTransfer = () => {
           deposit.spokePoolAddress,
           encodedCallData,
           BigInt(0)
-        );
-        
-        // Validate the transaction object
+        ) as PreparedTransactionBase;
+
         if (!bridgeTx.to || !bridgeTx.overrides?.data) {
           console.error("Invalid transaction object:", {
             has_to: !!bridgeTx.to,
             has_data: !!bridgeTx.overrides?.data,
-            tx: bridgeTx
+            tx: bridgeTx,
           });
-          throw new Error("Transaction preparation failed - missing required fields");
+          throw new Error(
+            "Transaction preparation failed - missing required fields"
+          );
         }
-        
-        console.log("Pre-send transaction validation:", {
-          to: bridgeTx.to,
-          dataLength: bridgeTx.overrides.data.length,
-          value: bridgeTx.value?.toString() || '0',
-        });
 
         return new Promise((resolve, reject) => {
           sendTransaction(bridgeTx, {

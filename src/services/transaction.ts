@@ -1,42 +1,33 @@
 import { getContract, prepareContractCall } from "thirdweb";
 import { polygon, optimism } from "thirdweb/chains";
 import { client } from "@/app/client";
+import { SPOKE_POOL_ABI } from "@/constants/spoke-pool-abi";
 
 export const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
-export const AGENT_WALLET_ADDRESS =
-  "0x93c7c3f9394dEf62D2Ad0658c1c9b49919C13Ac5";
-export const sleep = (ms: number) =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+export const AGENT_WALLET_ADDRESS = "0x93c7c3f9394dEf62D2Ad0658c1c9b49919C13Ac5";
+export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/**
- * Validates the callData string and ensures it's properly formatted
- * @throws Error if callData is invalid
- */
 const validateCallData = (callData: any): string => {
-  // First, log what we received
   console.log("Validating callData:", {
     value: callData,
     type: typeof callData,
     stringified: JSON.stringify(callData),
   });
 
-  // Check if callData is defined
   if (!callData) {
     throw new Error("callData is required");
   }
 
-  // Ensure callData is a string
   if (typeof callData !== "string") {
     throw new Error(`callData must be a string, received ${typeof callData}`);
   }
 
-  // Remove 0x prefix if it exists and validate hex format
   const cleanHex = callData.toLowerCase().replace("0x", "");
   if (!/^[0-9a-f]*$/.test(cleanHex)) {
     throw new Error("callData must be a valid hex string");
   }
 
-  // Return properly formatted hex string
   return `0x${cleanHex}`;
 };
 
@@ -52,7 +43,6 @@ export const prepareBridgeTransaction = (
   });
 
   try {
-    // Validate inputs
     if (!spokePoolAddress) {
       throw new Error("spokePoolAddress is required");
     }
@@ -61,19 +51,17 @@ export const prepareBridgeTransaction = (
       throw new Error("Invalid spokePoolAddress format");
     }
 
-    // Validate and format callData
     const processedCallData = validateCallData(callData);
-
-    // Ensure value is a valid bigint
     const validValue = value || BigInt(0);
 
+    // Initialize contract with ABI
     const spokePoolContract = getContract({
       client,
       address: spokePoolAddress,
       chain: optimism,
+      abi: SPOKE_POOL_ABI, // Add the ABI here
     });
 
-    // Add our identifier to the processed callData
     const finalCallData = `${processedCallData}1dc0def001`;
 
     console.log("Preparing contract call with:", {
@@ -82,48 +70,84 @@ export const prepareBridgeTransaction = (
       value: validValue.toString(),
     });
 
+    // Define default parameters with correct types
+    const defaultParams = [
+      ZERO_ADDRESS,
+      ZERO_ADDRESS,
+      ZERO_ADDRESS,
+      ZERO_ADDRESS,
+      BigInt(0),
+      BigInt(0),
+      BigInt(1),
+      ZERO_ADDRESS,
+      0,
+      0,
+      0,
+      "0x" as `0x${string}`
+    ] as const satisfies readonly [
+      string,
+      string,
+      string,
+      string,
+      bigint,
+      bigint,
+      bigint,
+      string,
+      number,
+      number,
+      number,
+      `0x${string}`
+    ];
+
     const transaction = prepareContractCall({
       contract: spokePoolContract,
-      method:
-        "function depositV3(address depositor, address recipient, address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount, uint256 destinationChainId, address exclusiveRelayer, uint32 quoteTimestamp, uint32 fillDeadline, uint32 exclusivityDeadline, bytes calldata message)",
-      params: [],
-      overrides: {
-        data: finalCallData,
-        value: validValue,
-      },
+      method: "depositV3",
+      params: defaultParams,
     });
-
-    // Validate the resulting transaction
-    if (!transaction.to || !transaction.data) {
-      throw new Error("Invalid transaction generated");
-    }
 
     console.log("Transaction prepared successfully:", {
       to: transaction.to,
-      dataLength: transaction.data.length,
+      dataLength: finalCallData.length,
       value: validValue.toString(),
       chainId: transaction.chain?.id,
     });
 
-    return transaction;
+    return {
+      ...transaction,
+      to: spokePoolContract.address,
+      data: finalCallData,
+      value: validValue
+    };
   } catch (error) {
-    // Log the full error details and rethrow
     console.error("Error in prepareBridgeTransaction:", error);
     throw error;
   }
 };
 
 export const prepareUSDCTransfer = (amount: string) => {
+  // Define USDC ABI for the transfer function
+  const USDC_ABI = [{
+    type: "function",
+    name: "transfer",
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "amount", type: "uint256" }
+    ],
+    outputs: [{ type: "bool" }],
+    stateMutability: "nonpayable"
+  }] as const;
+
   const usdcContract = getContract({
     client,
     address: USDC_ADDRESS,
     chain: polygon,
+    abi: USDC_ABI
   });
 
   return prepareContractCall({
     contract: usdcContract,
-    method: "function transfer(address to, uint256 amount)",
-    params: [AGENT_WALLET_ADDRESS, BigInt(amount)],
+    method: "transfer",
+    params: [AGENT_WALLET_ADDRESS, BigInt(amount)] as const,
   });
 };
 

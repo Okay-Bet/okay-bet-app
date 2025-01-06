@@ -6,7 +6,6 @@ import { parse } from "url";
 import next from "next";
 import { Server } from "socket.io";
 import { ethers } from "ethers";
-import betABI from "./constants/betABI.json";
 
 const dev = process.env.NODE_ENV !== "production";
 const app = next({ dev });
@@ -37,23 +36,6 @@ app.prepare().then(() => {
       // You might want to perform additional actions here
     });
   });
-
-  // // Setup contract event listener
-  // const provider = new ethers.providers.WebSocketProvider(
-  //   process.env.ALCHEMY_BASE_WSS!
-  // );
-  // const contract = new ethers.Contract(
-  //   "0xA32DbbA5427fEE87D3CC6CbF85Cd42A75E2F413C",
-  //   betABI,
-  //   provider
-  // );
-
-  // contract.on("*", (event) => {
-  //   io.emit("contractEvent", {
-  //     type: event.event,
-  //     data: event.args,
-  //   });
-  // });
 
   const port = process.env.PORT || 3000;
   server.listen(port, () => {

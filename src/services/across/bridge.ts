@@ -14,16 +14,16 @@ const SPOKE_POOL_ADDRESS = "0x6f26Bf09B1C792e3228e5467807a900A503c0281";
 // ERC20 minimum ABI
 export const ERC20_ABI = [
   {
+    type: "function" as const,
+    name: "approve",
     inputs: [
       { name: "spender", type: "address" },
       { name: "amount", type: "uint256" },
     ],
-    name: "approve",
     outputs: [{ name: "", type: "bool" }],
-    stateMutability: "nonpayable",
-    type: "function",
+    stateMutability: "nonpayable" as const,
   },
-];
+] as const;
 
 // Validation utilities
 const validateAddress = (address: string, paramName: string): string => {
@@ -92,8 +92,8 @@ export function prepareTokenApproval(
 
   return prepareContractCall({
     contract: tokenContract,
-    method: "function approve(address spender, uint256 amount)",
-    params: [validatedSpenderAddress, validatedAmount],
+    method: "approve",
+    params: [validatedSpenderAddress, validatedAmount] as const,
   });
 }
 
@@ -103,12 +103,12 @@ export async function generateBridgeDepositData(
 ): Promise<string> {
   console.log("Generating bridge deposit data with params:", params);
 
-  const fillDeadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
+  const fillDeadline = Math.floor(Date.now() / 1000) + 3600;
 
   console.log("Deposit timing parameters:", {
     quoteTimestamp: params.quoteTimestamp,
     currentTime: Math.floor(Date.now() / 1000),
-    fillDeadline: fillDeadline.toString(),
+    fillDeadline: fillDeadline,
   });
 
   const depositParams = [
@@ -118,17 +118,17 @@ export async function generateBridgeDepositData(
     validateAddress(params.outputToken, "outputToken"),
     validateBigInt(params.inputAmount, "inputAmount"),
     validateBigInt(params.outputAmount, "outputAmount"),
-    validateBigInt(params.destinationChainId, "destinationChainId"),
+    validateBigInt(params.destinationChainId.toString(), "destinationChainId"),
     validateAddress(params.exclusiveRelayer, "exclusiveRelayer"),
-    validateBigInt(params.quoteTimestamp, "quoteTimestamp"),
-    fillDeadline,
-    validateBigInt(params.exclusivityPeriod, "exclusivityPeriod"), // Updated parameter name
-    params.message || "0x",
+    Number(params.quoteTimestamp), // Explicitly convert to number
+    fillDeadline, // Already a number
+    Number(params.exclusivityPeriod), // Explicitly convert to number
+    (params.message || "0x") as `0x${string}`, // Type assertion for hex string
   ] as const;
 
   console.log("Preparing deposit call with params:", {
     ...depositParams,
-    fillDeadline: fillDeadline.toString(),
+    fillDeadline: fillDeadline,
   });
 
   const baseCalldata = encodeFunctionData({
@@ -160,7 +160,10 @@ export function prepareBridgeTransaction(
   });
 
   try {
-    const validatedSpokePool = validateAddress(spokePoolAddress, "spokePoolAddress");
+    const validatedSpokePool = validateAddress(
+      spokePoolAddress,
+      "spokePoolAddress"
+    );
 
     const spokePoolContract = getContract({
       client,
@@ -169,66 +172,82 @@ export function prepareBridgeTransaction(
       abi: SPOKE_POOL_ABI,
     });
 
-    console.log("Contract instance check:", {
-      address: spokePoolContract.address,
-      hasABI: !!spokePoolContract.abi,
-      // Log available methods for debugging
-      availableMethods: spokePoolContract.abi
-        .filter(item => item.type === 'function')
-        .map(item => item.name)
-    });
+    if (!spokePoolContract || !spokePoolContract.abi) {
+      throw new Error("Failed to initialize spoke pool contract or ABI");
+    }
 
-    // Key change: Use just the method name, not the full signature
+    // Define the correct parameter types for depositV3
+    const depositParams = [
+      ZERO_ADDRESS,
+      ZERO_ADDRESS,
+      ZERO_ADDRESS,
+      ZERO_ADDRESS,
+      BigInt(0),
+      BigInt(0),
+      BigInt(1),
+      ZERO_ADDRESS,
+      0,
+      0,
+      0,
+      "0x" as `0x${string}`,
+    ] as const satisfies readonly [
+      string,
+      string,
+      string,
+      string,
+      bigint,
+      bigint,
+      bigint,
+      string,
+      number,
+      number,
+      number,
+      `0x${string}`
+    ];
+
     const transaction = prepareContractCall({
       contract: spokePoolContract,
-      // Just use the method name - ThirdWeb will find the matching function in the ABI
       method: "depositV3",
-      // These params must match the ABI exactly
-      params: [
-        ZERO_ADDRESS,
-        ZERO_ADDRESS,
-        ZERO_ADDRESS,
-        ZERO_ADDRESS,
-        BigInt(0),
-        BigInt(0),
-        BigInt(1),
-        ZERO_ADDRESS,
-        BigInt(0),
-        BigInt(0),
-        BigInt(0),
-        "0x"
-      ] as const,
-      overrides: {
-        data: callData,
-        value,
-      },
+      params: depositParams,
+    });
+
+    // Log available methods and transaction details
+    console.log("Contract instance check:", {
+      address: spokePoolContract.address,
+      hasABI: true,
+      availableMethods: spokePoolContract.abi
+        .filter((item) => "type" in item && item.type === "function")
+        .map((item) => {
+          const functionItem = item as { type: "function"; name: string };
+          return functionItem.name;
+        }),
     });
 
     console.log("Transaction preparation details:", {
       contractAddress: spokePoolContract.address,
       method: "depositV3",
-      hasData: !!transaction.overrides?.data,
-      dataLength: transaction.overrides?.data?.length,
+      hasData: true,
+      dataLength: callData.length,
       fullTransaction: {
         to: transaction.to,
-        data: transaction.overrides?.data?.slice(0, 66) + '...',
-        value: transaction.value?.toString(),
-      }
+        value: value.toString(),
+      },
     });
 
-    return transaction;
+    // Return modified transaction with custom calldata
+    return {
+      ...transaction,
+      to: spokePoolContract.address,
+      data: callData,
+      value,
+    };
   } catch (error) {
-    // Enhanced error logging
     console.error("Bridge transaction preparation failed:", {
       error,
-      errorName: error.name,
-      errorMessage: error.message,
+      errorName: error instanceof Error ? error.name : "Unknown Error",
+      errorMessage: error instanceof Error ? error.message : String(error),
       spokePool: spokePoolAddress,
       callDataLength: callData?.length,
-      // Log contract methods if available
-      availableMethods: spokePoolContract?.abi
-        ?.filter(item => item.type === 'function')
-        .map(item => item.name)
     });
     throw error;
   }

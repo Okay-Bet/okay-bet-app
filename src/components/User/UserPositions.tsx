@@ -3,6 +3,7 @@ import { usePositions } from "@/hooks/usePositions";
 import { useSellPosition } from "@/hooks/useSellPosition";
 import { useActiveAccount } from "thirdweb/react";
 import { ChevronDown, ChevronUp, Wallet } from "lucide-react";
+import { Position as ImportedPosition } from "@/components/types/position";
 
 interface MarketData {
   question: string;
@@ -10,8 +11,8 @@ interface MarketData {
   outcome_prices: string;
 }
 
-interface Position {
-  condition_id: string;
+// Extend the imported Position type with additional properties
+interface Position extends ImportedPosition {
   token_id: string | null;
   balances: number[];
   prices: number[];
@@ -38,27 +39,30 @@ const PositionCard: React.FC<{
   // Parse market data safely
   const currentPrices = useMemo(() => {
     try {
-      const prices = position.market_data 
+      const prices = position.market_data
         ? JSON.parse(position.market_data.outcome_prices)
         : position.prices;
-      
+
       // Ensure all prices are numbers
-      return Array.isArray(prices) 
-        ? prices.map(price => Number(price)) 
+      return Array.isArray(prices)
+        ? prices.map((price) => Number(price))
         : position.prices;
     } catch (error) {
-      console.warn('Error parsing prices, falling back to position.prices:', error);
+      console.warn(
+        "Error parsing prices, falling back to position.prices:",
+        error
+      );
       return position.prices;
     }
   }, [position.market_data, position.prices]);
 
   const outcomes = useMemo(() => {
     try {
-      return position.market_data 
-        ? JSON.parse(position.market_data.outcomes) 
+      return position.market_data
+        ? JSON.parse(position.market_data.outcomes)
         : ["Yes", "No"];
     } catch (error) {
-      console.warn('Error parsing outcomes, using default:', error);
+      console.warn("Error parsing outcomes, using default:", error);
       return ["Yes", "No"];
     }
   }, [position.market_data]);
@@ -155,6 +159,20 @@ export default function UserPositions() {
   const [activeTab, setActiveTab] = useState<PositionStatus>("active");
   const [isComponentExpanded, setIsComponentExpanded] = useState(true);
 
+  // Type guard to ensure position has required properties
+  const isValidPosition = (
+    position: ImportedPosition
+  ): position is Position => {
+    return (
+      "token_id" in position &&
+      "balances" in position &&
+      "prices" in position &&
+      "outcome" in position &&
+      "status" in position &&
+      "user_address" in position
+    );
+  };
+
   const determinePositionStatus = (position: Position): PositionStatus => {
     const isResolved =
       position.prices.some((price) => price === 1.0) ||
@@ -171,7 +189,10 @@ export default function UserPositions() {
     pendingPositions,
     totalUnrealizedPnL,
   } = useMemo(() => {
-    const categorizedPositions = positions.reduce(
+    // Filter out invalid positions first
+    const validPositions = positions.filter(isValidPosition);
+
+    const categorizedPositions = validPositions.reduce(
       (acc, position) => {
         const status = determinePositionStatus(position);
         acc[`${status}Positions`].push(position);
