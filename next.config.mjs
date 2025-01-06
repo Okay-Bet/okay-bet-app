@@ -1,4 +1,3 @@
-// next.config.mjs
 import withPWA from "next-pwa";
 import withBundleAnalyzer from "@next/bundle-analyzer";
 
@@ -9,7 +8,6 @@ const withBundleAnalyzerConfig = withBundleAnalyzer({
 const nextConfig = {
   webpack: (config, { isServer }) => {
     config.externals.push("pino-pretty", "lokijs", "encoding");
-
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -18,10 +16,9 @@ const nextConfig = {
         fs: false,
       };
     }
-
     return config;
   },
-  
+  transpilePackages: ['slick-carousel'],
   async rewrites() {
     return [
       {

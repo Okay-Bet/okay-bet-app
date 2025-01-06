@@ -1,5 +1,11 @@
+/* External CSS libraries first */
+@import 'slick-carousel/slick/slick.css';
+@import 'slick-carousel/slick/slick-theme.css';
+
+/* Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
 
+/* Custom fonts */
 @font-face {
   font-family: 'Monument';
   src: url('../../public/fonts/MonumentExtended-Regular.otf') format('opentype');
@@ -7,10 +13,12 @@
   font-style: normal;
 }
 
+/* Tailwind directives */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Root variables and custom styles */
 :root {
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
 }
@@ -19,16 +27,15 @@
   body {
     @apply font-body;
   }
-
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading;
   }
 }
 
+/* Component-specific styles */
 .qrcode-icon-button .MuiSvgIcon-root {
   color: black;
 }
-
 .qrcode-icon-button:hover .MuiSvgIcon-root {
   color: white;
 }
