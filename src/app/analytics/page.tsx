@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AnalyticsDashboard } from '@/components/Analytics/analyticsData';
+import { AnalyticsDashboard } from '../../components/Analytics/analyticsData';
 
 const queryClient = new QueryClient({
   defaultOptions: {

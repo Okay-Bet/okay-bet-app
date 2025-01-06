@@ -1,46 +1,92 @@
 // components/Polymarket/PredictionMarkets.tsx
-
-import React, { useEffect, useState } from "react";
-import { fetchTopLiquidityEvents, Event } from "../../hooks/useMarket";
+import React, { useEffect, useState, useCallback } from "react";
 import { MarketCard } from "./MarketCard";
+import MarketSearch from "./MarketSearch";
+import { Event } from "../types/market";
+import { SearchParams } from "../types/market";
 
 const PredictionMarkets: React.FC = () => {
-  const [topEvents, setTopEvents] = useState<Event[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchEvents = async () => {
-      const events = await fetchTopLiquidityEvents(10);
-      setTopEvents(events);
+  const handleSearch = useCallback(async (searchParams: SearchParams) => {
+    setLoading(true);
+    try {
+      const response = await fetch("/api/polymarket-events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ searchParams }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Only set events if we have valid data
+      if (Array.isArray(data.events)) {
+        setEvents(data.events.filter((event: Event) => event.markets.length > 0));
+      }
+      
+      setError(null);
+    } catch (error) {
+      console.error("Error searching markets:", error);
+      setError(error instanceof Error ? error.message : "An error occurred");
+      // Keep existing data on error
+      setEvents(prev => prev);
+    } finally {
       setLoading(false);
-    };
-    fetchEvents();
+    }
   }, []);
 
-  if (loading) {
-    return <div className="text-primary">Loading top events...</div>;
-  }
+  useEffect(() => {
+    handleSearch({
+      searchTerm: "",
+      sortBy: "liquidity",
+      sortDirection: "desc",
+    });
+  }, [handleSearch]);
 
   return (
     <div className="space-y-4">
-      <div className="p-4 bg-background text-primary rounded-lg">
-        <h2 className="text-xl font-bold mb-2 font-header">Top Liquidity Markets</h2>
-        <p className="text-sm text-primary">
-          Showing the top {topEvents.length} events with the highest liquidity.
-        </p>
-      </div>
+      <MarketSearch onSearch={handleSearch} isLoading={loading} />
+      
+      {error && (
+        <div className="p-4 bg-red-50 text-red-600 rounded-lg">
+          {error}
+        </div>
+      )}
+
+      {events.length === 0 && !loading && !error && (
+        <div className="text-center py-4 text-gray-500">
+          No active markets found
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {topEvents.map((event) => (
+        {events.map((event) => (
           <div key={event.id} className="relative isolate items-start">
             <MarketCard
               eventId={event.id}
               eventTitle={event.title}
-              marketIndices={event.markets.map((_, index) => index)}
-              marketSubTitles={event.markets.map((market) => market.question)}
+              markets={event.markets}
+              key={`${event.id}-${event.markets.length}`}
             />
           </div>
         ))}
       </div>
+
+      {loading && (
+        <div className="text-center py-4">
+          <span className="text-primary">Loading markets...</span>
+        </div>
+      )}
     </div>
   );
 };

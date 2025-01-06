@@ -1,199 +1,147 @@
+// hooks/useMarket.ts
 import { useState, useEffect } from "react";
+import type { Market } from "@/components/types/market";
 
-// Token interfaces
-interface TokenPair {
-  token_id: string;
-  outcome: string;
+// Cache duration constant - 5 minutes
+// We define this at the top for easy configuration
+const CACHE_DURATION = 5 * 60 * 1000;
+
+// Generic cache implementation with type safety
+class Cache<T> {
+  private store: Map<string, { data: T; timestamp: number }> = new Map();
+
+  set(key: string, data: T) {
+    this.store.set(key, {
+      data,
+      timestamp: Date.now(),
+    });
+  }
+
+  get(key: string): T | null {
+    const entry = this.store.get(key);
+    if (!entry) return null;
+
+    if (Date.now() - entry.timestamp > CACHE_DURATION) {
+      this.store.delete(key);
+      return null;
+    }
+
+    return entry.data;
+  }
+
+  clear() {
+    this.store.clear();
+  }
 }
 
-// Market interfaces
-export interface Market {
-  id: string; // condition id
-  question: string;
-  liquidity_num: number;
-  volume_num: number;
-  condition_id: string;
-  active: boolean;
-  closed: boolean;
-  enableOrderBook: boolean;
-  bestBid: number;
-  bestAsk: number;
-  end_date_iso: string;
-  description?: string;
-  resolutionSource?: string;
-  min_size?: string;
-  min_tick_size?: string;
-  tokens: {
-    yes: TokenPair;
-    no: TokenPair;
-  };
-  outcomes: Array<{
-    id: string;
-    index: string;
-    complement: string;
-  }>;
-}
-
-export interface Event {
-  id: string;
-  title: string;
-  liquidity: number;
-  volume: number;
-  description?: string;
-  markets: Array<{
-    id: string;
-    question: string;
-    liquidity: number;
-  }>;
-}
-
-export interface MarketData {
+// Interface for hook return value - keeps our return type consistent
+interface UseMarketResult {
   market: Market | null;
   loading: boolean;
   error: string | null;
   marketLiquidities: number[];
+  refetch: () => Promise<void>; 
 }
 
-const GAMMA_API_URL = "https://gamma-api.polymarket.com";
+// Initialize cache at module level for persistence across hook instances
+const marketCache = new Cache<Market[]>();
 
-export const useMarket = (eventId: string, marketIndex: number): MarketData => {
-  const [marketData, setMarketData] = useState<MarketData>({
+/**
+ * Hook to fetch and manage market data for a specific event
+ * @param eventId - The ID of the event containing the markets
+ * @param marketIndex - The index of the specific market within the event
+ * @returns Market data, loading state, error state, market liquidities, and refetch function
+ */
+export function useMarket(
+  eventId: string,
+  marketIndex: number
+): UseMarketResult {
+  const [data, setData] = useState<UseMarketResult>({
     market: null,
     loading: true,
     error: null,
     marketLiquidities: [],
+    refetch: async () => {}, // Will be properly initialized in useEffect
   });
 
   useEffect(() => {
+    let isMounted = true;
+
+    // Define the fetch function within useEffect to access isMounted
     const fetchMarketData = async () => {
       try {
-        const response = await fetch(
-          `${GAMMA_API_URL}/events?closed=false&id=${eventId}`
-        );
+
+        // Check cache first
+        const cachedMarkets = marketCache.get(eventId);
+        if (cachedMarkets) {
+          if (isMounted) {
+            setData({
+              market: cachedMarkets[marketIndex] || null,
+              loading: false,
+              error: null,
+              marketLiquidities: cachedMarkets.map((m) => m.liquidity_num),
+              refetch: fetchMarketData,
+            });
+          }
+          return;
+        }
+
+        const response = await fetch(`/api/polymarket-markets/${eventId}`);
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error(
+            `Failed to fetch markets: ${response.status} ${response.statusText}`
+          );
         }
 
-        const data = await response.json();
-        const event = data[0];
+        const markets: Market[] = await response.json();
 
-        if (!event || !event.markets || !event.markets[marketIndex]) {
-          throw new Error("Market not found");
+        // Validate the marketIndex
+        if (marketIndex >= markets.length) {
+          throw new Error(`Market index ${marketIndex} is out of bounds`);
         }
 
-        // Get all liquidities first
-        const liquidities = event.markets.map((m: any) => Number(m.liquidityNum || 0));
+        // Cache the markets
+        marketCache.set(eventId, markets);
 
-        const rawMarket = event.markets[marketIndex];
-        let tokenIds: string[] = [];
-        try {
-          if (rawMarket.clobTokenIds) {
-            tokenIds = JSON.parse(rawMarket.clobTokenIds);
-          }
-        } catch (e) {
-          console.error("Error parsing clobTokenIds:", e);
+        if (isMounted) {
+          setData({
+            market: markets[marketIndex],
+            loading: false,
+            error: null,
+            marketLiquidities: markets.map((m) => m.liquidity_num),
+            refetch: fetchMarketData,
+          });
         }
-
-        // Map token IDs to YES/NO
-        const tokens = {
-          yes: {
-            token_id: tokenIds[0] || "",
-            outcome: "YES",
-          },
-          no: {
-            token_id: tokenIds[1] || "",
-            outcome: "NO",
-          },
-        };
-
-        // Process the market data
-        const processedMarket: Market = {
-          id: rawMarket.conditionId,
-          question: rawMarket.question,
-          liquidity_num: Number(rawMarket.liquidityNum || 0),
-          volume_num: Number(rawMarket.volumeNum || 0),
-          condition_id: rawMarket.conditionId,
-          active: rawMarket.active,
-          closed: rawMarket.closed,
-          enableOrderBook: rawMarket.enableOrderBook,
-          bestBid: Number(rawMarket.bestBid || 0),
-          bestAsk: Number(rawMarket.bestAsk || 0),
-          end_date_iso: rawMarket.endDateIso,
-          description: rawMarket.description || undefined,
-          resolutionSource: rawMarket.resolutionSource || undefined,
-          min_size: rawMarket.minimum_order_size,
-          min_tick_size: rawMarket.minimum_tick_size,
-          tokens,
-          outcomes: rawMarket.outcomes
-            ? JSON.parse(rawMarket.outcomes).map(
-                (outcome: string, index: number) => ({
-                  id: index.toString(),
-                  index: outcome,
-                  complement: outcome,
-                })
-              )
-            : [],
-        };
-
-        setMarketData({
-          market: processedMarket,
-          loading: false,
-          error: null,
-          marketLiquidities: liquidities,
-        });
-      } catch (err) {
-        console.error("Error fetching market data:", err);
-        setMarketData({
-          market: null,
-          loading: false,
-          error:
-            err instanceof Error ? err.message : "Failed to fetch market data",
-          marketLiquidities: [],
-        });
+      } catch (error) {
+        console.error("[Hook] Error in fetchMarketData:", error);
+        if (isMounted) {
+          setData((prev) => ({
+            ...prev,
+            loading: false,
+            error: error instanceof Error ? error.message : "An error occurred",
+            refetch: fetchMarketData,
+          }));
+        }
       }
     };
 
+    // Initial fetch
     fetchMarketData();
-  }, [eventId, marketIndex]);
 
-  return marketData;
-};
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
+  }, [eventId, marketIndex]); // Dependencies that trigger refetch
 
-// Maintain the fetchTopLiquidityEvents function for PredictionMarkets component
-export const fetchTopLiquidityEvents = async (
-  topN: number = 10
-): Promise<Event[]> => {
-  try {
-    const response = await fetch(
-      `${GAMMA_API_URL}/events?closed=false&limit=500`
-    );
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+  return data;
+}
 
-    const events = await response.json();
-
-    // Process and sort events by liquidity
-    const processedEvents = events.map((event: any) => ({
-      id: event.id,
-      title: event.title || "Untitled Event",
-      liquidity: parseFloat(event.liquidity || 0),
-      volume: parseFloat(event.volume || 0),
-      description: event.description || "",
-      markets: event.markets.map((market: any) => ({
-        id: market.id,
-        question: market.question || "Untitled Market",
-        liquidity: parseFloat(market.liquidity || 0),
-      })),
-    }));
-
-    // Sort by liquidity and return the top N
-    return processedEvents
-      .sort((a: Event, b: Event) => b.liquidity - a.liquidity)
-      .slice(0, topN);
-  } catch (error) {
-    console.error("Error fetching top liquidity events:", error);
-    return [];
-  }
-};
+/**
+ * Helper function to manually clear the market cache
+ * Useful for testing or forcing fresh data fetches
+ */
+export function clearMarketCache(): void {
+  marketCache.clear();
+}

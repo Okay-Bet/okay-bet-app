@@ -2,8 +2,6 @@
 // Outward links to all of our socials and docs. poorly named component.
 
 import React from "react";
-import "slick-carousel/slick/slick.css";
-import "slick-carousel/slick/slick-theme.css";
 import { FaTwitter, FaGithub, FaDiscord, FaBook, FaTelegram } from "react-icons/fa";
 
 const partners = [

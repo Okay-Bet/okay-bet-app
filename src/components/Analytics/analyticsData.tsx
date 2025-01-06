@@ -4,7 +4,7 @@
 "use client";
 
 import React from "react";
-import { useAnalyticsData } from "@/hooks/useAnalyticsData";
+import { useAnalyticsData } from "../../hooks/useAnalyticsData";
 import {
   TotalBetsChart,
   CumulativeUniqueBettorsChart,

@@ -1,6 +1,3 @@
-// next.config.mjs
-// this configures the websockets and progressive web app
-
 import withPWA from "next-pwa";
 import withBundleAnalyzer from "@next/bundle-analyzer";
 
@@ -21,6 +18,7 @@ const nextConfig = {
     }
     return config;
   },
+  transpilePackages: ['slick-carousel'],
   async rewrites() {
     return [
       {
@@ -40,5 +38,4 @@ const pwaConfig = {
 };
 
 const configWithPWA = withPWA(pwaConfig)(nextConfig);
-
 export default withBundleAnalyzerConfig(configWithPWA);
