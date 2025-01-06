@@ -5,7 +5,7 @@
 import React from "react";
 import { useActiveAccount } from "thirdweb/react";
 import Image from "next/image";
-import logo from "@public/okay_bet.png";
+import logo from "../../public/okay_bet.png";
 import Pitch from "@/components/Landing/Pitch";
 import ConnectWallet from "@/components/User/ConnectWallet";
 import { BetSlipProvider } from "./context/BetSlipContext";
