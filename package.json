@@ -30,6 +30,8 @@
         "date-fns": "^4.1.0",
         "dotenv": "^16.4.7",
         "ethers": "^5.7.2",
+        "eslint": "^8",
+        "eslint-config-next": "14.1.0",
         "events": "^3.3.0",
         "graphql": "^16.9.0",
         "graphql-request": "^7.1.0",
@@ -58,6 +60,7 @@
         "typescript": "^5.7.2",
         "viem": "2.17.11",
         "web-push": "^3.6.7",
+        "webpack-bundle-analyzer": "^4.10.2",
         "web3modal": "^1.9.12",
         "workbox-webpack-plugin": "^7.1.0"
     },
@@ -67,9 +70,6 @@
         "@types/react": "^18",
         "@types/react-dom": "^18",
         "@types/react-slick": "^0.23.13",
-        "@types/web-push": "^3.6.3",
-        "eslint": "^8",
-        "eslint-config-next": "14.1.0",
-        "webpack-bundle-analyzer": "^4.10.2"
+        "@types/web-push": "^3.6.3"
     }
 }
