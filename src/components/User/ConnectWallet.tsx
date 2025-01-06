@@ -5,7 +5,7 @@
 import { ConnectButton } from "thirdweb/react";
 import { createWallet, inAppWallet } from "thirdweb/wallets";
 import { defineChain, optimism, polygon } from "thirdweb/chains";
-import { client } from "@/app/client";
+import { client } from "../../app/client";
 
 const externalWallets = [
   createWallet("com.coinbase.wallet"),

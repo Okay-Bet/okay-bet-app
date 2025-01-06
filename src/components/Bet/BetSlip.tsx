@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { useBetSlip } from "@/app/context/BetSlipContext";
-import { useOrder } from "@/hooks/order/useOrder";
+import { useBetSlip } from "../../hooks/useBetSlip";
+import { useOrder } from "../../hooks/useOrder";
 
 // Order types
 type OrderSide = "BUY" | "SELL";

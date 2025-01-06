@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from "react";
-import { usePositions } from "@/hooks/usePositions";
-import { useSellPosition } from "@/hooks/useSellPosition";
+import { usePositions } from "../../hooks/usePositions";
+import { useSellPosition } from "../../hooks/useSellPosition";
 import { useActiveAccount } from "thirdweb/react";
 import { ChevronDown, ChevronUp, Wallet } from "lucide-react";
-import { Position as ImportedPosition } from "@/components/types/position";
+import { Position as ImportedPosition } from "../types/position";
 
 interface MarketData {
   question: string;

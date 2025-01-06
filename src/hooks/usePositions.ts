@@ -1,7 +1,7 @@
 // hooks/usePositions.ts
 import { useState, useEffect } from "react";
 import { useActiveAccount } from "thirdweb/react";
-import type { Position, MarketData } from "@/components/types/position";
+import type { Position, MarketData } from "../components/types/position";
 
 export function usePositions() {
   const account = useActiveAccount();
