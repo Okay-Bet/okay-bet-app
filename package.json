@@ -2,13 +2,16 @@
     "name": "okay-bet",
     "version": "0.1.0",
     "private": true,
+    "resolutions": {
+      "viem": "^2.22.2"
+    },
     "scripts": {
       "dev": "ts-node --project tsconfig.server.json src/server.ts",
-      "predev": "npm install --legacy-peer-deps",
-      "prebuild": "npm install --legacy-peer-deps",
+      "predev": "npm install",
+      "prebuild": "npm install",
       "build": "next build",
       "start": "NODE_ENV=production ts-node --project tsconfig.server.json src/server.ts",
-      "prestart": "npm install --legacy-peer-deps",
+      "prestart": "npm install",
       "lint": "next lint"
     },
   "dependencies": {
@@ -46,7 +49,7 @@
     "tailwindcss-bg-patterns": "^0.3.0",
     "thirdweb": "^5.45.1",
     "ts-node": "^10.9.2",
-    "viem": "^2.20.1",
+    "viem": "2.17.11",
     "web-push": "^3.6.7",
     "web3modal": "^1.9.12",
     "workbox-webpack-plugin": "^7.1.0"
