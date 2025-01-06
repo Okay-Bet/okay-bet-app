@@ -1,6 +1,6 @@
 // types/market.ts
 export interface Market {
-  end_date_iso: string;
+  id: string;
   condition_id: string;
   question: string;
   description?: string;
@@ -12,6 +12,7 @@ export interface Market {
   noBestAsk?: number;
   noBestBid?: number;
   active?: boolean;
+  isEffectivelyResolved?: boolean;  // New field
   tokens: {
     yes: {
       token_id: string;
@@ -69,11 +70,8 @@ export interface Event {
   liquidity: number;
   volume: number;
   description?: string;
-  markets: Array<{
-    id: string;
-    question: string;
-    liquidity: number;
-  }>;
+  markets: Market[];
+  activeMarketsCount?: number;
 }
 
 export interface SearchParams {
@@ -88,3 +86,9 @@ export interface SearchParams {
   liquidityMax?: number;
   limit?: number;
 }
+
+export const MARKET_CONSTANTS = {
+  MIN_LIQUIDITY: 100,
+  MIN_ACTIVE_PRICE: 0.01,
+  MAX_DEAD_PRICE: 0.99
+} as const;

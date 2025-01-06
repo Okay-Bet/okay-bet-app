@@ -1,101 +1,74 @@
 // hooks/useMarketCard.ts
-import { useState, useEffect, useMemo } from "react";
-import { useMarket } from "./useMarket";
+import { useState } from "react";
+import { Market } from "@/components/types/market";
 import { useBetSlip } from "@/app/context/BetSlipContext";
-import { OrderBook, MarketCardState } from "../types/market";
 
-export const useMarketCard = (
-  eventId: string,
-  eventTitle: string,
-  marketIndices: number[],
-  marketSubTitles: string[]
-) => {
-  const [activeMarketIndex, setActiveMarketIndex] = useState(marketIndices[0]);
+interface UseMarketCardParams {
+  eventId: string;
+  eventTitle: string;
+  markets: Market[];
+}
+
+interface UseMarketCardReturn {
+  currentMarket: Market | null;
+  showDetails: boolean;
+  showMoneyline: boolean;
+  activeMarketIndex: number;
+  handleBetClick: (position: "YES" | "NO") => void;
+  setShowDetails: (show: boolean) => void;
+  setShowMoneyline: (show: boolean) => void;
+  setActiveMarketIndex: (index: number) => void;
+}
+
+export function useMarketCard({
+  eventId,
+  eventTitle,
+  markets,
+}: UseMarketCardParams): UseMarketCardReturn {
+  // State management
+  const [activeMarketIndex, setActiveMarketIndex] = useState(0);
   const [showDetails, setShowDetails] = useState(false);
   const [showMoneyline, setShowMoneyline] = useState(false);
+
+  // External hooks
   const { addBet } = useBetSlip();
 
-  const { market, loading, error, marketLiquidities } = useMarket(
-    eventId,
-    activeMarketIndex
-  );
+  // Derive current market
+  const currentMarket =
+    markets && markets.length > 0 ? markets[activeMarketIndex] : null;
 
-  const orderBook = useMemo((): OrderBook => {
-    if (!market) return { yes: {}, no: {} };
-    
-    return {
-      yes: {
-        bid: market.yesBestBid,
-        ask: market.yesBestAsk
-      },
-      no: {
-        bid: market.noBestBid,
-        ask: market.noBestAsk
-      }
-    };
-  }, [market]);
-
-  // Sort markets by liquidity
-  const sortedData = useMemo(() => {
-    return marketIndices
-      .map((index, i) => ({
-        index,
-        subtitle: marketSubTitles[i],
-        liquidity: marketLiquidities[i] || 0,
-      }))
-      .sort((a, b) => b.liquidity - a.liquidity);
-  }, [marketIndices, marketSubTitles, marketLiquidities]);
-
-  // Set initial market based on liquidity
-  useEffect(() => {
-    if (marketLiquidities.length > 0 && activeMarketIndex === marketIndices[0]) {
-      const highestLiquidityMarket = sortedData[0];
-      if (highestLiquidityMarket) {
-        setActiveMarketIndex(highestLiquidityMarket.index);
-      }
-    }
-  }, [marketLiquidities, sortedData]);
-
+  // Handlers
   const handleBetClick = (position: "YES" | "NO") => {
-    const price = position === "YES" 
-      ? orderBook.yes.ask
-      : orderBook.no.ask;
-    
-    if (!price || !market) return;
-  
-    const tokenId = position === "YES"
-      ? market.tokens.yes.token_id
-      : market.tokens.no.token_id;
-  
+    if (!currentMarket) return;
+
+    const price =
+      position === "YES" ? currentMarket.yesBestAsk : currentMarket.noBestAsk;
+
+    if (!price) return;
+
+    const tokenId =
+      position === "YES"
+        ? currentMarket.tokens.yes.token_id
+        : currentMarket.tokens.no.token_id;
+
     addBet({
-      marketId: market.condition_id,
+      marketId: currentMarket.condition_id,
       eventTitle,
-      marketQuestion: market.question,
+      marketQuestion: currentMarket.question,
       position,
       price,
       tokenId,
     });
   };
 
-  const state: MarketCardState = {
-    market,
-    orderBook,
-    sortedData,
+  return {
+    currentMarket,
     showDetails,
     showMoneyline,
-    loading,
-    error
-  };
-
-  const actions = {
-    setActiveMarketIndex,
+    activeMarketIndex,
+    handleBetClick,
     setShowDetails,
     setShowMoneyline,
-    handleBetClick
+    setActiveMarketIndex,
   };
-
-  return {
-    state,
-    actions
-  };
-};
+}

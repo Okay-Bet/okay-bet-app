@@ -1,43 +1,39 @@
 // components/Polymarket/MarketCard.tsx
 import React from "react";
-import { LoadingState, ErrorState } from "./LoadingState";
-import { MarketCardProps } from "../../types/market";
-import { formatPrice, formatExpiryDate } from "../../utils/marketUtils";
+import { Market } from "@/components/types/market";
+import { formatPrice } from "../../utils/marketUtils";
 import { useMarketCard } from "../../hooks/useMarketCard";
+
+interface MarketCardProps {
+  eventId: string;
+  eventTitle: string;
+  markets: Market[];
+}
 
 export const MarketCard: React.FC<MarketCardProps> = ({
   eventId,
   eventTitle,
-  marketIndices,
-  marketSubTitles,
+  markets,
 }) => {
-  const { state, actions } = useMarketCard(
-    eventId,
-    eventTitle,
-    marketIndices,
-    marketSubTitles
-  );
-
   const {
-    market,
-    orderBook,
-    sortedData,
+    currentMarket,
     showDetails,
     showMoneyline,
-    loading,
-    error,
-  } = state;
-
-  const {
-    setActiveMarketIndex,
+    activeMarketIndex,
+    handleBetClick,
     setShowDetails,
     setShowMoneyline,
-    handleBetClick,
-  } = actions;
+    setActiveMarketIndex,
+  } = useMarketCard({
+    eventId,
+    eventTitle,
+    markets,
+  });
 
-  if (loading) return <LoadingState />;
-  if (error) return <ErrorState message={error} />;
-  if (!market) return null;
+  // Early returns for invalid states
+  if (!markets || markets.length === 0 || !currentMarket) {
+    return null;
+  }
 
   return (
     <div className="bg-demo rounded-xl shadow-lg overflow-hidden">
@@ -46,7 +42,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
         <div className="flex-1">
           <h2 className="text-xl font-semibold text-primary">{eventTitle}</h2>
           <p className="text-sm text-gray-700">
-            Expires {formatExpiryDate(market.end_date_iso)}
+            {markets.length} active markets
           </p>
         </div>
         <button
@@ -60,44 +56,43 @@ export const MarketCard: React.FC<MarketCardProps> = ({
       {/* Market Tabs */}
       <div className="border-b border-gray-700">
         <div className="flex -mx-4 overflow-x-auto whitespace-nowrap scrollbar-hide">
-          {sortedData.map(({ index, subtitle }) => (
+          {markets.map((market, index) => (
             <button
-              key={index}
+              key={market.id}
               onClick={() => setActiveMarketIndex(index)}
               className={`py-2 px-3 text-sm font-medium transition-colors shrink-0 
                 whitespace-normal max-w-[150px] min-h-[48px] 
                 ${
-                  index === market.condition_id
+                  index === activeMarketIndex
                     ? "bg-black text-white hover:bg-secondary"
                     : "text-primary hover:bg-secondary hover:text-quaternary"
                 }`}
             >
-              {subtitle}
+              {market.question}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Price Display */}
+      {/* Market Content */}
       <div className="p-4">
         <h3 className="text-lg font-medium text-primary mb-4">
-          {market.question}
+          {currentMarket.question}
         </h3>
 
+        {/* Price Display */}
         <div className="grid grid-cols-2 gap-4">
-          {/* YES Token */}
           <div className="bg-tertiary p-3 rounded-lg">
             <div className="text-sm text-gray-800">Yes Price</div>
             <div className="text-lg font-bold text-font">
-              {formatPrice(orderBook.yes.ask, showMoneyline)}
+              {formatPrice(currentMarket.yesBestAsk, showMoneyline)}
             </div>
           </div>
 
-          {/* NO Token */}
           <div className="bg-tertiary p-3 rounded-lg">
             <div className="text-sm text-gray-800">No Price</div>
             <div className="text-lg font-bold text-font">
-              {formatPrice(orderBook.no.ask, showMoneyline)}
+              {formatPrice(currentMarket.noBestAsk, showMoneyline)}
             </div>
           </div>
         </div>
@@ -107,14 +102,14 @@ export const MarketCard: React.FC<MarketCardProps> = ({
           <button
             onClick={() => handleBetClick("YES")}
             className="py-2 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!market.active || !orderBook.yes.ask}
+            disabled={!currentMarket.active || !currentMarket.yesBestAsk}
           >
             Buy Yes
           </button>
           <button
             onClick={() => handleBetClick("NO")}
             className="py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!market.active || !orderBook.no.ask}
+            disabled={!currentMarket.active || !currentMarket.noBestAsk}
           >
             Buy No
           </button>
@@ -125,13 +120,13 @@ export const MarketCard: React.FC<MarketCardProps> = ({
           <div className="bg-tertiary p-2 rounded-lg">
             <div className="text-xs text-primary">Volume</div>
             <div className="text-sm bold font-medium text-font truncate">
-              ${market.volume_num.toLocaleString()}
+              ${currentMarket.volume_num.toLocaleString()}
             </div>
           </div>
           <div className="bg-tertiary p-2 rounded-lg">
             <div className="text-xs text-primary">Liquidity</div>
             <div className="text-sm bold font-medium text-font truncate">
-              ${market.liquidity_num.toLocaleString()}
+              ${currentMarket.liquidity_num.toLocaleString()}
             </div>
           </div>
         </div>
@@ -166,7 +161,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
               </div>
               <div className="bg-tertiary p-4 rounded-b-lg">
                 <p className="text-base font-medium leading-relaxed text-gray-200">
-                  {market.description || "No description available"}
+                  {currentMarket.description || "No description available"}
                 </p>
               </div>
             </div>
@@ -176,8 +171,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
               </div>
               <div className="bg-tertiary p-4 rounded-b-lg">
                 <p className="text-base font-medium leading-relaxed text-gray-200">
-                  {market.resolutionSource ||
-                    "Market resolves based on official sources."}
+                  {currentMarket.resolutionSource || "Market resolves based on official sources."}
                 </p>
               </div>
             </div>
