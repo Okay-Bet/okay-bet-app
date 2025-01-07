@@ -139,57 +139,40 @@ export const useBridgeTransfer = () => {
       if (!account) throw new Error("Wallet not connected");
 
       try {
-        // Initialize client and get available routes
+        // Define our known USDC route configuration
+        const BRIDGE_CONFIG = {
+          TOKENS: {
+            OPTIMISM: {
+              USDC: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85" as const, // Native USDC on Optimism
+            },
+            POLYGON: {
+              USDC_E: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174" as const,
+            },
+          },
+          CHAINS: {
+            OPTIMISM: CHAIN_CONFIG.OPTIMISM_CHAIN_ID,
+            POLYGON: CHAIN_CONFIG.POLYGON_CHAIN_ID,
+          },
+        };
+
+        // Initialize Across client
         const client = getAcrossClient();
-        const routes = await client.getAvailableRoutes({
-          originChainId: CHAIN_CONFIG.OPTIMISM_CHAIN_ID,
-          destinationChainId: CHAIN_CONFIG.POLYGON_CHAIN_ID,
+
+        console.log("Initiating bridge with configuration:", {
+          originChain: BRIDGE_CONFIG.CHAINS.OPTIMISM,
+          destChain: BRIDGE_CONFIG.CHAINS.POLYGON,
+          inputToken: BRIDGE_CONFIG.TOKENS.OPTIMISM.USDC,
+          outputToken: BRIDGE_CONFIG.TOKENS.POLYGON.USDC_E,
+          amount: rawAmount,
         });
 
-        console.log(
-          "All available routes before filtering:",
-          routes.map((route) => ({
-            symbol: route.inputTokenSymbol,
-            originChain: route.originChainId,
-            destChain: route.destinationChainId,
-            inputToken: route.inputToken,
-            outputToken: route.outputToken,
-          }))
-        );
-
-        // Filter for Optimism to Polygon routes
-        const optimismToPolygonRoutes = routes.filter(
-          (route) =>
-            route.originChainId === 10 && route.destinationChainId === 137
-        );
-
-        // Filter for stablecoin routes
-        const stablecoinRoutes = optimismToPolygonRoutes.filter((route) => {
-          const isStablecoin = ["USDC", "USDC.e", "USDT", "DAI"].includes(
-            route.inputTokenSymbol
-          );
-          console.log(
-            `Route ${route.inputTokenSymbol}: Is stablecoin = ${isStablecoin}`
-          );
-          return isStablecoin;
-        });
-
-        const preferredRoute = stablecoinRoutes[0];
-        if (!preferredRoute) {
-          throw new Error(
-            `No available stablecoin bridge routes. Found ${routes.length} total routes, ` +
-              `${optimismToPolygonRoutes.length} OP->Polygon routes, ` +
-              `${stablecoinRoutes.length} stablecoin routes.`
-          );
-        }
-
-        // Get quote for the selected route
+        // Get quote directly without checking routes
         const rawQuote = await client.getQuote({
           route: {
-            originChainId: preferredRoute.originChainId,
-            destinationChainId: preferredRoute.destinationChainId,
-            inputToken: preferredRoute.inputToken,
-            outputToken: preferredRoute.outputToken,
+            originChainId: BRIDGE_CONFIG.CHAINS.OPTIMISM,
+            destinationChainId: BRIDGE_CONFIG.CHAINS.POLYGON,
+            inputToken: BRIDGE_CONFIG.TOKENS.OPTIMISM.USDC,
+            outputToken: BRIDGE_CONFIG.TOKENS.POLYGON.USDC_E,
           },
           inputAmount: BigInt(rawAmount),
           recipient: AGENT_WALLET_ADDRESS,
@@ -208,11 +191,16 @@ export const useBridgeTransfer = () => {
           throw new Error("Missing spoke pool address in quote");
         }
 
+        // Validate the quote matches our expected configuration
         if (
           deposit.inputToken.toLowerCase() !==
-          preferredRoute.inputToken.toLowerCase()
+          BRIDGE_CONFIG.TOKENS.OPTIMISM.USDC.toLowerCase()
         ) {
-          throw new Error("Quote input token doesn't match selected route");
+          console.error("Token mismatch:", {
+            expected: BRIDGE_CONFIG.TOKENS.OPTIMISM.USDC,
+            received: deposit.inputToken,
+          });
+          throw new Error("Quote input token doesn't match expected token");
         }
 
         // Handle token approval
