@@ -157,10 +157,11 @@ export function prepareBridgeTransaction(
   callData: string,
   value: bigint = BigInt(0)
 ) {
-  console.log("Preparing bridge transaction:", {
+  console.log("[Bridge Tx] Step 1 - Initial params:", {
     spokePoolAddress,
     callDataLength: callData?.length,
     value: value.toString(),
+    chainId: optimism.chainId, // Log chain ID we're working with
   });
 
   try {
@@ -176,69 +177,68 @@ export function prepareBridgeTransaction(
       abi: SPOKE_POOL_ABI,
     });
 
-    if (!spokePoolContract || !spokePoolContract.abi) {
-      throw new Error("Failed to initialize spoke pool contract or ABI");
-    }
+    console.log("[Bridge Tx] Step 2 - Contract instance:", {
+      contractAddress: spokePoolContract.address,
+      hasChain: !!spokePoolContract.chain,
+      chainId: spokePoolContract.chain?.id,
+      contractType: typeof spokePoolContract,
+    });
 
-    // Define the correct parameter types for depositV3
-    const depositParams = [
-      ZERO_ADDRESS as `0x${string}`,
-      ZERO_ADDRESS as `0x${string}`,
-      ZERO_ADDRESS as `0x${string}`,
-      ZERO_ADDRESS as `0x${string}`,
-      BigInt(0),
-      BigInt(0),
-      BigInt(1),
-      ZERO_ADDRESS as `0x${string}`,
-      0,
-      0,
-      0,
-      "0x" as `0x${string}`,
-    ] as const;
-
-    const transaction = prepareContractCall({
+    // Get base transaction structure from thirdweb
+    const baseTx = prepareContractCall({
       contract: spokePoolContract,
       method: "depositV3",
-      params: depositParams,
+      params: [
+        ZERO_ADDRESS as `0x${string}`,
+        ZERO_ADDRESS as `0x${string}`,
+        ZERO_ADDRESS as `0x${string}`,
+        ZERO_ADDRESS as `0x${string}`,
+        BigInt(0),
+        BigInt(0),
+        BigInt(1),
+        ZERO_ADDRESS as `0x${string}`,
+        0,
+        0,
+        0,
+        "0x" as `0x${string}`,
+      ] as const,
     });
 
-    // Log available methods and transaction details
-    console.log("Contract instance check:", {
-      address: spokePoolContract.address,
-      hasABI: true,
-      availableMethods: spokePoolContract.abi
-        .filter((item) => "type" in item && item.type === "function")
-        .map((item) => {
-          const functionItem = item as { type: "function"; name: string };
-          return functionItem.name;
-        }),
+    console.log("[Bridge Tx] Step 3 - Base transaction:", {
+      hasBaseTx: !!baseTx,
+      baseChainId: baseTx.chain?.id,
+      baseGasLimit: baseTx.gasLimit?.toString(),
+      baseStructure: Object.keys(baseTx),
     });
 
-    console.log("Transaction preparation details:", {
-      contractAddress: spokePoolContract.address,
-      method: "depositV3",
-      hasData: true,
-      dataLength: callData.length,
-      fullTransaction: {
-        to: transaction.to,
-        value: value.toString(),
-      },
-    });
-
-    // Return modified transaction with custom calldata
-    return {
-      ...transaction,
+    // Construct final transaction object
+    const transaction = {
+      ...baseTx, // Preserve all base transaction properties
       to: spokePoolContract.address,
       data: callData,
-      value,
+      value: value.toString(),
+      chain: optimism, // Explicitly set chain object
+      overrides: {
+        ...baseTx.overrides,
+        data: callData,
+        value: value.toString(),
+      },
     };
+
+    console.log("[Bridge Tx] Step 4 - Final transaction:", {
+      hasChain: !!transaction.chain,
+      chainId: transaction.chain?.id,
+      hasData: !!transaction.data,
+      dataLength: transaction.data?.length,
+      structure: Object.keys(transaction),
+    });
+
+    return transaction;
   } catch (error) {
-    console.error("Bridge transaction preparation failed:", {
+    console.error("[Bridge Tx] Failed:", {
       error,
       errorName: error instanceof Error ? error.name : "Unknown Error",
       errorMessage: error instanceof Error ? error.message : String(error),
-      spokePool: spokePoolAddress,
-      callDataLength: callData?.length,
     });
     throw error;
   }
