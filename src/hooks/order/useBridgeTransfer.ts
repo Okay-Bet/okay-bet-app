@@ -12,7 +12,7 @@ import {
 // Define base types for blockchain transactions
 interface PreparedTransactionBase {
   to: string;
-  value?: bigint;
+  value?: bigint | string;
   overrides?: {
     data?: string;
     value?: bigint;
@@ -46,6 +46,7 @@ const CHAIN_CONFIG = {
   OPTIMISM_CHAIN_ID: 10,
   POLYGON_CHAIN_ID: 137,
 } as const;
+type EthereumAddress = `0x${string}`;
 
 // Utility function to safely convert bigint to string
 const bigintToString = (value: bigint | string): string => {
@@ -68,6 +69,37 @@ const isValidQuote = (quote: any): quote is AcrossQuote => {
     typeof quote.deposit.inputToken === "string"
   );
 };
+
+const isValidTransaction = (tx: any): tx is PreparedTransactionBase => {
+  return (
+    typeof tx === 'object' &&
+    typeof tx.to === 'string' &&
+    (!tx.value || typeof tx.value === 'string' || typeof tx.value === 'bigint')
+  );
+};
+
+// Add a transaction normalizer
+const normalizeTxValue = (
+  transaction: PreparedTransactionBase
+): PreparedTransactionBase => {
+  const normalizedTx: PreparedTransactionBase = { ...transaction };
+  
+  // Convert main value if it exists
+  if (typeof normalizedTx.value === 'string') {
+    normalizedTx.value = BigInt(normalizedTx.value);
+  }
+  
+  // Convert overrides value if it exists
+  if (normalizedTx.overrides?.value && typeof normalizedTx.overrides.value === 'string') {
+    normalizedTx.overrides = {
+      ...normalizedTx.overrides,
+      value: BigInt(normalizedTx.overrides.value)
+    };
+  }
+  
+  return normalizedTx;
+};
+
 
 // Quote transformation function
 const transformQuote = (rawQuote: any): AcrossQuote => {
@@ -123,7 +155,7 @@ function createTransactionSender(mutateAsync: any): SendTransactionFunction {
   };
 }
 
-const AGENT_WALLET_ADDRESS = process.env.NEXT_PUBLIC_AGENT_WALLET_ADDRESS;
+const AGENT_WALLET_ADDRESS = process.env.NEXT_PUBLIC_AGENT_WALLET_ADDRESS as EthereumAddress | undefined;
 
 // Main hook implementation
 export const useBridgeTransfer = () => {
@@ -136,12 +168,7 @@ export const useBridgeTransfer = () => {
     status: "pending",
   });
 
-  const getValidRecipientAddress = useCallback((): string => {
-    console.log('Checking recipient address:', {
-      envValue: AGENT_WALLET_ADDRESS,
-      fullEnv: process.env // This will help debug which env vars are available
-    });
-
+  const getValidRecipientAddress = useCallback((): EthereumAddress => {
     if (!AGENT_WALLET_ADDRESS) {
       throw new Error("NEXT_PUBLIC_AGENT_WALLET_ADDRESS is not defined in environment");
     }
@@ -305,11 +332,13 @@ export const useBridgeTransfer = () => {
           deposit.spokePoolAddress
         );
 
-        const bridgeTx = prepareBridgeTransaction(
+        let rawBridgeTx = prepareBridgeTransaction(
           deposit.spokePoolAddress,
           encodedCallData,
           BigInt(0)
-        ) as PreparedTransactionBase;
+        );
+
+        const bridgeTx = normalizeTxValue(rawBridgeTx);
 
         if (!bridgeTx.to || !bridgeTx.overrides?.data) {
           console.error("Invalid transaction object:", {

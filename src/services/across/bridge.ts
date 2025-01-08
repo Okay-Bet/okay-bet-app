@@ -1,4 +1,3 @@
-// src/services/across/bridge.ts
 import { getContract, prepareContractCall } from "thirdweb";
 import { optimism } from "thirdweb/chains";
 import { client } from "../../app/client";
@@ -11,13 +10,15 @@ const ACROSS_IDENTIFIER = "1dc0def001";
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const SPOKE_POOL_ADDRESS = "0x6f26Bf09B1C792e3228e5467807a900A503c0281";
 
-// === NEW: Timing and Validation Constants ===
+// === Timing and Validation Constants ===
 const FILL_DEADLINE_BUFFER = 3600; // 1 hour in seconds
 const MAX_QUOTE_AGE = 300; // 5 minutes in seconds
 const MIN_EXCLUSIVITY_PERIOD = 60; // 1 minute minimum
 const MAX_EXCLUSIVITY_PERIOD = 86400; // 24 hours maximum
 
-// ERC20 minimum ABI (unchanged)
+const OPTIMISM_CHAIN_ID = Number(optimism.id);
+
+// ERC20 minimum ABI
 export const ERC20_ABI = [
   {
     type: "function" as const,
@@ -31,6 +32,14 @@ export const ERC20_ABI = [
   },
 ] as const;
 
+// Define our transaction interface to match thirdweb's expected structure
+interface BridgeTransaction {
+  to: string;
+  data: string;
+  value: string;
+  chain: typeof optimism;
+}
+
 // === Validation Utilities ===
 const validateAddress = (address: string, paramName: string): string => {
   if (!address || !/^0x[0-9a-fA-F]{40}$/.test(address)) {
@@ -39,7 +48,6 @@ const validateAddress = (address: string, paramName: string): string => {
   return address.toLowerCase();
 };
 
-// NEW: Enhanced relayer validation
 const validateRelayerAddress = (address: string | null | undefined): string => {
   if (!address) {
     console.log("No exclusive relayer specified, using zero address");
@@ -122,18 +130,11 @@ export async function generateBridgeDepositData(
   const currentTime = Math.floor(Date.now() / 1000);
   const fillDeadline = currentTime + FILL_DEADLINE_BUFFER;
 
-  // Validate quote timestamp
-  if (currentTime - params.quoteTimestamp > MAX_QUOTE_AGE) {
-    throw new Error(
-      `Quote has expired. Maximum age is ${MAX_QUOTE_AGE} seconds`
-    );
-  }
+  validateQuoteTimestamp(params.quoteTimestamp);
 
-  // Handle exclusive relayer and exclusivity period
   const exclusiveRelayer = validateRelayerAddress(params.exclusiveRelayer);
-  let adjustedExclusivityPeriod = 0; // Start with 0 and adjust only if needed
+  let adjustedExclusivityPeriod = 0;
 
-  // CRITICAL: Only set exclusivity period if we have a valid relayer
   if (exclusiveRelayer !== ZERO_ADDRESS) {
     adjustedExclusivityPeriod = Math.min(
       Math.max(Number(params.exclusivityPeriod), MIN_EXCLUSIVITY_PERIOD),
@@ -141,7 +142,6 @@ export async function generateBridgeDepositData(
     );
   }
 
-  // IMPORTANT: Add explicit timing validation
   if (fillDeadline <= currentTime + adjustedExclusivityPeriod) {
     throw new Error(
       `Invalid timing parameters: fillDeadline (${fillDeadline}) must be greater than currentTime (${currentTime}) + exclusivityPeriod (${adjustedExclusivityPeriod})`
@@ -168,18 +168,12 @@ export async function generateBridgeDepositData(
     validateBigInt(params.inputAmount, "inputAmount"),
     validateBigInt(params.outputAmount, "outputAmount"),
     validateBigInt(params.destinationChainId.toString(), "destinationChainId"),
-    exclusiveRelayer as `0x${string}`, // Use validated relayer address
+    exclusiveRelayer as `0x${string}`,
     Number(params.quoteTimestamp),
     fillDeadline,
     adjustedExclusivityPeriod,
     (params.message || "0x") as `0x${string}`,
   ] as const;
-
-  console.log("Preparing deposit call with params:", {
-    ...depositParams,
-    fillDeadline,
-    adjustedExclusivityPeriod,
-  });
 
   const baseCalldata = encodeFunctionData({
     abi: SPOKE_POOL_ABI,
@@ -187,28 +181,19 @@ export async function generateBridgeDepositData(
     args: depositParams,
   });
 
-  const finalCalldata = appendIdentifier(baseCalldata);
-
-  console.log("Calldata details:", {
-    baseLength: baseCalldata.length,
-    finalLength: finalCalldata.length,
-    identifier: ACROSS_IDENTIFIER,
-  });
-
-  return finalCalldata;
+  return appendIdentifier(baseCalldata);
 }
 
-// UPDATED: Enhanced bridge transaction preparation
 export function prepareBridgeTransaction(
   spokePoolAddress: string,
   callData: string,
   value: bigint = BigInt(0)
-) {
+): BridgeTransaction {
   console.log("[Bridge Tx] Step 1 - Initial params:", {
     spokePoolAddress,
     callDataLength: callData?.length,
     value: value.toString(),
-    chainId: optimism.chainId,
+    chainId: OPTIMISM_CHAIN_ID,
   });
 
   try {
@@ -217,6 +202,7 @@ export function prepareBridgeTransaction(
       "spokePoolAddress"
     );
 
+    // We still get the contract for validation purposes
     const spokePoolContract = getContract({
       client,
       address: validatedSpokePool,
@@ -224,53 +210,19 @@ export function prepareBridgeTransaction(
       abi: SPOKE_POOL_ABI,
     });
 
-    console.log("[Bridge Tx] Step 2 - Contract instance:", {
-      contractAddress: spokePoolContract.address,
-      hasChain: !!spokePoolContract.chain,
-      chainId: spokePoolContract.chain?.id,
-      contractType: typeof spokePoolContract,
-    });
-
-    // Get base transaction structure
-    const baseTx = prepareContractCall({
-      contract: spokePoolContract,
-      method: "depositV3",
-      params: [
-        ZERO_ADDRESS as `0x${string}`,
-        ZERO_ADDRESS as `0x${string}`,
-        ZERO_ADDRESS as `0x${string}`,
-        ZERO_ADDRESS as `0x${string}`,
-        BigInt(0),
-        BigInt(0),
-        BigInt(1),
-        ZERO_ADDRESS as `0x${string}`,
-        0,
-        0,
-        0,
-        "0x" as `0x${string}`,
-      ] as const,
-    });
-
-    // Construct final transaction object with validated parameters
-    const transaction = {
-      ...baseTx,
-      to: spokePoolContract.address,
+    // Create the transaction directly without using prepareContractCall
+    const transaction: BridgeTransaction = {
+      to: validatedSpokePool,
       data: callData,
       value: value.toString(),
       chain: optimism,
-      overrides: {
-        ...baseTx.overrides,
-        data: callData,
-        value: value.toString(),
-      },
     };
 
-    console.log("[Bridge Tx] Step 4 - Final transaction:", {
-      hasChain: !!transaction.chain,
-      chainId: transaction.chain?.id,
+    console.log("[Bridge Tx] Step 2 - Final transaction:", {
+      to: transaction.to,
       hasData: !!transaction.data,
       dataLength: transaction.data?.length,
-      structure: Object.keys(transaction),
+      chainId: OPTIMISM_CHAIN_ID,
     });
 
     return transaction;
