@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 
 const FASTAPI_BASE_URL = process.env.FASTAPI_BASE_URL || "http://167.71.208.166:8000";
-const AGENT_WALLET_ADDRESS = "0x93c7c3f9394dEf62D2Ad0658c1c9b49919C13Ac5";
+const AGENT_WALLET_ADDRESS = process.env.NEXT_PUBLIC_AGENT_WALLET_ADDRESS;
 
 export async function POST(request: Request) {
   try {

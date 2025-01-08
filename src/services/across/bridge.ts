@@ -113,7 +113,6 @@ export function prepareTokenApproval(
   });
 }
 
-// UPDATED: Enhanced bridge deposit data generation
 export async function generateBridgeDepositData(
   params: DepositParams,
   spokePoolAddress: string
@@ -124,20 +123,28 @@ export async function generateBridgeDepositData(
   const fillDeadline = currentTime + FILL_DEADLINE_BUFFER;
 
   // Validate quote timestamp
-  validateQuoteTimestamp(params.quoteTimestamp);
+  if (currentTime - params.quoteTimestamp > MAX_QUOTE_AGE) {
+    throw new Error(
+      `Quote has expired. Maximum age is ${MAX_QUOTE_AGE} seconds`
+    );
+  }
 
   // Handle exclusive relayer and exclusivity period
   const exclusiveRelayer = validateRelayerAddress(params.exclusiveRelayer);
-  let adjustedExclusivityPeriod = Number(params.exclusivityPeriod);
+  let adjustedExclusivityPeriod = 0; // Start with 0 and adjust only if needed
 
-  // Adjust exclusivity period based on relayer status
-  if (exclusiveRelayer === ZERO_ADDRESS) {
-    adjustedExclusivityPeriod = 0;
-    console.log("No exclusive relayer, setting exclusivity period to 0");
-  } else {
+  // CRITICAL: Only set exclusivity period if we have a valid relayer
+  if (exclusiveRelayer !== ZERO_ADDRESS) {
     adjustedExclusivityPeriod = Math.min(
-      Math.max(adjustedExclusivityPeriod, MIN_EXCLUSIVITY_PERIOD),
+      Math.max(Number(params.exclusivityPeriod), MIN_EXCLUSIVITY_PERIOD),
       MAX_EXCLUSIVITY_PERIOD
+    );
+  }
+
+  // IMPORTANT: Add explicit timing validation
+  if (fillDeadline <= currentTime + adjustedExclusivityPeriod) {
+    throw new Error(
+      `Invalid timing parameters: fillDeadline (${fillDeadline}) must be greater than currentTime (${currentTime}) + exclusivityPeriod (${adjustedExclusivityPeriod})`
     );
   }
 
@@ -147,6 +154,10 @@ export async function generateBridgeDepositData(
     fillDeadline,
     exclusivityPeriod: adjustedExclusivityPeriod,
     exclusiveRelayer,
+    timingValidation: {
+      isValid: fillDeadline > currentTime + adjustedExclusivityPeriod,
+      buffer: fillDeadline - (currentTime + adjustedExclusivityPeriod),
+    },
   });
 
   const depositParams = [

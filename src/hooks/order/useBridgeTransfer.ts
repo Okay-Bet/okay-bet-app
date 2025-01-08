@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { useSendTransaction, useActiveAccount } from "thirdweb/react";
 import { getAcrossClient } from "../../services/across/client";
 import { DepositParams, AcrossQuote } from "../../components/types/bridge";
-import { AGENT_WALLET_ADDRESS, sleep } from "../../services/transaction";
+import { sleep } from "../../services/transaction";
 import {
   prepareTokenApproval,
   prepareBridgeTransaction,
@@ -123,6 +123,8 @@ function createTransactionSender(mutateAsync: any): SendTransactionFunction {
   };
 }
 
+const AGENT_WALLET_ADDRESS = process.env.NEXT_PUBLIC_AGENT_WALLET_ADDRESS;
+
 // Main hook implementation
 export const useBridgeTransfer = () => {
   // Initialize hooks and state
@@ -134,11 +136,31 @@ export const useBridgeTransfer = () => {
     status: "pending",
   });
 
+  const getValidRecipientAddress = useCallback((): string => {
+    console.log('Checking recipient address:', {
+      envValue: AGENT_WALLET_ADDRESS,
+      fullEnv: process.env // This will help debug which env vars are available
+    });
+
+    if (!AGENT_WALLET_ADDRESS) {
+      throw new Error("NEXT_PUBLIC_AGENT_WALLET_ADDRESS is not defined in environment");
+    }
+
+    if (!/^0x[0-9a-fA-F]{40}$/i.test(AGENT_WALLET_ADDRESS)) {
+      throw new Error(`Invalid Ethereum address format: ${AGENT_WALLET_ADDRESS}`);
+    }
+
+    return AGENT_WALLET_ADDRESS;
+  }, []);
+
   const sendUsdcTransfer = useCallback(
     async (rawAmount: string): Promise<TransactionResult> => {
       if (!account) throw new Error("Wallet not connected");
 
       try {
+
+        const recipientAddress = getValidRecipientAddress();
+
         // Define our known USDC route configuration
         const BRIDGE_CONFIG = {
           TOKENS: {
@@ -175,7 +197,7 @@ export const useBridgeTransfer = () => {
             outputToken: BRIDGE_CONFIG.TOKENS.POLYGON.USDC_E,
           },
           inputAmount: BigInt(rawAmount),
-          recipient: AGENT_WALLET_ADDRESS,
+          recipient: recipientAddress,
         });
 
         const quote = transformQuote(rawQuote);
@@ -269,7 +291,7 @@ export const useBridgeTransfer = () => {
         const encodedCallData = await generateBridgeDepositData(
           {
             depositor: account.address,
-            recipient: deposit.recipient,
+            recipient: recipientAddress,
             inputToken: deposit.inputToken,
             outputToken: deposit.outputToken,
             inputAmount: deposit.inputAmount,
@@ -355,7 +377,7 @@ export const useBridgeTransfer = () => {
         throw error;
       }
     },
-    [account, sendTransaction]
+    [account, sendTransaction, getValidRecipientAddress]
   );
 
   return {
