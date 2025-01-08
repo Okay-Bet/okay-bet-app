@@ -6,12 +6,18 @@ import { encodeFunctionData } from "viem";
 import { DepositParams } from "../../components/types/bridge";
 import { SPOKE_POOL_ABI } from "../../constants/spoke-pool-abi";
 
-// Constants
+// === Constants ===
 const ACROSS_IDENTIFIER = "1dc0def001";
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const SPOKE_POOL_ADDRESS = "0x6f26Bf09B1C792e3228e5467807a900A503c0281";
 
-// ERC20 minimum ABI
+// === NEW: Timing and Validation Constants ===
+const FILL_DEADLINE_BUFFER = 3600; // 1 hour in seconds
+const MAX_QUOTE_AGE = 300; // 5 minutes in seconds
+const MIN_EXCLUSIVITY_PERIOD = 60; // 1 minute minimum
+const MAX_EXCLUSIVITY_PERIOD = 86400; // 24 hours maximum
+
+// ERC20 minimum ABI (unchanged)
 export const ERC20_ABI = [
   {
     type: "function" as const,
@@ -25,11 +31,26 @@ export const ERC20_ABI = [
   },
 ] as const;
 
-// Validation utilities
+// === Validation Utilities ===
 const validateAddress = (address: string, paramName: string): string => {
   if (!address || !/^0x[0-9a-fA-F]{40}$/.test(address)) {
     throw new Error(`Invalid ${paramName}: ${address}`);
   }
+  return address.toLowerCase();
+};
+
+// NEW: Enhanced relayer validation
+const validateRelayerAddress = (address: string | null | undefined): string => {
+  if (!address) {
+    console.log("No exclusive relayer specified, using zero address");
+    return ZERO_ADDRESS;
+  }
+
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) {
+    console.warn("Invalid relayer address format, using zero address");
+    return ZERO_ADDRESS;
+  }
+
   return address.toLowerCase();
 };
 
@@ -45,16 +66,10 @@ const validateBigInt = (value: string | bigint, paramName: string): bigint => {
 
 const validateQuoteTimestamp = (timestamp: number): void => {
   const currentTime = Math.floor(Date.now() / 1000);
-  const BUFFER = 300; // 5 minutes buffer
-  if (timestamp < currentTime - BUFFER || timestamp > currentTime) {
-    throw new Error("Quote timestamp must be within 5 minutes of current time");
-  }
-};
-
-const validateFillDeadline = (deadline: number): void => {
-  const currentTime = Math.floor(Date.now() / 1000);
-  if (deadline <= currentTime) {
-    throw new Error("Fill deadline must be in the future");
+  if (currentTime - timestamp > MAX_QUOTE_AGE) {
+    throw new Error(
+      `Quote has expired. Maximum age is ${MAX_QUOTE_AGE} seconds`
+    );
   }
 };
 
@@ -65,6 +80,7 @@ const appendIdentifier = (calldata: string): string => {
   return `0x${cleanCalldata}${ACROSS_IDENTIFIER}`;
 };
 
+// === Core Functions ===
 export function prepareTokenApproval(
   tokenAddress: string,
   spenderAddress: string,
@@ -97,21 +113,42 @@ export function prepareTokenApproval(
   });
 }
 
+// UPDATED: Enhanced bridge deposit data generation
 export async function generateBridgeDepositData(
   params: DepositParams,
   spokePoolAddress: string
 ): Promise<string> {
   console.log("Generating bridge deposit data with params:", params);
 
-  const fillDeadline = Math.floor(Date.now() / 1000) + 3600;
+  const currentTime = Math.floor(Date.now() / 1000);
+  const fillDeadline = currentTime + FILL_DEADLINE_BUFFER;
+
+  // Validate quote timestamp
+  validateQuoteTimestamp(params.quoteTimestamp);
+
+  // Handle exclusive relayer and exclusivity period
+  const exclusiveRelayer = validateRelayerAddress(params.exclusiveRelayer);
+  let adjustedExclusivityPeriod = Number(params.exclusivityPeriod);
+
+  // Adjust exclusivity period based on relayer status
+  if (exclusiveRelayer === ZERO_ADDRESS) {
+    adjustedExclusivityPeriod = 0;
+    console.log("No exclusive relayer, setting exclusivity period to 0");
+  } else {
+    adjustedExclusivityPeriod = Math.min(
+      Math.max(adjustedExclusivityPeriod, MIN_EXCLUSIVITY_PERIOD),
+      MAX_EXCLUSIVITY_PERIOD
+    );
+  }
 
   console.log("Deposit timing parameters:", {
     quoteTimestamp: params.quoteTimestamp,
-    currentTime: Math.floor(Date.now() / 1000),
-    fillDeadline: fillDeadline,
+    currentTime,
+    fillDeadline,
+    exclusivityPeriod: adjustedExclusivityPeriod,
+    exclusiveRelayer,
   });
 
-  // Type cast all address parameters to `0x${string}`
   const depositParams = [
     validateAddress(params.depositor, "depositor") as `0x${string}`,
     validateAddress(params.recipient, "recipient") as `0x${string}`,
@@ -120,19 +157,17 @@ export async function generateBridgeDepositData(
     validateBigInt(params.inputAmount, "inputAmount"),
     validateBigInt(params.outputAmount, "outputAmount"),
     validateBigInt(params.destinationChainId.toString(), "destinationChainId"),
-    validateAddress(
-      params.exclusiveRelayer,
-      "exclusiveRelayer"
-    ) as `0x${string}`,
+    exclusiveRelayer as `0x${string}`, // Use validated relayer address
     Number(params.quoteTimestamp),
     fillDeadline,
-    Number(params.exclusivityPeriod),
+    adjustedExclusivityPeriod,
     (params.message || "0x") as `0x${string}`,
   ] as const;
 
   console.log("Preparing deposit call with params:", {
     ...depositParams,
-    fillDeadline: fillDeadline,
+    fillDeadline,
+    adjustedExclusivityPeriod,
   });
 
   const baseCalldata = encodeFunctionData({
@@ -152,6 +187,7 @@ export async function generateBridgeDepositData(
   return finalCalldata;
 }
 
+// UPDATED: Enhanced bridge transaction preparation
 export function prepareBridgeTransaction(
   spokePoolAddress: string,
   callData: string,
@@ -161,7 +197,7 @@ export function prepareBridgeTransaction(
     spokePoolAddress,
     callDataLength: callData?.length,
     value: value.toString(),
-    chainId: optimism.chainId, // Log chain ID we're working with
+    chainId: optimism.chainId,
   });
 
   try {
@@ -184,7 +220,7 @@ export function prepareBridgeTransaction(
       contractType: typeof spokePoolContract,
     });
 
-    // Get base transaction structure from thirdweb
+    // Get base transaction structure
     const baseTx = prepareContractCall({
       contract: spokePoolContract,
       method: "depositV3",
@@ -204,20 +240,13 @@ export function prepareBridgeTransaction(
       ] as const,
     });
 
-    console.log("[Bridge Tx] Step 3 - Base transaction:", {
-      hasBaseTx: !!baseTx,
-      baseChainId: baseTx.chain?.id,
-      baseGasLimit: baseTx.gasLimit?.toString(),
-      baseStructure: Object.keys(baseTx),
-    });
-
-    // Construct final transaction object
+    // Construct final transaction object with validated parameters
     const transaction = {
-      ...baseTx, // Preserve all base transaction properties
+      ...baseTx,
       to: spokePoolContract.address,
       data: callData,
       value: value.toString(),
-      chain: optimism, // Explicitly set chain object
+      chain: optimism,
       overrides: {
         ...baseTx.overrides,
         data: callData,
