@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { useSendTransaction, useActiveAccount } from "thirdweb/react";
 import { getAcrossClient } from "../../services/across/client";
 import { DepositParams, AcrossQuote } from "../../components/types/bridge";
-import { AGENT_WALLET_ADDRESS, sleep } from "../../services/transaction";
+import { sleep } from "../../services/transaction";
 import {
   prepareTokenApproval,
   prepareBridgeTransaction,
@@ -12,7 +12,7 @@ import {
 // Define base types for blockchain transactions
 interface PreparedTransactionBase {
   to: string;
-  value?: bigint;
+  value?: bigint | string;
   overrides?: {
     data?: string;
     value?: bigint;
@@ -46,6 +46,7 @@ const CHAIN_CONFIG = {
   OPTIMISM_CHAIN_ID: 10,
   POLYGON_CHAIN_ID: 137,
 } as const;
+type EthereumAddress = `0x${string}`;
 
 // Utility function to safely convert bigint to string
 const bigintToString = (value: bigint | string): string => {
@@ -68,6 +69,37 @@ const isValidQuote = (quote: any): quote is AcrossQuote => {
     typeof quote.deposit.inputToken === "string"
   );
 };
+
+const isValidTransaction = (tx: any): tx is PreparedTransactionBase => {
+  return (
+    typeof tx === 'object' &&
+    typeof tx.to === 'string' &&
+    (!tx.value || typeof tx.value === 'string' || typeof tx.value === 'bigint')
+  );
+};
+
+// Add a transaction normalizer
+const normalizeTxValue = (
+  transaction: PreparedTransactionBase
+): PreparedTransactionBase => {
+  const normalizedTx: PreparedTransactionBase = { ...transaction };
+  
+  // Convert main value if it exists
+  if (typeof normalizedTx.value === 'string') {
+    normalizedTx.value = BigInt(normalizedTx.value);
+  }
+  
+  // Convert overrides value if it exists
+  if (normalizedTx.overrides?.value && typeof normalizedTx.overrides.value === 'string') {
+    normalizedTx.overrides = {
+      ...normalizedTx.overrides,
+      value: BigInt(normalizedTx.overrides.value)
+    };
+  }
+  
+  return normalizedTx;
+};
+
 
 // Quote transformation function
 const transformQuote = (rawQuote: any): AcrossQuote => {
@@ -123,6 +155,8 @@ function createTransactionSender(mutateAsync: any): SendTransactionFunction {
   };
 }
 
+const AGENT_WALLET_ADDRESS = process.env.NEXT_PUBLIC_AGENT_WALLET_ADDRESS as EthereumAddress | undefined;
+
 // Main hook implementation
 export const useBridgeTransfer = () => {
   // Initialize hooks and state
@@ -134,65 +168,63 @@ export const useBridgeTransfer = () => {
     status: "pending",
   });
 
+  const getValidRecipientAddress = useCallback((): EthereumAddress => {
+    if (!AGENT_WALLET_ADDRESS) {
+      throw new Error("NEXT_PUBLIC_AGENT_WALLET_ADDRESS is not defined in environment");
+    }
+
+    if (!/^0x[0-9a-fA-F]{40}$/i.test(AGENT_WALLET_ADDRESS)) {
+      throw new Error(`Invalid Ethereum address format: ${AGENT_WALLET_ADDRESS}`);
+    }
+
+    return AGENT_WALLET_ADDRESS;
+  }, []);
+
   const sendUsdcTransfer = useCallback(
     async (rawAmount: string): Promise<TransactionResult> => {
       if (!account) throw new Error("Wallet not connected");
 
       try {
-        // Initialize client and get available routes
+
+        const recipientAddress = getValidRecipientAddress();
+
+        // Define our known USDC route configuration
+        const BRIDGE_CONFIG = {
+          TOKENS: {
+            OPTIMISM: {
+              USDC: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85" as const, // Native USDC on Optimism
+            },
+            POLYGON: {
+              USDC_E: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174" as const,
+            },
+          },
+          CHAINS: {
+            OPTIMISM: CHAIN_CONFIG.OPTIMISM_CHAIN_ID,
+            POLYGON: CHAIN_CONFIG.POLYGON_CHAIN_ID,
+          },
+        };
+
+        // Initialize Across client
         const client = getAcrossClient();
-        const routes = await client.getAvailableRoutes({
-          originChainId: CHAIN_CONFIG.OPTIMISM_CHAIN_ID,
-          destinationChainId: CHAIN_CONFIG.POLYGON_CHAIN_ID,
+
+        console.log("Initiating bridge with configuration:", {
+          originChain: BRIDGE_CONFIG.CHAINS.OPTIMISM,
+          destChain: BRIDGE_CONFIG.CHAINS.POLYGON,
+          inputToken: BRIDGE_CONFIG.TOKENS.OPTIMISM.USDC,
+          outputToken: BRIDGE_CONFIG.TOKENS.POLYGON.USDC_E,
+          amount: rawAmount,
         });
 
-        console.log(
-          "All available routes before filtering:",
-          routes.map((route) => ({
-            symbol: route.inputTokenSymbol,
-            originChain: route.originChainId,
-            destChain: route.destinationChainId,
-            inputToken: route.inputToken,
-            outputToken: route.outputToken,
-          }))
-        );
-
-        // Filter for Optimism to Polygon routes
-        const optimismToPolygonRoutes = routes.filter(
-          (route) =>
-            route.originChainId === 10 && route.destinationChainId === 137
-        );
-
-        // Filter for stablecoin routes
-        const stablecoinRoutes = optimismToPolygonRoutes.filter((route) => {
-          const isStablecoin = ["USDC", "USDC.e", "USDT", "DAI"].includes(
-            route.inputTokenSymbol
-          );
-          console.log(
-            `Route ${route.inputTokenSymbol}: Is stablecoin = ${isStablecoin}`
-          );
-          return isStablecoin;
-        });
-
-        const preferredRoute = stablecoinRoutes[0];
-        if (!preferredRoute) {
-          throw new Error(
-            `No available stablecoin bridge routes. Found ${routes.length} total routes, ` +
-              `${optimismToPolygonRoutes.length} OP->Polygon routes, ` +
-              `${stablecoinRoutes.length} stablecoin routes.`
-          );
-        }
-
-        // Get quote for the selected route
+        // Get quote directly without checking routes
         const rawQuote = await client.getQuote({
           route: {
-            originChainId: preferredRoute.originChainId,
-            destinationChainId: preferredRoute.destinationChainId,
-            inputToken: preferredRoute.inputToken,
-            outputToken: preferredRoute.outputToken,
+            originChainId: BRIDGE_CONFIG.CHAINS.OPTIMISM,
+            destinationChainId: BRIDGE_CONFIG.CHAINS.POLYGON,
+            inputToken: BRIDGE_CONFIG.TOKENS.OPTIMISM.USDC,
+            outputToken: BRIDGE_CONFIG.TOKENS.POLYGON.USDC_E,
           },
           inputAmount: BigInt(rawAmount),
-          recipient: AGENT_WALLET_ADDRESS,
+          recipient: recipientAddress,
         });
 
         const quote = transformQuote(rawQuote);
@@ -208,11 +240,16 @@ export const useBridgeTransfer = () => {
           throw new Error("Missing spoke pool address in quote");
         }
 
+        // Validate the quote matches our expected configuration
         if (
           deposit.inputToken.toLowerCase() !==
-          preferredRoute.inputToken.toLowerCase()
+          BRIDGE_CONFIG.TOKENS.OPTIMISM.USDC.toLowerCase()
         ) {
-          throw new Error("Quote input token doesn't match selected route");
+          console.error("Token mismatch:", {
+            expected: BRIDGE_CONFIG.TOKENS.OPTIMISM.USDC,
+            received: deposit.inputToken,
+          });
+          throw new Error("Quote input token doesn't match expected token");
         }
 
         // Handle token approval
@@ -281,7 +318,7 @@ export const useBridgeTransfer = () => {
         const encodedCallData = await generateBridgeDepositData(
           {
             depositor: account.address,
-            recipient: deposit.recipient,
+            recipient: recipientAddress,
             inputToken: deposit.inputToken,
             outputToken: deposit.outputToken,
             inputAmount: deposit.inputAmount,
@@ -295,11 +332,13 @@ export const useBridgeTransfer = () => {
           deposit.spokePoolAddress
         );
 
-        const bridgeTx = prepareBridgeTransaction(
+        let rawBridgeTx = prepareBridgeTransaction(
           deposit.spokePoolAddress,
           encodedCallData,
           BigInt(0)
-        ) as PreparedTransactionBase;
+        );
+
+        const bridgeTx = normalizeTxValue(rawBridgeTx);
 
         if (!bridgeTx.to || !bridgeTx.overrides?.data) {
           console.error("Invalid transaction object:", {
@@ -367,7 +406,7 @@ export const useBridgeTransfer = () => {
         throw error;
       }
     },
-    [account, sendTransaction]
+    [account, sendTransaction, getValidRecipientAddress]
   );
 
   return {

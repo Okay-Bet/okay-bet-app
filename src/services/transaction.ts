@@ -4,7 +4,7 @@ import { client } from "../app/client";
 import { SPOKE_POOL_ABI } from "../constants/spoke-pool-abi";
 
 export const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
-export const AGENT_WALLET_ADDRESS = "0x93c7c3f9394dEf62D2Ad0658c1c9b49919C13Ac5";
+export const AGENT_WALLET_ADDRESS = process.env.NEXT_PUBLIC_AGENT_WALLET_ADDRESS || "";
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
