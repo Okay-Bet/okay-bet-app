@@ -1,27 +1,47 @@
 // types/market.ts
-export interface Market {
+export interface BaseMarket {
   id: string;
-  condition_id: string;
+  provider: MarketProvider;
   question: string;
-  description?: string;
-  resolutionSource?: string;
-  volume_num: number;
-  liquidity_num: number;
-  yesBestAsk?: number;
-  yesBestBid?: number;
-  noBestAsk?: number;
-  noBestBid?: number;
-  active?: boolean;
-  isEffectivelyResolved?: boolean;  // New field
-  tokens: {
-    yes: {
-      token_id: string;
-      outcome: string;
-    };
-    no: {
-      token_id: string;
-      outcome: string;
-    };
+  description: string;
+  status: MarketStatus;
+  expirationDate: string;
+  timestamps: {
+    created: string;
+    updated?: string;
+    resolved?: string;
+  };
+  collateral: {
+    address: string;
+    symbol: string;
+    decimals: number;
+  };
+  metrics: {
+    volume: string;
+    volumeRaw: string;  
+    liquidity: string;
+    liquidityRaw: string; 
+  };
+  prices: {
+    yes: { bid?: number; ask?: number };
+    no: { bid?: number; ask?: number };
+  };
+  contract: {
+    address: string;
+    network: string;
+  };
+}
+
+export interface LimitlessMarket extends BaseMarket {
+  provider: 'LIMITLESS';
+  conditionId: string;
+}
+
+export interface PolymarketMarket extends BaseMarket {
+  provider: 'POLYMARKET';
+  outcomeTokens: {
+    yes: string;
+    no: string;
   };
 }
 

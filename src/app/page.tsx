@@ -10,9 +10,10 @@ import Pitch from "../components/Landing/Pitch";
 import ConnectWallet from "../components/User/ConnectWallet";
 import { BetSlipProvider } from "./context/BetSlipContext";
 import { BetSlip } from "../components/Bet/BetSlip";
-import PredictionMarkets from "../components/Polymarket/PredictionMarkets";
+// import PredictionMarkets from "../components/Polymarket/PredictionMarkets";
 import Testimonials from "../components/Landing/Testimonials";
-import UserPositions from "../components/User/UserPositions";
+import LimitlessTest from "@/components/Test/LimitlessTest";
+// import UserPositions from "../components/User/UserPositions";
 
 
 export default function Home() {
@@ -37,8 +38,9 @@ export default function Home() {
           <div className="w-full">
         <main className="mt-8 mb-4">
           <BetSlipProvider>
-            <UserPositions />
-            <PredictionMarkets/>
+            {/* <UserPositions /> */}
+            < LimitlessTest />
+            {/* <PredictionMarkets/> */}
             <BetSlip />
           </BetSlipProvider>
         </main>
