@@ -1,8 +1,9 @@
-// components/Polymarket/MarketCard.tsx
+// components/Markets/MarketCard.tsx
 import React from "react";
-import { Market } from "@/components/types/market";
+import { Market } from "@/components/types";
 import { formatPrice } from "../../utils/marketUtils";
 import { useMarketCard } from "../../hooks/useMarketCard";
+import { useMarketPrices } from "../../hooks/useMarketPrices";
 
 interface MarketCardProps {
   eventId: string;
@@ -30,10 +31,20 @@ export const MarketCard: React.FC<MarketCardProps> = ({
     markets,
   });
 
+  // Fetch realtime prices for the current market
+  const { prices, loading: pricesLoading } = useMarketPrices(currentMarket);
+
   // Early returns for invalid states
   if (!markets || markets.length === 0 || !currentMarket) {
     return null;
   }
+
+  // Get the latest prices, falling back to API prices if on-chain fetch is still loading
+  const yesPrice = pricesLoading
+    ? currentMarket.prices.yes.ask
+    : prices.yes.ask;
+  const noPrice = pricesLoading ? currentMarket.prices.no.ask : prices.no.ask;
+  const isMarketActive = currentMarket.status === "ACTIVE";
 
   return (
     <div className="bg-demo rounded-xl shadow-lg overflow-hidden">
@@ -85,14 +96,22 @@ export const MarketCard: React.FC<MarketCardProps> = ({
           <div className="bg-tertiary p-3 rounded-lg">
             <div className="text-sm text-gray-800">Yes Price</div>
             <div className="text-lg font-bold text-font">
-              {formatPrice(currentMarket.yesBestAsk, showMoneyline)}
+              {pricesLoading ? (
+                <span className="text-gray-500">Loading...</span>
+              ) : (
+                formatPrice(yesPrice, showMoneyline)
+              )}
             </div>
           </div>
 
           <div className="bg-tertiary p-3 rounded-lg">
             <div className="text-sm text-gray-800">No Price</div>
             <div className="text-lg font-bold text-font">
-              {formatPrice(currentMarket.noBestAsk, showMoneyline)}
+              {pricesLoading ? (
+                <span className="text-gray-500">Loading...</span>
+              ) : (
+                formatPrice(noPrice, showMoneyline)
+              )}
             </div>
           </div>
         </div>
@@ -102,16 +121,16 @@ export const MarketCard: React.FC<MarketCardProps> = ({
           <button
             onClick={() => handleBetClick("YES")}
             className="py-2 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!currentMarket.active || !currentMarket.yesBestAsk}
+            disabled={!isMarketActive || !yesPrice || pricesLoading}
           >
-            Buy Yes
+            {pricesLoading ? "Loading..." : "Buy Yes"}
           </button>
           <button
             onClick={() => handleBetClick("NO")}
             className="py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!currentMarket.active || !currentMarket.noBestAsk}
+            disabled={!isMarketActive || !noPrice || pricesLoading}
           >
-            Buy No
+            {pricesLoading ? "Loading..." : "Buy No"}
           </button>
         </div>
 
@@ -120,13 +139,13 @@ export const MarketCard: React.FC<MarketCardProps> = ({
           <div className="bg-tertiary p-2 rounded-lg">
             <div className="text-xs text-primary">Volume</div>
             <div className="text-sm bold font-medium text-font truncate">
-              ${currentMarket.volume_num.toLocaleString()}
+              ${parseFloat(currentMarket.metrics.volume).toLocaleString()}
             </div>
           </div>
           <div className="bg-tertiary p-2 rounded-lg">
             <div className="text-xs text-primary">Liquidity</div>
             <div className="text-sm bold font-medium text-font truncate">
-              ${currentMarket.liquidity_num.toLocaleString()}
+              ${parseFloat(currentMarket.metrics.liquidity).toLocaleString()}
             </div>
           </div>
         </div>
@@ -167,12 +186,17 @@ export const MarketCard: React.FC<MarketCardProps> = ({
             </div>
             <div>
               <div className="bg-black text-white text-sm font-medium py-2 px-4 rounded-t-lg">
-                Resolution Rules
+                Market Details
               </div>
               <div className="bg-tertiary p-4 rounded-b-lg">
-                <p className="text-base font-medium leading-relaxed text-gray-200">
-                  {currentMarket.resolutionSource || "Market resolves based on official sources."}
-                </p>
+                <div className="text-base font-medium leading-relaxed text-gray-200">
+                  <p>Provider: {currentMarket.provider}</p>
+                  <p>
+                    Expiration:{" "}
+                    {new Date(currentMarket.expirationDate).toLocaleString()}
+                  </p>
+                  <p>Status: {currentMarket.status}</p>
+                </div>
               </div>
             </div>
           </div>

@@ -1,147 +1,109 @@
-// hooks/useMarket.ts
-import { useState, useEffect } from "react";
-import type { Market } from "@/components/types/market";
+// hooks/useMarketCard.ts
+import { useState } from "react";
+import type {
+  Market,
+  LimitlessMarket,
+  PolymarketMarket,
+  MarketOutcome,
+} from "@/components/types";
+import { useBetSlip } from "../app/context/BetSlipContext";
 
-// Cache duration constant - 5 minutes
-// We define this at the top for easy configuration
-const CACHE_DURATION = 5 * 60 * 1000;
+interface UseMarketCardParams {
+  eventId: string;
+  eventTitle: string;
+  markets: Market[];
+}
 
-// Generic cache implementation with type safety
-class Cache<T> {
-  private store: Map<string, { data: T; timestamp: number }> = new Map();
+interface UseMarketCardReturn {
+  currentMarket: Market | null;
+  showDetails: boolean;
+  showMoneyline: boolean;
+  activeMarketIndex: number;
+  handleBetClick: (position: MarketOutcome) => void;
+  setShowDetails: (show: boolean) => void;
+  setShowMoneyline: (show: boolean) => void;
+  setActiveMarketIndex: (index: number) => void;
+}
 
-  set(key: string, data: T) {
-    this.store.set(key, {
-      data,
-      timestamp: Date.now(),
-    });
-  }
+// Type guard to check if a market is a Polymarket market
+function isPolymarketMarket(market: Market): market is PolymarketMarket {
+  return market.provider === "POLYMARKET";
+}
 
-  get(key: string): T | null {
-    const entry = this.store.get(key);
-    if (!entry) return null;
+// Type guard to check if a market is a Limitless market
+function isLimitlessMarket(market: Market): market is LimitlessMarket {
+  return market.provider === "LIMITLESS";
+}
 
-    if (Date.now() - entry.timestamp > CACHE_DURATION) {
-      this.store.delete(key);
-      return null;
+export function useMarketCard({
+  eventId,
+  eventTitle,
+  markets,
+}: UseMarketCardParams): UseMarketCardReturn {
+  // Basic state management
+  const [activeMarketIndex, setActiveMarketIndex] = useState(0);
+  const [showDetails, setShowDetails] = useState(false);
+  const [showMoneyline, setShowMoneyline] = useState(false);
+
+  const { addBet } = useBetSlip();
+
+  // Get current market with proper type checking
+  const currentMarket =
+    markets && markets.length > 0 ? markets[activeMarketIndex] : null;
+
+  const handleBetClick = (position: MarketOutcome) => {
+    if (!currentMarket) return;
+
+    // Get price from unified price structure
+    const price =
+      position === "YES"
+        ? currentMarket.prices.yes.ask
+        : currentMarket.prices.no.ask;
+
+    if (!price) return;
+
+    // Base bet data that's common across providers
+    const baseBetData = {
+      eventTitle,
+      marketQuestion: currentMarket.question,
+      position,
+      price,
+    };
+
+    // Handle provider-specific bet creation
+    if (isPolymarketMarket(currentMarket)) {
+      // Polymarket-specific handling
+      addBet({
+        ...baseBetData,
+        marketId: currentMarket.id,
+        tokenId:
+          position === "YES"
+            ? currentMarket.outcomeTokens.yes
+            : currentMarket.outcomeTokens.no,
+        provider: "POLYMARKET",
+      });
+    } else if (isLimitlessMarket(currentMarket)) {
+      // Limitless-specific handling
+      addBet({
+        ...baseBetData,
+        marketId: currentMarket.conditionId,
+        // Limitless uses conditionId as the token identifier
+        tokenId: currentMarket.conditionId,
+        provider: "LIMITLESS",
+      });
+    } else {
+      console.error("Unknown market provider:", currentMarket.provider);
     }
+  };
 
-    return entry.data;
-  }
-
-  clear() {
-    this.store.clear();
-  }
-}
-
-// Interface for hook return value - keeps our return type consistent
-interface UseMarketResult {
-  market: Market | null;
-  loading: boolean;
-  error: string | null;
-  marketLiquidities: number[];
-  refetch: () => Promise<void>; 
-}
-
-// Initialize cache at module level for persistence across hook instances
-const marketCache = new Cache<Market[]>();
-
-/**
- * Hook to fetch and manage market data for a specific event
- * @param eventId - The ID of the event containing the markets
- * @param marketIndex - The index of the specific market within the event
- * @returns Market data, loading state, error state, market liquidities, and refetch function
- */
-export function useMarket(
-  eventId: string,
-  marketIndex: number
-): UseMarketResult {
-  const [data, setData] = useState<UseMarketResult>({
-    market: null,
-    loading: true,
-    error: null,
-    marketLiquidities: [],
-    refetch: async () => {}, // Will be properly initialized in useEffect
-  });
-
-  useEffect(() => {
-    let isMounted = true;
-
-    // Define the fetch function within useEffect to access isMounted
-    const fetchMarketData = async () => {
-      try {
-
-        // Check cache first
-        const cachedMarkets = marketCache.get(eventId);
-        if (cachedMarkets) {
-          if (isMounted) {
-            setData({
-              market: cachedMarkets[marketIndex] || null,
-              loading: false,
-              error: null,
-              marketLiquidities: cachedMarkets.map((m) => m.liquidity_num),
-              refetch: fetchMarketData,
-            });
-          }
-          return;
-        }
-
-        const response = await fetch(`/api/polymarket-markets/${eventId}`);
-
-        if (!response.ok) {
-          throw new Error(
-            `Failed to fetch markets: ${response.status} ${response.statusText}`
-          );
-        }
-
-        const markets: Market[] = await response.json();
-
-        // Validate the marketIndex
-        if (marketIndex >= markets.length) {
-          throw new Error(`Market index ${marketIndex} is out of bounds`);
-        }
-
-        // Cache the markets
-        marketCache.set(eventId, markets);
-
-        if (isMounted) {
-          setData({
-            market: markets[marketIndex],
-            loading: false,
-            error: null,
-            marketLiquidities: markets.map((m) => m.liquidity_num),
-            refetch: fetchMarketData,
-          });
-        }
-      } catch (error) {
-        console.error("[Hook] Error in fetchMarketData:", error);
-        if (isMounted) {
-          setData((prev) => ({
-            ...prev,
-            loading: false,
-            error: error instanceof Error ? error.message : "An error occurred",
-            refetch: fetchMarketData,
-          }));
-        }
-      }
-    };
-
-    // Initial fetch
-    fetchMarketData();
-
-    // Cleanup function
-    return () => {
-      isMounted = false;
-    };
-  }, [eventId, marketIndex]); // Dependencies that trigger refetch
-
-  return data;
-}
-
-/**
- * Helper function to manually clear the market cache
- * Useful for testing or forcing fresh data fetches
- */
-export function clearMarketCache(): void {
-  marketCache.clear();
+  return {
+    currentMarket,
+    showDetails,
+    showMoneyline,
+    activeMarketIndex,
+    handleBetClick,
+    setShowDetails,
+    setShowMoneyline,
+    setActiveMarketIndex,
+  };
 }

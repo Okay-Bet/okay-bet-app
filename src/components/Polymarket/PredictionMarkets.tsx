@@ -1,19 +1,38 @@
-// components/Polymarket/PredictionMarkets.tsx
+// components/Markets/PredictionMarkets.tsx
 import React, { useEffect, useState, useCallback } from "react";
 import { MarketCard } from "./MarketCard";
 import MarketSearch from "./MarketSearch";
-import { Event } from "../types/market";
-import { SearchParams } from "../types/market";
+import type { Event, SearchParams, MarketProvider } from "@/components/types";
+
+interface MarketState {
+  events: Event[];
+  loading: boolean;
+  error: string | null;
+  activeProvider: MarketProvider;
+}
+
+const INITIAL_STATE: MarketState = {
+  events: [],
+  loading: true,
+  error: null,
+  activeProvider: "LIMITLESS", // You can change the default provider here
+};
 
 const PredictionMarkets: React.FC = () => {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [state, setState] = useState<MarketState>(INITIAL_STATE);
 
-  const handleSearch = useCallback(async (searchParams: SearchParams) => {
-    setLoading(true);
+  // Unified function to fetch markets from any provider
+  const fetchMarkets = async (
+    provider: MarketProvider,
+    searchParams: SearchParams
+  ) => {
+    const endpoints = {
+      POLYMARKET: "/api/polymarket-events",
+      LIMITLESS: "/api/limitless/markets",
+    };
+
     try {
-      const response = await fetch("/api/polymarket-events", {
+      const response = await fetch(endpoints[provider], {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ searchParams }),
@@ -24,26 +43,60 @@ const PredictionMarkets: React.FC = () => {
       }
 
       const data = await response.json();
-      
       if (data.error) {
         throw new Error(data.error);
       }
 
-      // Only set events if we have valid data
-      if (Array.isArray(data.events)) {
-        setEvents(data.events.filter((event: Event) => event.markets.length > 0));
-      }
-      
-      setError(null);
+      return data;
     } catch (error) {
-      console.error("Error searching markets:", error);
-      setError(error instanceof Error ? error.message : "An error occurred");
-      // Keep existing data on error
-      setEvents(prev => prev);
-    } finally {
-      setLoading(false);
+      throw error;
     }
-  }, []);
+  };
+
+  const handleSearch = useCallback(
+    async (searchParams: SearchParams) => {
+      setState((prev) => ({ ...prev, loading: true, error: null }));
+
+      try {
+        const data = await fetchMarkets(state.activeProvider, searchParams);
+
+        if (Array.isArray(data.events)) {
+          setState((prev) => ({
+            ...prev,
+            events: data.events.filter(
+              (event: Event) => event.markets.length > 0
+            ),
+            loading: false,
+            error: null,
+          }));
+        }
+      } catch (error) {
+        console.error("Error searching markets:", error);
+        setState((prev) => ({
+          ...prev,
+          loading: false,
+          error: error instanceof Error ? error.message : "An error occurred",
+          // Keep existing events on error
+          events: prev.events,
+        }));
+      }
+    },
+    [state.activeProvider]
+  );
+
+  // Function to switch between providers
+  const switchProvider = useCallback(
+    (provider: MarketProvider) => {
+      setState((prev) => ({ ...prev, activeProvider: provider }));
+      // Trigger a new search with the current parameters
+      handleSearch({
+        searchTerm: "",
+        sortBy: "liquidity",
+        sortDirection: "desc",
+      });
+    },
+    [handleSearch]
+  );
 
   useEffect(() => {
     handleSearch({
@@ -55,22 +108,46 @@ const PredictionMarkets: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <MarketSearch onSearch={handleSearch} isLoading={loading} />
-      
-      {error && (
+      <div className="flex justify-between items-center mb-4">
+        <MarketSearch onSearch={handleSearch} isLoading={state.loading} />
+        <div className="flex gap-2">
+          <button
+            onClick={() => switchProvider("LIMITLESS")}
+            className={`px-4 py-2 rounded ${
+              state.activeProvider === "LIMITLESS"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200"
+            }`}
+          >
+            Limitless
+          </button>
+          <button
+            onClick={() => switchProvider("POLYMARKET")}
+            className={`px-4 py-2 rounded ${
+              state.activeProvider === "POLYMARKET"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200"
+            }`}
+          >
+            Polymarket
+          </button>
+        </div>
+      </div>
+
+      {state.error && (
         <div className="p-4 bg-red-50 text-red-600 rounded-lg">
-          {error}
+          {state.error}
         </div>
       )}
 
-      {events.length === 0 && !loading && !error && (
+      {state.events.length === 0 && !state.loading && !state.error && (
         <div className="text-center py-4 text-gray-500">
           No active markets found
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {events.map((event) => (
+        {state.events.map((event) => (
           <div key={event.id} className="relative isolate items-start">
             <MarketCard
               eventId={event.id}
@@ -82,7 +159,7 @@ const PredictionMarkets: React.FC = () => {
         ))}
       </div>
 
-      {loading && (
+      {state.loading && (
         <div className="text-center py-4">
           <span className="text-primary">Loading markets...</span>
         </div>
