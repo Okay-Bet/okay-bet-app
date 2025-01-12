@@ -1,5 +1,5 @@
 // components/Markets/MarketCard.tsx
-import React from "react";
+import React, { useCallback } from "react";
 import { Market } from "@/components/types";
 import { formatPrice } from "../../utils/marketUtils";
 import { useMarketCard } from "../../hooks/useMarketCard";
@@ -31,19 +31,45 @@ export const MarketCard: React.FC<MarketCardProps> = ({
     markets,
   });
 
+  // Wrapper for bet click handling with debug logging
+  const onBetClick = useCallback(
+    (position: "YES" | "NO") => {
+      console.log("Bet click initiated:", {
+        position,
+        currentMarket,
+        eventTitle,
+      });
+
+      if (!currentMarket) {
+        console.error("No current market available");
+        return;
+      }
+
+      handleBetClick(position);
+    },
+    [currentMarket, eventTitle, handleBetClick]
+  );
+
   // Fetch realtime prices for the current market
   const { prices, loading: pricesLoading } = useMarketPrices(currentMarket);
 
-  // Early returns for invalid states
+  // Early returns for invalid states with debug logging
   if (!markets || markets.length === 0 || !currentMarket) {
+    console.log("Early return due to invalid market data:", {
+      markets,
+      currentMarket,
+    });
     return null;
   }
 
-  // Get the latest prices, falling back to API prices if on-chain fetch is still loading
+  // Get the latest prices with proper fallback handling
   const yesPrice = pricesLoading
     ? currentMarket.prices.yes.ask
-    : prices.yes.ask;
-  const noPrice = pricesLoading ? currentMarket.prices.no.ask : prices.no.ask;
+    : prices?.yes?.ask ?? currentMarket.prices.yes.ask;
+  const noPrice = pricesLoading
+    ? currentMarket.prices.no.ask
+    : prices?.no?.ask ?? currentMarket.prices.no.ask;
+
   const isMarketActive = currentMarket.status === "ACTIVE";
 
   return (
@@ -119,14 +145,14 @@ export const MarketCard: React.FC<MarketCardProps> = ({
         {/* Action Buttons */}
         <div className="grid grid-cols-2 gap-3 mt-4">
           <button
-            onClick={() => handleBetClick("YES")}
+            onClick={() => onBetClick("YES")}
             className="py-2 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={!isMarketActive || !yesPrice || pricesLoading}
           >
             {pricesLoading ? "Loading..." : "Buy Yes"}
           </button>
           <button
-            onClick={() => handleBetClick("NO")}
+            onClick={() => onBetClick("NO")}
             className="py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={!isMarketActive || !noPrice || pricesLoading}
           >

@@ -1,23 +1,10 @@
-// hooks/useMarketCard.ts
 import { useState } from "react";
-import { Market } from "@/components/types/market";
+import { Market, LimitlessMarket } from "@/components/types";
 import { useBetSlip } from "../app/context/BetSlipContext";
+import { useMarketPrices } from "./useMarketPrices";
 
-interface UseMarketCardParams {
-  eventId: string;
-  eventTitle: string;
-  markets: Market[];
-}
-
-interface UseMarketCardReturn {
-  currentMarket: Market | null;
-  showDetails: boolean;
-  showMoneyline: boolean;
-  activeMarketIndex: number;
-  handleBetClick: (position: "YES" | "NO") => void;
-  setShowDetails: (show: boolean) => void;
-  setShowMoneyline: (show: boolean) => void;
-  setActiveMarketIndex: (index: number) => void;
+function isLimitlessMarket(market: Market): market is LimitlessMarket {
+  return market.provider === "LIMITLESS";
 }
 
 export function useMarketCard({
@@ -25,40 +12,67 @@ export function useMarketCard({
   eventTitle,
   markets,
 }: UseMarketCardParams): UseMarketCardReturn {
-  // State management
   const [activeMarketIndex, setActiveMarketIndex] = useState(0);
   const [showDetails, setShowDetails] = useState(false);
   const [showMoneyline, setShowMoneyline] = useState(false);
 
-  // External hooks
   const { addBet } = useBetSlip();
-
-  // Derive current market
   const currentMarket =
     markets && markets.length > 0 ? markets[activeMarketIndex] : null;
 
-  // Handlers
+  // Fetch realtime prices for the current market
+  const { prices: realtimePrices, loading: pricesLoading } =
+    useMarketPrices(currentMarket);
+
   const handleBetClick = (position: "YES" | "NO") => {
-    if (!currentMarket) return;
+    if (!currentMarket) {
+      console.error("No market selected");
+      return;
+    }
 
-    const price =
-      position === "YES" ? currentMarket.yesBestAsk : currentMarket.noBestAsk;
-
-    if (!price) return;
-
-    const tokenId =
-      position === "YES"
-        ? currentMarket.tokens.yes.token_id
-        : currentMarket.tokens.no.token_id;
-
-    addBet({
-      marketId: currentMarket.condition_id,
-      eventTitle,
-      marketQuestion: currentMarket.question,
+    // Debug log the current state
+    console.log("Processing bet for market:", {
+      market: currentMarket,
       position,
-      price,
-      tokenId,
+      realtimePrices,
+      staticPrices: currentMarket.prices,
     });
+
+    // Determine which prices to use
+    const priceToUse =
+      position === "YES"
+        ? realtimePrices?.yes?.ask ?? currentMarket.prices.yes.ask
+        : realtimePrices?.no?.ask ?? currentMarket.prices.no.ask;
+
+    // Validate price exists and is in valid range
+    if (
+      typeof priceToUse !== "number" ||
+      isNaN(priceToUse) ||
+      priceToUse <= 0 ||
+      priceToUse > 1
+    ) {
+      console.error("Invalid price value:", priceToUse);
+      return;
+    }
+
+    console.log("Using validated price:", priceToUse);
+
+    if (isLimitlessMarket(currentMarket)) {
+      const bet = {
+        marketId: currentMarket.id,
+        eventTitle,
+        marketQuestion: currentMarket.question,
+        position,
+        price: priceToUse,
+        tokenId: currentMarket.id,
+      };
+
+      // Debug log the final bet object
+      console.log("Submitting bet to BetSlip:", bet);
+      addBet(bet);
+    } else {
+      console.error("Unsupported market provider:", currentMarket.provider);
+    }
   };
 
   return {
@@ -70,5 +84,6 @@ export function useMarketCard({
     setShowDetails,
     setShowMoneyline,
     setActiveMarketIndex,
+    pricesLoading,
   };
 }
