@@ -11,6 +11,8 @@ interface OrderRequest {
   amount: number;
   side: "BUY" | "SELL";
   isYesToken: boolean;
+  estimatedTokens?: number;
+  priceImpact?: number;
 }
 
 interface OrderQuote {
@@ -42,7 +44,7 @@ export const BetSlip: React.FC = () => {
   const [isQuoting, setIsQuoting] = useState(false);
 
   // Constants
-  const MIN_TOKENS = 5.0;
+  const MIN_TOKENS = 1.0;
 
   // Effect for quote calculation
   useEffect(() => {
@@ -111,18 +113,26 @@ export const BetSlip: React.FC = () => {
   };
 
   const handlePlaceOrder = async () => {
-    if (!bet || !amount || !quote) return;
+    if (!bet || !amount || !quote) {
+      console.error("Missing required data:", { bet, amount, quote });
+      return;
+    }
 
     try {
+      const amountInUSDC = parseFloat(amount) * 1_000_000;
       const orderRequest: OrderRequest = {
         tokenId: bet.tokenId,
         price: bet.price,
-        amount: parseFloat(amount),
+        amount: amountInUSDC,
         side: "BUY",
         isYesToken: bet.position === "YES",
+        estimatedTokens: quote.tokenAmount,
+        priceImpact: quote.priceImpact,
       };
 
-      await submitOrder(orderRequest);
+      console.log("Submitting order request:", orderRequest);
+      const result = await submitOrder(orderRequest);
+      console.log("Order submitted successfully:", result);
       clearBets();
       setAmount("");
       setQuote(null);

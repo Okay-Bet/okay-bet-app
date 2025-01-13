@@ -1,7 +1,7 @@
 // services/validation.ts
 import { OrderPayload } from '../components/types/orders';
 import { ValidationResponse } from '../components/types/validation';
-import { isAddress } from 'ethers/lib/utils';
+import { isAddress } from 'ethers';
 
 // Custom error for validation-specific issues
 export class ValidationError extends Error {

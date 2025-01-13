@@ -9,6 +9,8 @@ export interface OrderRequest {
   amount: number;
   side: OrderSide;
   isYesToken: boolean;
+  estimatedTokens?: number;
+  priceImpact?: number;
 }
 
 export interface OrderPayload {

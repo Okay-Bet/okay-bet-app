@@ -24,6 +24,10 @@ export const BetSlipProvider: React.FC<{ children: React.ReactNode }> = ({
   const [bet, setBet] = useState<Bet | null>(null);
 
   const addBet = useCallback((newBet: Bet) => {
+    if (!newBet.tokenId || !newBet.tokenId.startsWith('0x')) {
+      console.error('Invalid tokenId (FPMM address):', newBet.tokenId);
+      return;
+    }
     // Validate the price format before setting
     const validatedBet = {
       ...newBet,

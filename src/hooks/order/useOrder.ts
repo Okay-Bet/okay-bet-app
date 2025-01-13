@@ -1,10 +1,11 @@
 // src/hooks/order/useOrder.ts
-import { useState } from 'react';
-import { useActiveAccount } from 'thirdweb/react';
-import { OrderStatus, OrderRequest } from '../../components/types';
-import { useOrderValidation } from './useOrderValidation';
-import { useBridgeTransfer } from './useBridgeTransfer';
-import { submitDelegatedOrder } from '../../services/transaction';
+import { useState } from "react";
+import { useActiveAccount } from "thirdweb/react";
+import { OrderStatus, OrderRequest } from "../../components/types";
+import { useOrderValidation } from "./useOrderValidation";
+import { useBridgeTransfer } from "./useBridgeTransfer";
+import { submitDelegatedOrder } from "../../services/transaction";
+import { useLimitlessOrder } from "./useLimitlessOrder";
 
 type Provider = "LIMITLESS" | "POLYMARKET";
 
@@ -14,16 +15,33 @@ export const useOrder = () => {
   const account = useActiveAccount();
   const { validateOrder } = useOrderValidation();
   const { sendUsdcTransfer, bridgeStep } = useBridgeTransfer();
+  // const { submitOrder: submitPolyOrder } = useBridgeTransfer();
+  const { submitOrder: submitLimitlessOrder } = useLimitlessOrder();
 
   const provider: Provider = "LIMITLESS"; // fix this when we actually support new markets
 
   const submitOrder = async (orderRequest: OrderRequest) => {
+    console.log("useOrder: Starting order submission");
+
     if (!account) {
       setStatus({ state: "error", error: "Wallet not connected" });
       return;
     }
 
     try {
+      if (provider === "LIMITLESS") {
+        console.log("useOrder: Proceeding with Limitless order flow");
+        setStatus({ state: "preparing_transfer" });
+        if (!submitLimitlessOrder) {
+          console.error("useOrder: submitLimitlessOrder is not defined");
+          throw new Error("Order submission method not available");
+        }
+        const result = await submitLimitlessOrder(orderRequest);
+        console.log("useOrder: Limitless order submitted:", result);
+        setStatus({ state: "complete", result });
+        return result;
+      } else {
+      }
       // Step 1: Validate Order
       if (provider === "POLYMARKET") {
         setStatus({ state: "validating" });

@@ -72,7 +72,6 @@ export function useMarketPrices(market: Market | null) {
     setError(null);
 
     try {
-      console.log("Fetching fresh prices for FPMM:", market.contract.address);
       const INVESTMENT_AMOUNT = 1000000n; // 1 USDC (6 decimals)
 
       const [yesBuyAmount, noBuyAmount] = await Promise.all([
