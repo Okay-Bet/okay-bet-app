@@ -1,14 +1,17 @@
 import { useState, useCallback } from "react";
 import { useSendTransaction, useActiveAccount } from "thirdweb/react";
+import { getContract, prepareContractCall } from "thirdweb";
+import { client } from "../../app/client";
+import { optimism } from "thirdweb/chains";
 import { ethers } from "ethers";
-import { OrderRequest } from "../../components/types";
+import { OrderRequest, AcrossQuote } from "../../components/types";
 import {
+  getAcrossClient,
   getAcrossQuote,
   getTokenAddress,
   SUPPORTED_CHAINS,
   SPOKE_POOL,
   MULTICALL_HANDLERS,
-  getAcrossClient,
   SUPPORTED_TOKENS,
 } from "../../services/across/client";
 import {
@@ -17,6 +20,8 @@ import {
   generateBridgeDepositData,
 } from "../../services/across/bridge";
 import { sleep } from "../../services/transaction";
+import { SPOKE_POOL_ABI } from "../../constants/spoke-pool-abi";
+
 
 // Contract addresses
 const MARKET_FACTORY_ADDRESS = "0xc397D5d70cb3B56B26dd5C2824d49a96c4dabF50";
@@ -55,6 +60,41 @@ interface LimitlessOrderHookReturn {
   isLoading: boolean;
   error: string | null;
 }
+
+interface PreparedTransactionBase {
+  to: string;
+  value?: bigint | string;
+  overrides?: {
+    data?: string;
+    value?: bigint;
+    [key: string]: any;
+  };
+}
+
+// Add a transaction normalizer
+const normalizeTxValue = (
+  transaction: PreparedTransactionBase
+): PreparedTransactionBase => {
+  const normalizedTx: PreparedTransactionBase = { ...transaction };
+
+  // Convert main value if it exists
+  if (typeof normalizedTx.value === "string") {
+    normalizedTx.value = BigInt(normalizedTx.value);
+  }
+
+  // Convert overrides value if it exists
+  if (
+    normalizedTx.overrides?.value &&
+    typeof normalizedTx.overrides.value === "string"
+  ) {
+    normalizedTx.overrides = {
+      ...normalizedTx.overrides,
+      value: BigInt(normalizedTx.overrides.value),
+    };
+  }
+
+  return normalizedTx;
+};
 
 export const useLimitlessOrder = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -182,95 +222,129 @@ export const useLimitlessOrder = () => {
 
   const handleBridgeTransaction = async (
     deposit: any,
-    spokePoolAddress: string
+    spokePoolAddress: string,
+    multicallMessage: string // Add this parameter
   ) => {
-    console.log("Preparing bridge transaction with:", {
-      deposit,
+    console.log("=== Starting Bridge Transaction ===");
+    console.log("Initial deposit data:", {
+      recipient: deposit.recipient,
+      inputToken: deposit.inputToken,
+      outputToken: deposit.outputToken,
+      inputAmount: deposit.inputAmount.toString(),
+      outputAmount: deposit.outputAmount.toString(),
+      destinationChainId: deposit.destinationChainId,
       spokePoolAddress,
+      multicallMessage: multicallMessage.slice(0, 66) + "...", // Log preview of message
     });
 
     try {
-      // Generate deposit data
+      // Generate deposit data with the multicall message
       const depositData = await generateBridgeDepositData(
         {
           depositor: account!.address,
           recipient: deposit.recipient,
           inputToken: deposit.inputToken,
           outputToken: deposit.outputToken,
-          inputAmount: deposit.inputAmount,
-          outputAmount: deposit.outputAmount,
+          inputAmount: deposit.inputAmount.toString(),
+          outputAmount: deposit.outputAmount.toString(),
           destinationChainId: deposit.destinationChainId,
           exclusiveRelayer: deposit.exclusiveRelayer,
           quoteTimestamp: deposit.quoteTimestamp,
           exclusivityPeriod: deposit.exclusivityDeadline,
-          message: deposit.message || "0x",
+          message: multicallMessage, // Include the multicall message here
         },
         spokePoolAddress
       );
 
-      console.log("Generated deposit data:", depositData);
-
-      // Prepare the bridge transaction
-      const bridgeTx = prepareBridgeTransaction(
-        spokePoolAddress,
-        depositData,
-        BigInt(0)
+      console.log("=== Generated Deposit Data ===");
+      console.log("Deposit data length:", depositData.length);
+      console.log("Deposit data prefix:", depositData.slice(0, 66));
+      console.log(
+        "Included multicall message:",
+        multicallMessage.slice(0, 66) + "..."
       );
 
-      console.log("Bridge transaction prepared:", bridgeTx);
+      // Get the bridge transaction using contract call pattern
+      const spokePoolContract = getContract({
+        client,
+        address: spokePoolAddress as `0x${string}`,
+        chain: optimism,
+        abi: SPOKE_POOL_ABI,
+      });
 
-      // Actually send the transaction
+      console.log("=== Prepared Spoke Pool Contract ===", {
+        spokePoolContract,
+      });
+
+      spokePoolAddress = spokePoolAddress.toLowerCase() as `0x${string}`;
+
+      let rawBridgeTx = prepareContractCall({
+        contract: spokePoolAddress,
+        method: "depositV3",
+        params: [depositData],
+        // value: BigInt(deposit.inputAmount),
+      });
+
+      const bridgeTx = normalizeTxValue(rawBridgeTx);
+
+
+      console.log("=== Prepared Bridge Transaction ===", {
+        tx: bridgeTx,
+      });
+
       setBridgeStep({
         step: "bridging",
         status: "pending",
       });
 
-      // Add validation logging before sending
-      console.log("Validating bridge transaction parameters:", {
-        to: bridgeTx.to,
-        dataLength: bridgeTx.data.length,
-        value: bridgeTx.value,
-        chainId: bridgeTx.chain.id,
+      return new Promise((resolve, reject) => {
+        sendTransaction(bridgeTx, {
+          onSuccess: async (result) => {
+            try {
+              console.log("Bridge transaction sent:");
+
+              setBridgeStep({
+                step: "bridging",
+                status: "pending",
+                txHash: result.transactionHash,
+              });
+
+              await sleep(15000);
+              console.log("Bridge transaction confirmed");
+
+              setBridgeStep({
+                step: "bridging",
+                status: "success",
+                txHash: result.transactionHash,
+              });
+
+              resolve(result);
+            } catch (error) {
+              console.error("Bridge confirmation failed:", error);
+              reject(error);
+            }
+          },
+          onError: (error) => {
+            console.error("Bridge transaction failed:", error);
+            setBridgeStep({
+              step: "bridging",
+              status: "failed",
+            });
+            reject(error);
+          },
+        });
       });
-
-      // Send the transaction and wait for response
-      const txResponse = await sendTransaction({
-        to: bridgeTx.to,
-        data: bridgeTx.data,
-        value: bridgeTx.value,
-        chain: bridgeTx.chain,
-      });
-
-      console.log("Bridge transaction sent:", txResponse);
-
-      setBridgeStep({
-        step: "bridging",
-        status: "pending",
-        txHash: txResponse.hash,
-      });
-
-      // Wait for confirmation
-      await sleep(15000);
-
-      console.log("Bridge transaction confirmed");
-
-      setBridgeStep({
-        step: "bridging",
-        status: "success",
-        txHash: txResponse.hash,
-      });
-
-      return txResponse;
     } catch (error) {
-      console.error("Bridge transaction failed:", error);
+      console.error("Bridge preparation failed:", error);
       setBridgeStep({
-        step: "bridging",
+        ...bridgeStep,
         status: "failed",
       });
       throw error;
     }
   };
 
+  // Update the submitOrder function to pass the multicall message
   const submitOrder = useCallback(
     async (orderRequest: OrderRequest) => {
       console.log("useLimitlessOrder: Received order request:", orderRequest);
@@ -283,28 +357,39 @@ export const useLimitlessOrder = () => {
       setError(null);
 
       try {
+        const acrossClient = getAcrossClient();
+
         // 1. Generate multicall instructions
         const amountBigInt = BigInt(orderRequest.amount);
-        const message = generateMessageForMulticallHandler(
+        const multicallMessage = generateMessageForMulticallHandler(
           account.address,
           orderRequest.tokenId,
           amountBigInt,
           orderRequest.isYesToken ? 1 : 0
         );
 
-        console.log("Generated multicall message:", message);
+        console.log("Generated multicall message:", multicallMessage as `0x${string}`);
 
-        // 2. Get Across quote
-        const quote = await getAcrossQuote({
+        const crossChainMessage = {
+          actions: [{
+            target: MULTICALL_HANDLERS.BASE as `0x${string}`,
+            callData: multicallMessage as `0x${string}`,
+            value: BigInt(0)
+          }],
+          fallbackRecipient: account.address as `0x${string}`
+        };
+
+        // 2. Get Across quote with the multicall message
+        const quote = await acrossClient.getQuote({
           route: {
             originChainId: 10, // Optimism
             destinationChainId: 8453, // Base
-            inputToken: SUPPORTED_TOKENS.OPTIMISM.USDC,
-            outputToken: SUPPORTED_TOKENS.BASE.USDC,
+            inputToken: SUPPORTED_TOKENS.OPTIMISM.USDC as `0x${string}`,
+            outputToken: SUPPORTED_TOKENS.BASE.USDC as `0x${string}`,
           },
           inputAmount: amountBigInt,
-          recipient: MULTICALL_HANDLERS.BASE,
-          message,
+          recipient: MULTICALL_HANDLERS.BASE as `0x${string}`,
+          crossChainMessage,
         });
 
         console.log("Received Across quote:", quote);
@@ -318,10 +403,11 @@ export const useLimitlessOrder = () => {
 
         console.log("USDC approval completed, proceeding with bridge");
 
-        // 4. Execute bridge transaction
+        // 4. Execute bridge transaction with multicall message
         const bridgeResult = await handleBridgeTransaction(
           quote.deposit,
-          SPOKE_POOL.OPTIMISM
+          SPOKE_POOL.OPTIMISM,
+          multicallMessage // Pass the message to the bridge transaction
         );
 
         console.log("Bridge transaction completed:", bridgeResult);

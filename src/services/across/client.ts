@@ -86,7 +86,7 @@ export const getAcrossQuote = async (params: QuoteParams) => {
     
     console.log("Requesting Across quote with params:", {
       ...params,
-      inputAmount: params.inputAmount.toString(), // Convert BigInt to string for logging
+      inputAmount: params.inputAmount.toString(), 
     });
 
     const quote = await client.getQuote({
