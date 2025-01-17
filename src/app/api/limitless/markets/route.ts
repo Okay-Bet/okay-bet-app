@@ -12,7 +12,9 @@ import type {
 const LIMITLESS_API_URL = "https://api.limitless.exchange";
 const MAX_RESULTS = 20;
 
-// Raw API response type from Limitless
+// USDC address on Base network
+const BASE_USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+
 interface LimitlessAPIMarket {
   address: string;
   conditionId: string;
@@ -58,41 +60,39 @@ const mapStatus = (status: string): MarketStatus => {
   }
 };
 
-// Modified transformMarket function
 const transformMarket = (market: LimitlessAPIMarket): LimitlessMarket => {
-    return {
-      id: market.address,
-      provider: "LIMITLESS" as MarketProvider,
-      question: market.title,
-      description: market.description,
-      status: mapStatus(market.status),
-      expirationDate: market.expirationDate,
-      timestamps: {
-        created: market.createdAt,
-      },
-      collateral: {
-        address: market.collateralToken.address,
-        symbol: market.collateralToken.symbol,
-        decimals: market.collateralToken.decimals,
-      },
-      metrics: {
-        volume: market.volumeFormatted,
-        // Convert BigInt to string before sending
-        volumeRaw: market.volume,  // It's already a string from the API
-        liquidity: market.liquidityFormatted,
-        liquidityRaw: market.liquidity,  // It's already a string from the API
-      },
-      prices: {
-        yes: {}, 
-        no: {},
-      },
-      contract: {
-        address: market.address,
-        network: "arbitrum",
-      },
-      conditionId: market.conditionId,
-    };
+  return {
+    id: market.address,
+    provider: "LIMITLESS" as MarketProvider,
+    question: market.title,
+    description: market.description,
+    status: mapStatus(market.status),
+    expirationDate: market.expirationDate,
+    timestamps: {
+      created: market.createdAt,
+    },
+    collateral: {
+      address: market.collateralToken.address,
+      symbol: market.collateralToken.symbol,
+      decimals: market.collateralToken.decimals,
+    },
+    metrics: {
+      volume: market.volumeFormatted,
+      volumeRaw: market.volume,
+      liquidity: market.liquidityFormatted,
+      liquidityRaw: market.liquidity,
+    },
+    prices: {
+      yes: {},
+      no: {},
+    },
+    contract: {
+      address: market.address,
+      network: "arbitrum",
+    },
+    conditionId: market.conditionId,
   };
+};
 
 const transformToEvent = (market: LimitlessMarket): Event => {
   return {
@@ -110,9 +110,14 @@ const filterMarkets = (
   markets: LimitlessAPIMarket[],
   searchParams: SearchParams = {}
 ): LimitlessAPIMarket[] => {
+  // First, filter for USDC collateral and minimum liquidity
   let filteredMarkets = markets.filter((market) => {
-    const liquidity = parseFloat(market.liquidityFormatted);
-    return liquidity;
+    const isUSDCCollateral =
+      market.collateralToken.address.toLowerCase() ===
+      BASE_USDC_ADDRESS.toLowerCase();
+    const hasLiquidity = parseFloat(market.liquidityFormatted) > 0;
+
+    return isUSDCCollateral && hasLiquidity;
   });
 
   // Apply search term filter
