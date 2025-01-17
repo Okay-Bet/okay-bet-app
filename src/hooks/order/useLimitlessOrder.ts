@@ -2,14 +2,12 @@ import { useState, useCallback } from "react";
 import { useSendTransaction, useActiveAccount } from "thirdweb/react";
 import { getContract, prepareContractCall } from "thirdweb";
 import { client } from "../../app/client";
-import { optimism } from "thirdweb/chains";
+import { optimism, base } from "thirdweb/chains";
 import { ethers } from "ethers";
 import { OrderRequest, AcrossQuote } from "../../components/types";
 import {
   getAcrossClient,
   getAcrossQuote,
-  getTokenAddress,
-  SUPPORTED_CHAINS,
   SPOKE_POOL,
   MULTICALL_HANDLERS,
   SUPPORTED_TOKENS,
@@ -25,15 +23,6 @@ import { SPOKE_POOL_ABI } from "../../constants/spoke-pool-abi";
 // Contract addresses
 const MARKET_FACTORY_ADDRESS = "0xc397D5d70cb3B56B26dd5C2824d49a96c4dabF50";
 const CONDITIONAL_TOKENS_ADDRESS = "0xC9c98965297Bc527861c898329Ee280632B76e18";
-
-// Token addresses
-const OPTIMISM_USDC = "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85";
-const BASE_USDC = "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA";
-
-// ABI for USDC approval
-const USDC_ABI = [
-  "function approve(address spender, uint256 amount) returns (bool)",
-];
 
 interface BridgeStep {
   step: "approval" | "bridging";
@@ -54,46 +43,6 @@ const MARKET_FACTORY_ABI = [
   "function getConditionalTokens() view returns (address)",
   "function getFee() view returns (uint256)",
 ];
-interface LimitlessOrderHookReturn {
-  submitOrder: (orderRequest: OrderRequest) => Promise<void>;
-  isLoading: boolean;
-  error: string | null;
-}
-
-interface PreparedTransactionBase {
-  to: string;
-  value?: bigint | string;
-  overrides?: {
-    data?: string;
-    value?: bigint;
-    [key: string]: any;
-  };
-}
-
-// Add a transaction normalizer
-const normalizeTxValue = (
-  transaction: PreparedTransactionBase
-): PreparedTransactionBase => {
-  const normalizedTx: PreparedTransactionBase = { ...transaction };
-
-  // Convert main value if it exists
-  if (typeof normalizedTx.value === "string") {
-    normalizedTx.value = BigInt(normalizedTx.value);
-  }
-
-  // Convert overrides value if it exists
-  if (
-    normalizedTx.overrides?.value &&
-    typeof normalizedTx.overrides.value === "string"
-  ) {
-    normalizedTx.overrides = {
-      ...normalizedTx.overrides,
-      value: BigInt(normalizedTx.overrides.value),
-    };
-  }
-
-  return normalizedTx;
-};
 
 export const useLimitlessOrder = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -140,27 +89,34 @@ export const useLimitlessOrder = () => {
           [outcomeIndex, amount]
         );
 
+        // Create the multicall instruction with fallback
+        const instructions = {
+          calls: [
+            {
+              target: CONDITIONAL_TOKENS_ADDRESS,
+              callData: approveCalldata,
+              value: 0,
+            },
+            {
+              target: marketAddress,
+              callData: buyCalldata,
+              value: 0,
+            },
+          ],
+          fallbackRecipient: userAddress, // If any call fails, funds return to user
+          revertOnFail: false, // Important: This ensures funds are returned on failure
+        };
+
         // Encode the Instructions object for the multicall handler
         return abiCoder.encode(
           [
             "tuple(" +
-              "tuple(" +
-              "address target," +
-              "bytes callData," +
-              "uint256 value" +
-              ")[]," +
-              "address fallbackRecipient" +
+              "tuple(address target, bytes callData, uint256 value)[] calls," +
+              "address fallbackRecipient," +
+              "bool revertOnFail" +
               ")",
           ],
-          [
-            [
-              [
-                [CONDITIONAL_TOKENS_ADDRESS, approveCalldata, 0],
-                [marketAddress, buyCalldata, 0],
-              ],
-              userAddress,
-            ],
-          ]
+          [instructions]
         );
       } catch (error) {
         console.error("Error generating multicall message:", error);
@@ -337,9 +293,138 @@ export const useLimitlessOrder = () => {
       });
       throw error;
     }
-  }; 
+  };
 
-  // Update the submitOrder function to pass the multicall message
+  // Add a dry run function to test market contract calls
+  const dryRunMarketCalls = async (
+    marketAddress: string,
+    amount: bigint,
+    outcomeIndex: number
+  ) => {
+    try {
+      console.log("Starting dry run of market calls...");
+      console.log("Market address:", marketAddress);
+
+      // Get contract instances for dry run
+      const conditionalTokensContract = getContract({
+        client,
+        chain: base,
+        address: CONDITIONAL_TOKENS_ADDRESS as `0x${string}`,
+        abi: CONDITIONAL_TOKENS_ABI,
+      });
+
+      console.log("Conditional tokens contract:", conditionalTokensContract);
+
+      const marketContract = getContract({
+        client,
+        chain: base,
+        address: marketAddress as `0x${string}`,
+        abi: MARKET_FACTORY_ABI,
+      });
+
+      console.log("Market contract:", marketContract);
+
+      // Test conditional tokens approval
+      const allowance = await conditionalTokensContract.read.allowance([
+        account!.address,
+        marketAddress,
+      ]);
+      console.log("Current allowance:", allowance.toString());
+
+      // Test market buy calculation
+      const buyAmount = await marketContract.read.calcBuyAmount([
+        amount,
+        outcomeIndex,
+      ]);
+      console.log("Calculated buy amount:", buyAmount.toString());
+
+      // Test market balance/liquidity
+      const marketBalance = await marketContract.read.getPoolBalance();
+      console.log("Market liquidity:", marketBalance.toString());
+
+      if (marketBalance < amount) {
+        throw new Error("Insufficient market liquidity");
+      }
+
+      console.log("Dry run successful - market calls should succeed");
+      return true;
+    } catch (error) {
+      console.error("Dry run failed:", error);
+      throw new Error(`Market validation failed: ${error.message}`);
+    }
+  };
+
+  const monitorBridgeAndRecover = async (bridgeResult: any) => {
+    let bridgeComplete = false;
+    while (!bridgeComplete) {
+      const status = await checkBridgeStatus(bridgeResult.transactionHash);
+      console.log("Bridge status:", status);
+
+      if (status.status === "filled") {
+        bridgeComplete = true;
+        console.log("Bridge completed! Checking destination transaction...");
+
+        // Check if the multicall succeeded
+        const destinationTx = status.fillTx;
+        if (destinationTx.status === 0) {
+          // Failed transaction
+          console.error("Multicall failed on destination chain");
+
+          // Initiate automatic bridge back
+          console.log("Starting automatic bridge back to Optimism...");
+
+          // Get current USDC balance on Base
+          const baseUSDC = getContract({
+            client,
+            chain: base,
+            address: SUPPORTED_TOKENS.BASE.USDC as `0x${string}`,
+            abi: ["function balanceOf(address) view returns (uint256)"],
+          });
+
+          const baseBalance = await baseUSDC.read.balanceOf([account!.address]);
+
+          if (baseBalance > BigInt(0)) {
+            // Approve USDC for bridge back if needed
+            const approvalTx = await handleTokenApproval(
+              SUPPORTED_TOKENS.BASE.USDC,
+              SPOKE_POOL.BASE,
+              baseBalance.toString()
+            );
+
+            // Get bridge back quote
+            const bridgeBackQuote = await acrossClient.getQuote({
+              route: {
+                originChainId: base.id,
+                destinationChainId: optimism.id,
+                inputToken: SUPPORTED_TOKENS.BASE.USDC as `0x${string}`,
+                outputToken: SUPPORTED_TOKENS.OPTIMISM.USDC as `0x${string}`,
+              },
+              inputAmount: baseBalance,
+              recipient: account!.address,
+            });
+
+            console.log("Bridge back quote received:", bridgeBackQuote);
+
+            // Execute bridge back
+            const bridgeBackResult = await handleBridgeTransaction(
+              bridgeBackQuote.deposit,
+              SPOKE_POOL.BASE,
+              "0x" // No multicall message needed for bridge back
+            );
+
+            console.log("Bridge back initiated:", bridgeBackResult);
+            throw new Error(
+              "Market transaction failed - funds bridged back to Optimism"
+            );
+          }
+        }
+      } else {
+        console.log("Bridge still in progress, waiting 30 seconds...");
+        await sleep(30000);
+      }
+    }
+  };
+
   const submitOrder = useCallback(
     async (orderRequest: OrderRequest) => {
       console.log("useLimitlessOrder: Received order request:", orderRequest);
@@ -353,9 +438,16 @@ export const useLimitlessOrder = () => {
 
       try {
         const acrossClient = getAcrossClient();
-
-        // 1. Generate multicall instructions
         const amountBigInt = BigInt(orderRequest.amount);
+
+        // 1. Perform dry run first
+        await dryRunMarketCalls(
+          orderRequest.tokenId,
+          amountBigInt,
+          orderRequest.isYesToken ? 1 : 0
+        );
+
+        // 2. Generate multicall instructions with fallback
         const multicallMessage = generateMessageForMulticallHandler(
           account.address,
           orderRequest.tokenId,
@@ -363,10 +455,7 @@ export const useLimitlessOrder = () => {
           orderRequest.isYesToken ? 1 : 0
         );
 
-        console.log(
-          "Generated multicall message:",
-          multicallMessage as `0x${string}`
-        );
+        console.log("Generated multicall message:", multicallMessage);
 
         const crossChainMessage = {
           actions: [
@@ -377,9 +466,10 @@ export const useLimitlessOrder = () => {
             },
           ],
           fallbackRecipient: account.address as `0x${string}`,
+          revertOnFail: false,
         };
 
-        // 2. Get Across quote with the multicall message
+        // 3. Get Across quote with the multicall message
         const quote = await acrossClient.getQuote({
           route: {
             originChainId: 10, // Optimism
@@ -394,7 +484,7 @@ export const useLimitlessOrder = () => {
 
         console.log("Received Across quote:", quote);
 
-        // 3. Approve USDC spend
+        // 4. Approve USDC spend
         await handleTokenApproval(
           SUPPORTED_TOKENS.OPTIMISM.USDC,
           SPOKE_POOL.OPTIMISM,
@@ -403,7 +493,7 @@ export const useLimitlessOrder = () => {
 
         console.log("USDC approval completed, proceeding with bridge");
 
-        // 4. Execute bridge transaction with multicall message
+        // 5. Execute bridge transaction with multicall message
         const bridgeResult = await handleBridgeTransaction(
           quote.deposit,
           SPOKE_POOL.OPTIMISM,
@@ -411,6 +501,12 @@ export const useLimitlessOrder = () => {
         );
 
         console.log("Bridge transaction completed:", bridgeResult);
+
+        // Start monitoring with recovery
+        monitorBridgeAndRecover(bridgeResult).catch((error) => {
+          console.error("Bridge monitoring/recovery error:", error);
+          setError(error.message);
+        });
 
         return bridgeResult;
       } catch (err) {
