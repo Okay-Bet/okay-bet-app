@@ -8,7 +8,6 @@ import { SPOKE_POOL_ABI } from "../../constants/spoke-pool-abi";
 // === Constants ===
 const ACROSS_IDENTIFIER = "1dc0def001";
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-const SPOKE_POOL_ADDRESS = "0x6f26Bf09B1C792e3228e5467807a900A503c0281";
 
 // === Timing and Validation Constants ===
 const FILL_DEADLINE_BUFFER = 3600; // 1 hour in seconds

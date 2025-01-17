@@ -5,7 +5,7 @@ import { OrderStatus, OrderRequest } from "../../components/types";
 import { useOrderValidation } from "./useOrderValidation";
 import { useBridgeTransfer } from "./useBridgeTransfer";
 import { submitDelegatedOrder } from "../../services/transaction";
-import { useLimitlessOrder } from "./useLimitlessOrder";
+import { useLimitlessOrder } from "./limitless/useLimitlessOrder";
 
 type Provider = "LIMITLESS" | "POLYMARKET";
 

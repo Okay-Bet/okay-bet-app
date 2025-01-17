@@ -64,3 +64,16 @@ export interface OrderHook {
   isLoading: boolean;
   bridgeStep?: BridgeProgress;
 }
+
+export interface BridgeStep {
+  step: "approval" | "bridging";
+  status: "pending" | "success" | "failed";
+  txHash?: string;
+}
+
+export interface UseLimitlessOrderReturn {
+  submitOrder: (orderRequest: OrderRequest) => Promise<any>;
+  isLoading: boolean;
+  error: string | null;
+  bridgeStep: BridgeStep;
+}
