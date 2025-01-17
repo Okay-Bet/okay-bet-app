@@ -22,7 +22,6 @@ import {
 import { sleep } from "../../services/transaction";
 import { SPOKE_POOL_ABI } from "../../constants/spoke-pool-abi";
 
-
 // Contract addresses
 const MARKET_FACTORY_ADDRESS = "0xc397D5d70cb3B56B26dd5C2824d49a96c4dabF50";
 const CONDITIONAL_TOKENS_ADDRESS = "0xC9c98965297Bc527861c898329Ee280632B76e18";
@@ -223,70 +222,66 @@ export const useLimitlessOrder = () => {
   const handleBridgeTransaction = async (
     deposit: any,
     spokePoolAddress: string,
-    multicallMessage: string // Add this parameter
+    multicallMessage: string
   ) => {
     console.log("=== Starting Bridge Transaction ===");
-    console.log("Initial deposit data:", {
-      recipient: deposit.recipient,
-      inputToken: deposit.inputToken,
-      outputToken: deposit.outputToken,
-      inputAmount: deposit.inputAmount.toString(),
-      outputAmount: deposit.outputAmount.toString(),
-      destinationChainId: deposit.destinationChainId,
-      spokePoolAddress,
-      multicallMessage: multicallMessage.slice(0, 66) + "...", // Log preview of message
-    });
+    console.log("Deposit parameters:", deposit);
 
     try {
-      // Generate deposit data with the multicall message
-      const depositData = await generateBridgeDepositData(
-        {
-          depositor: account!.address,
-          recipient: deposit.recipient,
-          inputToken: deposit.inputToken,
-          outputToken: deposit.outputToken,
-          inputAmount: deposit.inputAmount.toString(),
-          outputAmount: deposit.outputAmount.toString(),
-          destinationChainId: deposit.destinationChainId,
-          exclusiveRelayer: deposit.exclusiveRelayer,
-          quoteTimestamp: deposit.quoteTimestamp,
-          exclusivityPeriod: deposit.exclusivityDeadline,
-          message: multicallMessage, // Include the multicall message here
-        },
-        spokePoolAddress
-      );
-
-      console.log("=== Generated Deposit Data ===");
-      console.log("Deposit data length:", depositData.length);
-      console.log("Deposit data prefix:", depositData.slice(0, 66));
-      console.log(
-        "Included multicall message:",
-        multicallMessage.slice(0, 66) + "..."
-      );
-
-      // Get the bridge transaction using contract call pattern
       const spokePoolContract = getContract({
         client,
-        address: spokePoolAddress as `0x${string}`,
         chain: optimism,
+        address: spokePoolAddress as `0x${string}`,
         abi: SPOKE_POOL_ABI,
       });
 
-      console.log("=== Prepared Spoke Pool Contract ===", {
-        spokePoolContract,
+      // Convert numeric values to appropriate types
+      const inputAmount = BigInt(deposit.inputAmount);
+      const outputAmount = BigInt(deposit.outputAmount);
+      const destinationChainId = BigInt(deposit.destinationChainId);
+      const quoteTimestamp = Number(deposit.quoteTimestamp); // uint32
+      const fillDeadline = Math.floor(Date.now() / 1000) + 3600; // uint32, 1 hour from now
+      const exclusivityDeadline = Number(deposit.exclusivityDeadline); // uint32
+
+      console.log("=== Prepared Parameters ===", {
+        depositor: account!.address,
+        recipient: deposit.recipient,
+        inputToken: deposit.inputToken,
+        outputToken: deposit.outputToken,
+        inputAmount: inputAmount.toString(),
+        outputAmount: outputAmount.toString(),
+        destinationChainId: destinationChainId.toString(),
+        exclusiveRelayer: deposit.exclusiveRelayer,
+        quoteTimestamp,
+        fillDeadline,
+        exclusivityDeadline,
+        messageLength: multicallMessage.length,
       });
 
-      spokePoolAddress = spokePoolAddress.toLowerCase() as `0x${string}`;
-
-      let rawBridgeTx = prepareContractCall({
-        contract: spokePoolAddress,
+      const rawBridgeTx = prepareContractCall({
+        contract: spokePoolContract,
         method: "depositV3",
-        params: [depositData],
-        // value: BigInt(deposit.inputAmount),
+        params: [
+          account!.address, // depositor
+          deposit.recipient,
+          deposit.inputToken,
+          deposit.outputToken,
+          inputAmount,
+          outputAmount,
+          destinationChainId,
+          deposit.exclusiveRelayer,
+          quoteTimestamp,
+          fillDeadline,
+          exclusivityDeadline,
+          multicallMessage,
+        ],
       });
 
-      const bridgeTx = normalizeTxValue(rawBridgeTx);
-
+      // Resolve the transaction data
+      const bridgeTx = {
+        ...rawBridgeTx,
+        data: await rawBridgeTx.data(),
+      };
 
       console.log("=== Prepared Bridge Transaction ===", {
         tx: bridgeTx,
@@ -301,7 +296,7 @@ export const useLimitlessOrder = () => {
         sendTransaction(bridgeTx, {
           onSuccess: async (result) => {
             try {
-              console.log("Bridge transaction sent:");
+              console.log("Bridge transaction sent:", result);
 
               setBridgeStep({
                 step: "bridging",
@@ -342,7 +337,7 @@ export const useLimitlessOrder = () => {
       });
       throw error;
     }
-  };
+  }; 
 
   // Update the submitOrder function to pass the multicall message
   const submitOrder = useCallback(
@@ -368,15 +363,20 @@ export const useLimitlessOrder = () => {
           orderRequest.isYesToken ? 1 : 0
         );
 
-        console.log("Generated multicall message:", multicallMessage as `0x${string}`);
+        console.log(
+          "Generated multicall message:",
+          multicallMessage as `0x${string}`
+        );
 
         const crossChainMessage = {
-          actions: [{
-            target: MULTICALL_HANDLERS.BASE as `0x${string}`,
-            callData: multicallMessage as `0x${string}`,
-            value: BigInt(0)
-          }],
-          fallbackRecipient: account.address as `0x${string}`
+          actions: [
+            {
+              target: MULTICALL_HANDLERS.BASE as `0x${string}`,
+              callData: multicallMessage as `0x${string}`,
+              value: BigInt(0),
+            },
+          ],
+          fallbackRecipient: account.address as `0x${string}`,
         };
 
         // 2. Get Across quote with the multicall message
