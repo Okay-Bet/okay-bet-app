@@ -11,6 +11,7 @@ import { useMulticallMessage } from "./useMulticallMessage";
 import { useTokenApproval } from "./useTokenApproval";
 import { useBridgeTransaction } from "./useBridgeTransaction";
 import { BridgeStep } from "../../../components/types";
+import { ethers } from "ethers";
 
 export const useLimitlessOrder = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -35,78 +36,57 @@ export const useLimitlessOrder = () => {
       setError(null);
 
       try {
-        const acrossClient = getAcrossClient();
+        // Step 1: Prepare multicall message
+        setBridgeStep({ step: "preparing", status: "processing" });
         const amountBigInt = BigInt(orderRequest.amount);
+        
+        const multicallMessage = generateMessageForMulticallHandler({
+          userAddress: account.address,
+          marketAddress: orderRequest.tokenId,
+          amount: amountBigInt,
+          outcomeIndex: orderRequest.isYesToken ? 1 : 0,
+          usdcAddress: SUPPORTED_TOKENS.BASE.USDC,
+        });
 
-        // 1. Generate multicall instructions with fallback
-        const multicallMessage = generateMessageForMulticallHandler(
-          account.address,
-          orderRequest.tokenId,
-          amountBigInt,
-          orderRequest.isYesToken ? 1 : 0
-        );
-
-        console.log("Generated multicall message:", multicallMessage);
-
-        const crossChainMessage = {
-          actions: [
-            {
-              target: MULTICALL_HANDLERS.BASE as `0x${string}`,
-              callData: multicallMessage as `0x${string}`,
-              value: BigInt(0),
-            },
-          ],
-          fallbackRecipient: account.address as `0x${string}`,
-          revertOnFail: false,
-        };
-
-        // 3. Get Across quote with the multicall message
+        // Step 2: Get quote with multicall
+        const acrossClient = getAcrossClient();
         const quote = await acrossClient.getQuote({
           route: {
-            originChainId: 10, // Optimism
-            destinationChainId: 8453, // Base
+            originChainId: 10,
+            destinationChainId: 8453,
             inputToken: SUPPORTED_TOKENS.OPTIMISM.USDC as `0x${string}`,
             outputToken: SUPPORTED_TOKENS.BASE.USDC as `0x${string}`,
           },
           inputAmount: amountBigInt,
           recipient: MULTICALL_HANDLERS.BASE as `0x${string}`,
-          crossChainMessage,
+          crossChainMessage: multicallMessage,
         });
 
-        console.log("Received Across quote:", quote);
-
-        // 4. Approve USDC spend
+        // Step 3: Token approval
+        setBridgeStep({ step: "approval", status: "processing" });
         await handleTokenApproval(
           SUPPORTED_TOKENS.OPTIMISM.USDC,
           SPOKE_POOL.OPTIMISM,
           quote.deposit.inputAmount.toString()
         );
 
-        console.log("USDC approval completed, proceeding with bridge");
-
-        // 5. Execute bridge transaction with multicall message
+        // Step 4: Execute bridge transaction
+        setBridgeStep({ step: "bridging", status: "processing" });
         const bridgeResult = await handleBridgeTransaction(
           quote.deposit,
           SPOKE_POOL.OPTIMISM,
-          multicallMessage // Pass the message to the bridge transaction
+          multicallMessage
         );
 
-        console.log("Bridge transaction completed:", bridgeResult);
-
-        // // Start monitoring with recovery
-        // monitorBridgeAndRecover(bridgeResult).catch((error) => {
-        //   console.error("Bridge monitoring/recovery error:", error);
-        //   setError(error.message);
-        // });
-
+        setBridgeStep({ step: "completed", status: "success" });
         return bridgeResult;
+
       } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Unknown error occurred";
+        const errorMessage = err instanceof Error ? err.message : "Unknown error occurred";
         console.error("Order submission error:", errorMessage);
         setError(errorMessage);
         setBridgeStep({
-          ...bridgeStep,
+          step: bridgeStep.step,
           status: "failed",
         });
         throw new Error(errorMessage);
