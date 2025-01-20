@@ -2,15 +2,37 @@ import { useState } from "react";
 import { useSendTransaction, useActiveAccount } from "thirdweb/react";
 import { getContract, prepareContractCall } from "thirdweb";
 import { optimism } from "thirdweb/chains";
+import { ethers } from "ethers";
 import { client } from "../../../app/client";
 import { SPOKE_POOL_ABI } from "../../../constants/spoke-pool-abi";
 import { sleep } from "../../../services/transaction";
 import { BridgeStep } from "../../../components/types";
 
-const validateBridgeParameters = (deposit: any) => {
+// Strongly typed interface for deposit parameters
+interface DepositParams {
+  quoteTimestamp: number;
+  inputAmount: string | bigint;
+  outputAmount: string | bigint;
+  inputToken: string;
+  outputToken: string;
+  recipient: string;
+  destinationChainId: number | string;
+  exclusiveRelayer: string;
+  exclusivityDeadline: number;
+  message?: string; // Optional for non-multicall transactions
+}
+
+// Bridge transaction response type
+interface BridgeTransactionResponse {
+  transactionHash: string;
+  // Add other relevant fields based on your actual response
+}
+
+// Validation function with proper type checking
+const validateBridgeParameters = (deposit: DepositParams) => {
   console.log("Validating bridge parameters:", deposit);
-  
-  // Remove the exclusivityDeadline check since it can be 0
+
+  // Essential parameter checks
   if (!deposit.quoteTimestamp) {
     throw new Error("Missing quote timestamp");
   }
@@ -27,7 +49,52 @@ const validateBridgeParameters = (deposit: any) => {
     throw new Error("Missing recipient address");
   }
 
+  // Address format validation
+  const addresses = [
+    deposit.inputToken,
+    deposit.outputToken,
+    deposit.recipient,
+  ];
+  addresses.forEach((address) => {
+    if (!ethers.isAddress(address)) {
+      throw new Error(`Invalid address format: ${address}`);
+    }
+  });
+
   console.log("Bridge parameters validation passed");
+};
+
+// Transaction monitoring function
+const monitorBridgeTransaction = async (txHash: string): Promise<boolean> => {
+  const MAX_ATTEMPTS = 20; // 5 minutes with 15s intervals
+  let attempts = 0;
+
+  while (attempts < MAX_ATTEMPTS) {
+    try {
+      const response = await fetch(
+        `https://across.to/api/deposit-status?transactionHash=${txHash}`
+      );
+      const status = await response.json();
+
+      console.log(`Transaction status (attempt ${attempts + 1}):`, status);
+
+      if (status.filled) {
+        return true;
+      }
+
+      if (status.failed || status.cancelled) {
+        throw new Error(`Bridge failed: ${status.message || "Unknown error"}`);
+      }
+
+      await sleep(15000); // 15 second intervals
+      attempts++;
+    } catch (error) {
+      console.error("Error monitoring transaction:", error);
+      throw error;
+    }
+  }
+
+  throw new Error("Transaction monitoring timeout");
 };
 
 export const useBridgeTransaction = () => {
@@ -39,10 +106,10 @@ export const useBridgeTransaction = () => {
   });
 
   const handleBridgeTransaction = async (
-    deposit: any,
+    deposit: DepositParams,
     spokePoolAddress: string,
     multicallMessage: string
-  ) => {
+  ): Promise<BridgeTransactionResponse> => {
     if (!account) {
       throw new Error("No active account found");
     }
@@ -51,9 +118,10 @@ export const useBridgeTransaction = () => {
     console.log("Deposit parameters:", deposit);
 
     try {
-      // Validate parameters before proceeding
+      // Validate all parameters before proceeding
       validateBridgeParameters(deposit);
 
+      // Get contract instance
       const spokePoolContract = getContract({
         client,
         chain: optimism,
@@ -63,27 +131,20 @@ export const useBridgeTransaction = () => {
 
       console.log("Got spoke pool contract:", spokePoolAddress);
 
-      // Convert numeric values to appropriate types
-      const inputAmount = BigInt(deposit.inputAmount);
-      const outputAmount = BigInt(deposit.outputAmount);
-      const destinationChainId = BigInt(deposit.destinationChainId);
-      const quoteTimestamp = Number(deposit.quoteTimestamp);
-      const fillDeadline = Math.floor(Date.now() / 1000) + 3600;
-      // Accept 0 as valid for exclusivityDeadline
-      const exclusivityDeadline = Number(deposit.exclusivityDeadline);
-
+      // Prepare transaction parameters with proper type conversion
+      const currentTimestamp = Math.floor(Date.now() / 1000);
       const params = [
         account.address, // depositor
         deposit.recipient,
         deposit.inputToken,
         deposit.outputToken,
-        inputAmount,
-        outputAmount,
-        destinationChainId,
+        BigInt(deposit.inputAmount),
+        BigInt(deposit.outputAmount),
+        BigInt(deposit.destinationChainId),
         deposit.exclusiveRelayer,
-        quoteTimestamp,
-        fillDeadline,
-        exclusivityDeadline,
+        deposit.quoteTimestamp,
+        currentTimestamp + 3600, // fillDeadline: 1 hour window
+        deposit.exclusivityDeadline || 0, // Allow 0 for exclusivityDeadline
         multicallMessage,
       ];
 
@@ -92,17 +153,17 @@ export const useBridgeTransaction = () => {
         recipient: deposit.recipient,
         inputToken: deposit.inputToken,
         outputToken: deposit.outputToken,
-        inputAmount: inputAmount.toString(),
-        outputAmount: outputAmount.toString(),
-        destinationChainId: destinationChainId.toString(),
+        inputAmount: deposit.inputAmount.toString(),
+        outputAmount: deposit.outputAmount.toString(),
+        destinationChainId: deposit.destinationChainId.toString(),
         exclusiveRelayer: deposit.exclusiveRelayer,
-        quoteTimestamp,
-        fillDeadline,
-        exclusivityDeadline,
+        quoteTimestamp: deposit.quoteTimestamp,
+        fillDeadline: currentTimestamp + 3600,
+        exclusivityDeadline: deposit.exclusivityDeadline || 0,
         messageLength: multicallMessage.length,
-        params: params // Log the actual parameters being sent
       });
 
+      // Prepare the contract call
       console.log("Preparing contract call...");
       const rawBridgeTx = prepareContractCall({
         contract: spokePoolContract,
@@ -110,10 +171,20 @@ export const useBridgeTransaction = () => {
         params,
       });
 
+      // Get transaction data and estimate gas
       console.log("Contract call prepared, getting data...");
+      const [txData, estimatedGas] = await Promise.all([
+        rawBridgeTx.data(),
+        spokePoolContract.estimateGas.depositV3(...params),
+      ]);
+
+      // Add 20% buffer to gas estimate
+      const gasLimit = Math.floor(Number(estimatedGas.toString()) * 1.2);
+
       const bridgeTx = {
         ...rawBridgeTx,
-        data: await rawBridgeTx.data(),
+        data: txData,
+        gasLimit,
       };
 
       console.log("=== Prepared Bridge Transaction ===", {
@@ -138,16 +209,21 @@ export const useBridgeTransaction = () => {
                 txHash: result.transactionHash,
               });
 
-              await sleep(15000);
-              console.log("Bridge transaction confirmed");
+              // Monitor transaction until completion or failure
+              const success = await monitorBridgeTransaction(
+                result.transactionHash
+              );
 
-              setBridgeStep({
-                step: "bridging",
-                status: "success",
-                txHash: result.transactionHash,
-              });
-
-              resolve(result);
+              if (success) {
+                setBridgeStep({
+                  step: "bridging",
+                  status: "success",
+                  txHash: result.transactionHash,
+                });
+                resolve(result);
+              } else {
+                throw new Error("Transaction failed during monitoring");
+              }
             } catch (error) {
               console.error("Bridge confirmation failed:", error);
               setBridgeStep({

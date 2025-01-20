@@ -48,7 +48,7 @@ export const useMulticallMessage = () => {
       const marketInterface = new ethers.Interface(MARKET_ABI);
       const erc20Interface = new ethers.Interface(ERC20_ABI);
 
-      // Create our structured actions
+      // Three-step action sequence
       const actions = [
         {
           target: usdcAddress as `0x${string}`,
@@ -63,7 +63,15 @@ export const useMulticallMessage = () => {
           callData: marketInterface.encodeFunctionData("buy", [
             amount,
             outcomeIndex,
-            BigInt(0),
+            BigInt(0), // minOutcomeTokensToBuy
+          ]) as `0x${string}`,
+          value: BigInt(0),
+        },
+        {
+          target: marketAddress as `0x${string}`,
+          callData: marketInterface.encodeFunctionData("transfer", [
+            userAddress,
+            amount, // Assuming 1:1 ratio, adjust if different
           ]) as `0x${string}`,
           value: BigInt(0),
         },
