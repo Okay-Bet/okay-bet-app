@@ -3,7 +3,7 @@ import { usePositions } from "../../hooks/usePositions";
 import { useSellPosition } from "../../hooks/useSellPosition";
 import { useActiveAccount } from "thirdweb/react";
 import { ChevronDown, ChevronUp, Wallet } from "lucide-react";
-import { Position as ImportedPosition } from "../types/position";
+import { BasePosition as ImportedPosition } from "../types";
 
 interface MarketData {
   question: string;
@@ -16,8 +16,6 @@ interface Position extends ImportedPosition {
   token_id: string | null;
   balances: number[];
   prices: number[];
-  outcome: number;
-  status: string;
   user_address: string;
   market_data?: MarketData;
 }

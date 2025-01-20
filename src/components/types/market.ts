@@ -43,6 +43,12 @@ export interface PolymarketMarket extends BaseMarket {
     yes: string;
     no: string;
   };
+  yesBestAsk?: number;
+  noBestAsk?: number;
+  yesBestBid?: number;
+  noBestBid?: number;
+  liquidity_num?: number;
+  volume_num?: number;
 }
 
 export interface OrderBook {

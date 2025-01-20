@@ -1,4 +1,3 @@
-// app/api/limitless/markets/route.ts
 import { NextResponse } from "next/server";
 import type {
   MarketProvider,
@@ -8,12 +7,11 @@ import type {
   SearchParams,
   Event,
 } from "@/components/types";
+import { SUPPORTED_TOKENS } from "@/services/across/client";
 
 const LIMITLESS_API_URL = "https://api.limitless.exchange";
 const MAX_RESULTS = 20;
 
-// USDC address on Base network
-const BASE_USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 
 interface LimitlessAPIMarket {
   address: string;
@@ -63,7 +61,7 @@ const mapStatus = (status: string): MarketStatus => {
 const transformMarket = (market: LimitlessAPIMarket): LimitlessMarket => {
   return {
     id: market.address,
-    provider: "LIMITLESS" as MarketProvider,
+    provider: "LIMITLESS" as const,
     question: market.title,
     description: market.description,
     status: mapStatus(market.status),
@@ -114,7 +112,7 @@ const filterMarkets = (
   let filteredMarkets = markets.filter((market) => {
     const isUSDCCollateral =
       market.collateralToken.address.toLowerCase() ===
-      BASE_USDC_ADDRESS.toLowerCase();
+      SUPPORTED_TOKENS.BASE.USDC.toLowerCase();
     const hasLiquidity = parseFloat(market.liquidityFormatted) > 0;
 
     return isUSDCCollateral && hasLiquidity;

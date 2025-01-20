@@ -2,10 +2,10 @@
 import { NextResponse } from "next/server";
 import {
   Event,
-  Market,
+  PolymarketMarket,
   SearchParams,
   MARKET_CONSTANTS,
-} from "../../../components/types/market";
+} from "../../../components/types";
 import { transformMarket } from "../../../utils/transforms";
 
 const GAMMA_API_URL = "https://gamma-api.polymarket.com";
@@ -15,12 +15,12 @@ const MIN_LIQUIDITY = MARKET_CONSTANTS.MIN_LIQUIDITY;
 const MIN_ACTIVE_PRICE = MARKET_CONSTANTS.MIN_ACTIVE_PRICE;
 const MAX_DEAD_PRICE = MARKET_CONSTANTS.MAX_DEAD_PRICE;
 
-function getComparableYesPrice(market: Market): number {
+function getComparableYesPrice(market: PolymarketMarket): number {
   const price = market.yesBestAsk || market.yesBestBid;
   return price ?? -1; // Using nullish coalescing for better type safety
 }
 
-function sortMarketsByYesPrice(markets: Market[]): Market[] {
+function sortMarketsByYesPrice(markets: PolymarketMarket[]): PolymarketMarket[] {
   return [...markets].sort((a, b) => {
     const priceA = getComparableYesPrice(a);
     const priceB = getComparableYesPrice(b);
@@ -28,7 +28,7 @@ function sortMarketsByYesPrice(markets: Market[]): Market[] {
   });
 }
 
-function isMarketActive(market: Partial<Market>): boolean {
+function isMarketActive(market: Partial<PolymarketMarket>): boolean {
   const transformedMarket = transformMarket(market);
 
   if (!transformedMarket) {
@@ -67,7 +67,7 @@ function isMarketActive(market: Partial<Market>): boolean {
 interface RawEvent {
   id: string;
   title: string;
-  markets: Partial<Market>[];
+  markets: Partial<PolymarketMarket>[];
 }
 
 export async function POST(request: Request) {
@@ -99,13 +99,13 @@ export async function POST(request: Request) {
         // Transform and filter markets
         const activeMarkets = event.markets
           .filter(
-            (market: Partial<Market>): market is Market =>
+            (market: Partial<PolymarketMarket>): market is PolymarketMarket =>
               market !== null &&
               typeof market === "object" &&
               isMarketActive(market)
           )
           .map(transformMarket)
-          .filter((market): market is Market => market !== null);
+          .filter((market): market is PolymarketMarket => market !== null);
 
         if (activeMarkets.length === 0) {
           return null;
