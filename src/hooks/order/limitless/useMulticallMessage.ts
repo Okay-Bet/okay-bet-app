@@ -1,6 +1,12 @@
-import { useCallback } from "react";
+import { useState, useCallback } from "react";
 import { ethers } from "ethers";
 import { MARKET_ABI } from "../../../constants/limitless/market-abi";
+import { MULTICALL_HANDLER_ABI } from "../../../constants/across/multicall-handler-abi";
+import { MULTICALL_HANDLERS } from "../../../services/across/client";
+
+// Base network configuration
+const BASE_RPC_URL = "https://mainnet.base.org";
+const BASE_CHAIN_ID = 8453;
 
 interface MulticallParams {
   userAddress: string;
@@ -26,15 +32,63 @@ const ERC20_ABI = [
 ];
 
 export const useMulticallMessage = () => {
-  return useCallback((params: MulticallParams): string => {
+  const [tokenAddress, setTokenAddress] = useState<string | null>(null);
+  const provider = new ethers.JsonRpcProvider(BASE_RPC_URL, BASE_CHAIN_ID);
+
+  const readConditionalTokenAddress = useCallback(
+    async (marketAddress: string) => {
+      try {
+        // Create contract instance with error handling
+        if (!ethers.isAddress(marketAddress)) {
+          throw new Error("Invalid market address format");
+        }
+
+        const contract = new ethers.Contract(
+          marketAddress,
+          MARKET_ABI,
+          provider
+        );
+        console.log("Reading conditional tokens from market:", marketAddress);
+
+        const address = await contract.conditionalTokens();
+
+        // Validate returned address
+        if (!ethers.isAddress(address)) {
+          throw new Error(
+            "Invalid conditional token address returned from contract"
+          );
+        }
+
+        console.log("Found conditional token address:", address);
+        setTokenAddress(address);
+        return address;
+      } catch (error) {
+        console.error("Error reading conditional token address:", error);
+        throw new Error(
+          `Failed to read conditional token address: ${error.message}`
+        );
+      }
+    },
+    [provider]
+  );
+
+  return useCallback(async (params: MulticallParams): Promise<string> => {
     try {
       const { userAddress, marketAddress, amount, outcomeIndex, usdcAddress } =
         params;
 
       // Validate inputs
-      if (!ethers.isAddress(marketAddress) || !ethers.isAddress(usdcAddress)) {
-        throw new Error("Invalid address format");
+      if (
+        !ethers.isAddress(userAddress) ||
+        !ethers.isAddress(marketAddress) ||
+        !ethers.isAddress(usdcAddress)
+      ) {
+        throw new Error("Invalid address format in parameters");
       }
+
+      // Get conditional token address with caching
+      const conditionalTokenAddress =
+        tokenAddress || (await readConditionalTokenAddress(marketAddress));
 
       console.log("Generating multicall message with params:", {
         userAddress,
@@ -42,11 +96,13 @@ export const useMulticallMessage = () => {
         amount: amount.toString(),
         outcomeIndex,
         usdcAddress,
+        conditionalTokenAddress,
       });
 
       // Create interfaces
       const marketInterface = new ethers.Interface(MARKET_ABI);
       const erc20Interface = new ethers.Interface(ERC20_ABI);
+      const handlerInterface = new ethers.Interface(MULTICALL_HANDLER_ABI);
 
       // Three-step action sequence
       const actions = [
@@ -68,10 +124,10 @@ export const useMulticallMessage = () => {
           value: BigInt(0),
         },
         {
-          target: marketAddress as `0x${string}`,
-          callData: marketInterface.encodeFunctionData("transfer", [
-            userAddress,
-            amount, // Assuming 1:1 ratio, adjust if different
+          target: MULTICALL_HANDLERS.BASE as `0x${string}`,
+          callData: handlerInterface.encodeFunctionData("drainLeftoverTokens", [
+            conditionalTokenAddress,
+            userAddress, // Assuming 1:1 ratio, adjust if different
           ]) as `0x${string}`,
           value: BigInt(0),
         },
