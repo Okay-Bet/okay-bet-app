@@ -1,19 +1,22 @@
 // useOrder.ts
 import { useState } from "react";
 import { useActiveAccount } from "thirdweb/react";
-import { OrderStatus, OrderRequest } from "../../components/types";
+import { OrderStatus, OrderRequest, BridgeStep } from "../../components/types";
 import { useLimitlessNativeOrder } from "./limitless/useLimitlessNativeOrder";
 
-type Provider = "LIMITLESS" |  "POLYMARKET";
+type Provider = "LIMITLESS" | "POLYMARKET";
 
 export const useOrder = () => {
   const [status, setStatus] = useState<OrderStatus>({ state: "idle" });
   const account = useActiveAccount();
-  
-  // Initialize both order handlers
-  const { submitOrder: submitNativeOrder } = useLimitlessNativeOrder();
-  
-  // Default to limitless implementation
+
+  // Get both order handlers and approval status
+  const {
+    submitOrder: submitNativeOrder,
+    approvalStep, // Important: We now destructure approvalStep
+  } = useLimitlessNativeOrder();
+
+  // Default to native limitless implementation
   const provider: Provider = "LIMITLESS";
 
   const submitOrder = async (orderRequest: OrderRequest) => {
@@ -33,7 +36,6 @@ export const useOrder = () => {
           setStatus({ state: "complete", result: nativeResult });
           return nativeResult;
 
-
         case "POLYMARKET":
           throw new Error("Polymarket integration not implemented");
 
@@ -42,17 +44,22 @@ export const useOrder = () => {
       }
     } catch (err) {
       console.error("Order error:", err);
-      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred";
+      const errorMessage =
+        err instanceof Error ? err.message : "An unexpected error occurred";
       setStatus({ state: "error", error: errorMessage });
       throw new Error(errorMessage);
     }
   };
 
-  const isLoading = ["preparing_transfer", "submitting_order"].includes(status.state);
+  const isLoading = ["preparing_transfer", "submitting_order"].includes(
+    status.state
+  );
 
+  // Return approvalStep in the hook's interface
   return {
     submitOrder,
     status,
     isLoading,
+    approvalStep, // Now exposed to consuming components
   };
 };

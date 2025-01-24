@@ -21,7 +21,7 @@ interface OrderQuote {
   estimatedTotal: number;
 }
 
-// FPMM (Fixed Product Market Maker) contract interface
+// FPMM contract interface
 const FPMM_ABI = parseAbi([
   "function calcBuyAmount(uint256 investmentAmount, uint256 outcomeIndex) view returns (uint256)",
   "function calcSellAmount(uint256 returnAmount, uint256 outcomeIndex) view returns (uint256)",
@@ -33,18 +33,42 @@ const publicClient = createPublicClient({
   transport: http(),
 });
 
+// Constants
+const MIN_TOKENS = 1.0;
+
 export const BetSlip: React.FC = () => {
   // Hook integrations
   const { bet, removeBet, clearBets } = useBetSlip();
-  const { submitOrder, status, isLoading } = useOrder();
+  const { submitOrder, status, approvalStep, isLoading } = useOrder();
 
   // Local state management
   const [amount, setAmount] = useState<string>("");
   const [quote, setQuote] = useState<OrderQuote | null>(null);
   const [isQuoting, setIsQuoting] = useState(false);
+  const [transactionStatus, setTransactionStatus] = useState<string>("");
 
-  // Constants
-  const MIN_TOKENS = 1.0;
+  // Effect to handle transaction status messages
+  useEffect(() => {
+    if (approvalStep.status === "processing") {
+      setTransactionStatus("Requesting USDC approval...");
+    } else if (approvalStep.status === "pending") {
+      setTransactionStatus("Waiting for approval confirmation...");
+    } else if (status.state === "submitting_order") {
+      setTransactionStatus("Placing your order...");
+    } else if (status.state === "complete") {
+      setTransactionStatus("Order completed successfully!");
+      // Only clear bets after showing success message
+      const timeoutId = setTimeout(() => {
+        clearBets();
+        setAmount("");
+        setQuote(null);
+        setTransactionStatus("");
+      }, 3000); // Clear after 3 seconds
+      return () => clearTimeout(timeoutId);
+    } else if (status.state === "error") {
+      setTransactionStatus(`Error: ${status.error || "Transaction failed"}`);
+    }
+  }, [approvalStep, status, clearBets]);
 
   // Effect for quote calculation
   useEffect(() => {
@@ -131,13 +155,10 @@ export const BetSlip: React.FC = () => {
       };
 
       console.log("Submitting order request:", orderRequest);
-      const result = await submitOrder(orderRequest);
-      console.log("Order submitted successfully:", result);
-      clearBets();
-      setAmount("");
-      setQuote(null);
+      await submitOrder(orderRequest);
     } catch (err) {
       console.error("Order placement error:", err);
+      setTransactionStatus("Failed to place order. Please try again.");
     }
   };
 
@@ -178,7 +199,6 @@ export const BetSlip: React.FC = () => {
   // Early return if no active bet
   if (!bet) return null;
 
-  // Main component render
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg">
       <div className="container mx-auto max-w-4xl">
@@ -190,10 +210,26 @@ export const BetSlip: React.FC = () => {
               <button
                 onClick={clearBets}
                 className="text-sm text-red-600 hover:text-red-800 transition-colors"
+                disabled={isLoading}
               >
                 Clear
               </button>
             </div>
+
+            {/* Transaction Status Message */}
+            {transactionStatus && (
+              <div
+                className={`p-4 rounded-lg ${
+                  status.state === "error"
+                    ? "bg-red-50 text-red-700"
+                    : status.state === "complete"
+                    ? "bg-green-50 text-green-700"
+                    : "bg-blue-50 text-blue-700"
+                }`}
+              >
+                <p className="text-sm font-medium">{transactionStatus}</p>
+              </div>
+            )}
 
             {/* Bet Details */}
             <div className="bg-gray-50 p-4 rounded-lg">
@@ -210,6 +246,7 @@ export const BetSlip: React.FC = () => {
                 <button
                   onClick={() => removeBet(bet.marketId)}
                   className="text-gray-400 hover:text-gray-600 p-1"
+                  disabled={isLoading}
                 >
                   ×
                 </button>
@@ -263,7 +300,9 @@ export const BetSlip: React.FC = () => {
                 }
                 onClick={handlePlaceOrder}
               >
-                {isLoading ? "Processing..." : "Place Order"}
+                {isLoading
+                  ? transactionStatus || "Processing..."
+                  : "Place Order"}
               </button>
             </div>
           </div>

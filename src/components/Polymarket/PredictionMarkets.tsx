@@ -108,7 +108,7 @@ const PredictionMarkets: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center mb-4">
+      {/* <div className="flex justify-between items-center mb-4">
         <MarketSearch onSearch={handleSearch} isLoading={state.loading} />
         <div className="flex gap-2">
           <button
@@ -132,7 +132,7 @@ const PredictionMarkets: React.FC = () => {
             Polymarket
           </button>
         </div>
-      </div>
+      </div> */}
 
       {state.error && (
         <div className="p-4 bg-red-50 text-red-600 rounded-lg">
@@ -146,7 +146,7 @@ const PredictionMarkets: React.FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {state.events.map((event) => (
           <div key={event.id} className="relative isolate items-start">
             <MarketCard

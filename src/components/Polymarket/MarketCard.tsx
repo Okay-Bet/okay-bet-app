@@ -73,7 +73,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
   const isMarketActive = currentMarket.status === "ACTIVE";
 
   return (
-    <div className="bg-demo rounded-xl shadow-lg overflow-hidden">
+    <div className="bg-demo rounded-xl shadow-2xl overflow-hidden m-3">
       {/* Header Section */}
       <div className="p-4 border-b border-gray-700 flex justify-between items-center">
         <div className="flex-1">
@@ -91,7 +91,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
       </div>
 
       {/* Market Tabs */}
-      <div className="border-b border-gray-700">
+      {/* <div className="border-b border-gray-700">
         <div className="flex -mx-4 overflow-x-auto whitespace-nowrap scrollbar-hide">
           {markets.map((market, index) => (
             <button
@@ -109,13 +109,13 @@ export const MarketCard: React.FC<MarketCardProps> = ({
             </button>
           ))}
         </div>
-      </div>
+      </div> */}
 
       {/* Market Content */}
       <div className="p-4">
-        <h3 className="text-lg font-medium text-primary mb-4">
+        {/* <h3 className="text-lg font-medium text-primary mb-4">
           {currentMarket.question}
-        </h3>
+        </h3> */}
 
         {/* Price Display */}
         <div className="grid grid-cols-2 gap-4">
