@@ -12,7 +12,7 @@ import { BetSlipProvider } from "./context/BetSlipContext";
 import { BetSlip } from "../components/Bet/BetSlip";
 import PredictionMarkets from "../components/Polymarket/PredictionMarkets";
 import Testimonials from "../components/Landing/Testimonials";
-// import UserPositions from "../components/User/UserPositions";
+import UserPositions from "../components/User/UserPositions";
 
 
 export default function Home() {
@@ -37,6 +37,7 @@ export default function Home() {
           <div className="w-full">
         <main className="mt-8 mb-4">
           <BetSlipProvider>
+            <UserPositions />
             <PredictionMarkets/>
             <BetSlip />
           </BetSlipProvider>

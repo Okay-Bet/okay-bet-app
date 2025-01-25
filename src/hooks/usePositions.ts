@@ -1,7 +1,32 @@
 // hooks/usePositions.ts
 import { useState, useEffect } from "react";
 import { useActiveAccount } from "thirdweb/react";
-import type { Position, MarketData } from "../components/types/position";
+
+interface Position {
+  condition_id: string;
+  token_id: string;
+  balance: number;
+  outcome: number;
+  status: string;
+  expiration_timestamp: number;
+  user_address: string;
+  transaction_hash: string;
+  is_winner?: boolean;
+  market_data: {
+    question: string;
+    description: string;
+    outcomes: string;
+    volume: string;
+    liquidity: string;
+    status: string;
+    winning_outcome?: number;
+    collateral_token: {
+      address: string;
+      decimals: number;
+      symbol: string;
+    };
+  };
+}
 
 export function usePositions() {
   const account = useActiveAccount();
@@ -9,35 +34,11 @@ export function usePositions() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isMarketResolved = (prices: number[]): boolean => {
-    if (!Array.isArray(prices)) return false;
-    return prices.some((price) => price === 1.0 || price === 0.0);
+  const isMarketResolved = (status: string): boolean => {
+    return status.toUpperCase() === 'RESOLVED';
   };
 
-  const totalValue = positions.reduce((total, position) => {
-    if (
-      !position?.prices ||
-      !Array.isArray(position.prices) ||
-      !position.prices.length
-    ) {
-      return total;
-    }
-    if (
-      !position?.balances ||
-      !Array.isArray(position.balances) ||
-      !position.balances.length
-    ) {
-      return total;
-    }
-    if (isMarketResolved(position.prices)) {
-      return total;
-    }
-
-    const balance = position.balances[0] / 1_000_000;
-    const price = position.prices[0] ?? 0; // Using nullish coalescing
-    const value = balance * price;
-    return total + value;
-  }, 0);
+  const totalValue = 0;
 
   useEffect(() => {
     const fetchPositions = async () => {
@@ -53,44 +54,36 @@ export function usePositions() {
           const errorData = await response.json();
           throw new Error(
             errorData.error?.msg ||
-              errorData.detail ||
-              "Failed to fetch positions"
+            errorData.detail ||
+            "Failed to fetch positions"
           );
         }
 
         const data = await response.json();
 
         if (data.completed_orders) {
-          // Add type safety checks for filtering
-          const validPositions = data.completed_orders.filter(
-            (position: Position) =>
-              position?.condition_id &&
-              Array.isArray(position?.prices) &&
-              position.prices.length > 0 &&
-              Array.isArray(position?.balances) &&
-              position.balances.length > 0
+          const validPositions = data.completed_orders.filter((position: Position) =>
+            position?.condition_id && 
+            position?.balance && 
+            position?.market_data
           );
 
           const sortedPositions = [...validPositions].sort((a, b) => {
-            const aResolved = isMarketResolved(a.prices);
-            const bResolved = isMarketResolved(b.prices);
+            const aResolved = isMarketResolved(a.status);
+            const bResolved = isMarketResolved(b.status);
 
             if (aResolved !== bResolved) {
               return aResolved ? 1 : -1;
             }
 
-            const aValue = (a.balances[0] / 1_000_000) * a.prices[0];
-            const bValue = (b.balances[0] / 1_000_000) * b.prices[0];
-            return bValue - aValue;
+            return b.balance - a.balance;
           });
 
           setPositions(sortedPositions);
         }
       } catch (err) {
         console.error("Error fetching positions:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to load positions"
-        );
+        setError(err instanceof Error ? err.message : "Failed to load positions");
       } finally {
         setLoading(false);
       }
@@ -102,9 +95,9 @@ export function usePositions() {
   return {
     positions,
     loading,
-    error,
+    error, 
     isConnected: !!account?.address,
     totalValue,
-    isMarketResolved,
+    isMarketResolved: (status: string) => isMarketResolved(status),
   };
 }
