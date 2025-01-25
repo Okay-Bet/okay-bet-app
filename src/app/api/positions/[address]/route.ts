@@ -92,6 +92,9 @@ async function fetchTransferHistory(address: string): Promise<Transfer[]> {
     }`,
   };
 
+  if (!SUBGRAPH_URL) {
+    throw new Error("SUBGRAPH_URL is not defined");
+  }
   const response = await fetch(SUBGRAPH_URL, {
     method: "POST",
     headers: {
