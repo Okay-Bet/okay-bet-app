@@ -1,19 +1,47 @@
-// hooks/useSellPosition.ts
 import { useState } from "react";
-import { useActiveAccount } from "thirdweb/react";
+import { useActiveAccount, useSendTransaction } from "thirdweb/react";
+import { prepareContractCall, getContract } from "thirdweb";
+import { base } from "thirdweb/chains";
+import { client } from "../app/client";
+
 
 interface SellPositionParams {
-  token_id: string;
+  token_id: string;  // This is actually the market address
   price: number;
   amount: number;
   is_yes_token: boolean;
-  user_address: string;
 }
 
 export function useSellPosition() {
   const account = useActiveAccount();
+  const { mutate: sendTransaction } = useSendTransaction();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const getMarketContract = (marketAddress: string) => {
+    return getContract({
+      client, 
+      chain: base,
+      address: marketAddress,
+    });
+  };
+
+  const calculateSellParams = (params: SellPositionParams) => {
+    // Convert price to return amount (the amount of collateral tokens to receive)
+    const returnAmount = Math.floor(params.price * params.amount);
+    
+    // Determine outcome index based on whether it's a YES or NO token
+    const outcomeIndex = params.is_yes_token ? 1 : 2;
+    
+    // Set maxOutcomeTokensToSell to the full amount
+    const maxOutcomeTokensToSell = Math.floor(params.amount);
+
+    return {
+      returnAmount,
+      outcomeIndex,
+      maxOutcomeTokensToSell,
+    };
+  };
 
   const sellPosition = async (params: SellPositionParams) => {
     if (!account?.address) {
@@ -24,30 +52,25 @@ export function useSellPosition() {
     setError(null);
 
     try {
-      const formattedAmount = Math.floor(params.amount);
-      const response = await fetch("/api/delegated-sell", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          user_address: account.address,
-          token_id: params.token_id,
-          price: params.price,
-          amount: formattedAmount,
-          is_yes_token: params.is_yes_token,
-        }),
+      // Get contract instance using the token_id as the market address
+      const contract = getMarketContract(params.token_id);
+      
+      const { returnAmount, outcomeIndex, maxOutcomeTokensToSell } = calculateSellParams(params);
+
+      const transaction = prepareContractCall({
+        contract,
+        method: "function sell(uint256 returnAmount, uint256 outcomeIndex, uint256 maxOutcomeTokensToSell)",
+        params: [
+          returnAmount,
+          outcomeIndex,
+          maxOutcomeTokensToSell,
+        ],
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to sell position");
-      }
-
-      return await response.json();
+      const result = await sendTransaction(transaction);
+      return result;
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to sell position";
+      const errorMessage = err instanceof Error ? err.message : "Failed to sell position";
       setError(errorMessage);
       throw err;
     } finally {

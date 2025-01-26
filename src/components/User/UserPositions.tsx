@@ -1,13 +1,15 @@
 import React, { useState, useMemo } from "react";
 import { usePositions } from "../../hooks/usePositions";
 import { useSellPosition } from "../../hooks/useSellPosition";
+import { useMarketPrices } from "../../hooks/useMarketPrices";
 import { useActiveAccount } from "thirdweb/react";
 import { ChevronDown, ChevronUp, Wallet } from "lucide-react";
 
 interface Position {
   condition_id: string;
-  token_id: string; 
+  token_id: string;
   balance: number;
+  current_balance: number;
   outcome: number;
   status: string;
   expiration_timestamp: number;
@@ -32,7 +34,12 @@ interface Position {
 
 const PositionCard: React.FC<{
   position: Position;
-  onSell: (tokenId: string, amount: number) => Promise<void>;
+  onSell: (
+    tokenId: string,
+    amount: number,
+    isYesToken: boolean,
+    price: number
+  ) => Promise<void>;
   sellLoading: boolean;
 }> = ({ position, onSell, sellLoading }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -46,9 +53,15 @@ const PositionCard: React.FC<{
     }
   }, [position.market_data.outcomes]);
 
+  const isYesToken = position.outcome === 1;
   const formatAmount = (amount: number) => {
-    return (amount / Math.pow(10, position.market_data.collateral_token.decimals)).toFixed(2);
+    return (
+      amount / Math.pow(10, position.market_data.collateral_token.decimals)
+    ).toFixed(2);
   };
+
+  const formattedCurrentBalance = Number(formatAmount(position.current_balance));
+  const formattedInitialBalance = Number(formatAmount(position.balance));
 
   return (
     <div className="border rounded-lg p-4 bg-white mb-4 transition-all duration-200">
@@ -60,14 +73,22 @@ const PositionCard: React.FC<{
           <h3 className="font-medium text-gray-900 break-all">
             {position.market_data.question}
           </h3>
-          <p className="text-sm text-gray-500 mt-1">
-            {formatAmount(position.balance)} {position.market_data.collateral_token.symbol} | {outcomes[position.outcome]}
-            {position.is_winner !== undefined && (
-              <span className={`ml-2 ${position.is_winner ? 'text-green-500' : 'text-red-500'}`}>
-                {position.is_winner ? '(Won)' : '(Lost)'}
-              </span>
-            )}
-          </p>
+          <div className="text-sm text-gray-500 mt-1">
+            <p>
+              Current Balance: {formatAmount(position.current_balance)}{" "}
+              {position.market_data.collateral_token.symbol} |{" "}
+              {outcomes[position.outcome]}
+              {position.is_winner !== undefined && (
+                <span
+                  className={`ml-2 ${
+                    position.is_winner ? "text-green-500" : "text-red-500"
+                  }`}
+                >
+                  {position.is_winner ? "(Won)" : "(Lost)"}
+                </span>
+              )}
+            </p>
+          </div>
         </div>
         {isExpanded ? (
           <ChevronUp className="h-5 w-5 text-gray-500" />
@@ -80,21 +101,23 @@ const PositionCard: React.FC<{
         <div className="mt-4 space-y-3 border-t pt-3">
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
+              <span className="text-gray-500">Initial Position:</span>
+              <span className="ml-2 font-medium">
+                {formatAmount(position.balance)}{" "}
+                {position.market_data.collateral_token.symbol}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-500">Current Position:</span>
+              <span className="ml-2 font-medium">
+                {formatAmount(position.current_balance)}{" "}
+                {position.market_data.collateral_token.symbol}
+              </span>
+            </div>
+            <div>
               <span className="text-gray-500">Market Volume:</span>
               <span className="ml-2 font-medium">
                 ${position.market_data.volume}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-500">Market Liquidity:</span>
-              <span className="ml-2 font-medium">
-                ${position.market_data.liquidity}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-500">Status:</span>
-              <span className="ml-2 font-medium">
-                {position.status.toUpperCase()}
               </span>
             </div>
             <div>
@@ -108,22 +131,6 @@ const PositionCard: React.FC<{
           <div className="text-sm text-gray-600 mt-2">
             <p>{position.market_data.description}</p>
           </div>
-
-          {position.status.toUpperCase() !== 'RESOLVED' && (
-            <div className="flex justify-end mt-4">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSell(position.token_id, position.balance);
-                }}
-                disabled={sellLoading}
-                className="px-4 py-2 text-sm bg-red-500 text-white rounded hover:bg-red-600 
-                         disabled:bg-red-300 transition-colors"
-              >
-                {sellLoading ? "Selling..." : "Sell Position"}
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -134,38 +141,50 @@ export default function UserPositions() {
   const { positions, loading, error, isConnected, totalValue } = usePositions();
   const { sellPosition, loading: sellLoading } = useSellPosition();
   const account = useActiveAccount();
-  const [activeTab, setActiveTab] = useState<'active' | 'resolved' | 'pending'>('active');
+  const [activeTab, setActiveTab] = useState<"active" | "resolved" | "pending">(
+    "active"
+  );
   const [isComponentExpanded, setIsComponentExpanded] = useState(true);
 
-  const {
-    activePositions,
-    resolvedPositions,
-    pendingPositions,
-  } = useMemo(() => {
-    const active: Position[] = [];
-    const resolved: Position[] = [];
-    const pending: Position[] = [];
+  const { activePositions, resolvedPositions, pendingPositions } = useMemo(() => {
+      const active: Position[] = [];
+      const resolved: Position[] = [];
+      const pending: Position[] = [];
 
-    positions.forEach(position => {
-      if (position.status.toUpperCase() === 'RESOLVED') {
-        resolved.push(position);
-      } else if (position.status.toUpperCase() === 'ACTIVE') {
-        active.push(position);
-      } else {
-        pending.push(position);
-      }
-    });
+      positions.forEach((position) => {
+        if (position.status.toUpperCase() === "RESOLVED") {
+          resolved.push(position);
+        } else if (position.status.toUpperCase() === "ACTIVE") {
+          active.push(position);
+        } else {
+          pending.push(position);
+        }
+      });
 
-    return { activePositions: active, resolvedPositions: resolved, pendingPositions: pending };
-  }, [positions]);
+      return {
+        activePositions: active,
+        resolvedPositions: resolved,
+        pendingPositions: pending,
+      };
+    }, [positions]);
 
-  const handleSell = async (tokenId: string, amount: number) => {
-    if (!account?.address) return;
+  const handleSell = async (
+    tokenId: string,
+    amount: number,
+    isYesToken: boolean,
+    price: number
+  ) => {
+    if (!account?.address) {
+      console.error("Wallet not connected");
+      return;
+    }
+
     try {
       await sellPosition({
         token_id: tokenId,
+        price,
         amount,
-        user_address: account.address,
+        is_yes_token: isYesToken,
       });
       window.location.reload();
     } catch (error) {
@@ -218,26 +237,28 @@ export default function UserPositions() {
 
   return (
     <div className="rounded-lg border border-gray-200">
-      <div className="p-4 cursor-pointer flex justify-between items-center bg-white"
-           onClick={() => setIsComponentExpanded(!isComponentExpanded)}>
+      <div
+        className="p-4 cursor-pointer flex justify-between items-center bg-white"
+        onClick={() => setIsComponentExpanded(!isComponentExpanded)}
+              >
         <div className="flex items-center space-x-2">
           <h2 className="text-xl font-bold text-gray-900">Your Positions</h2>
           <span className="text-sm text-gray-500">
             ({activePositions.length} Active)
           </span>
-        </div>
+            </div>
         <div className="flex items-center space-x-4">
           <div className="text-right mr-4">
             <div className="text-sm font-medium text-gray-900">
               Portfolio Value: ${totalValue.toFixed(2)}
-            </div>
+          </div>
           </div>
           {isComponentExpanded ? (
             <ChevronUp className="h-5 w-5 text-gray-500" />
           ) : (
             <ChevronDown className="h-5 w-5 text-gray-500" />
-          )}
-        </div>
+      )}
+    </div>
       </div>
 
       {isComponentExpanded && (

@@ -12,12 +12,6 @@ interface Transfer {
   event_id: string;
 }
 
-interface SubgraphResponse {
-  data: {
-    singleTransfers: Transfer[];
-  };
-}
-
 interface LimitlessMarket {
   address: string;
   conditionId: string;
@@ -40,26 +34,20 @@ interface LimitlessMarket {
 }
 
 interface Position {
-  // Core trade data
   condition_id: string;
   token_id: string;
   balance: number;
-  outcome: number; // 0 for No, 1 for Yes
-  is_winner?: boolean; // For resolved markets
-
-  // Market status
+  current_balance: number; // Add this field
+  outcome: number;
   status: string;
   expiration_timestamp: number;
-
-  // User info
   user_address: string;
   transaction_hash: string;
-
-  // Market data
+  is_winner?: boolean;
   market_data: {
     question: string;
     description: string;
-    outcomes: string; // JSON stringified ['No', 'Yes']
+    outcomes: string;
     volume: string;
     liquidity: string;
     status: string;
@@ -72,15 +60,30 @@ interface Position {
   };
 }
 
-async function fetchTransferHistory(address: string): Promise<Transfer[]> {
+interface ExtendedSubgraphResponse {
+  data: {
+    incomingTransfers: Transfer[];
+    outgoingTransfers: Transfer[];
+  };
+}
+
+async function fetchTransferHistory(address: string) {
   const query = {
     query: `query getTradeHistory {
-      singleTransfers: ConditionalTokens_TransferSingle(
+      incomingTransfers: ConditionalTokens_TransferSingle(
         where: {
-          _or: [
-            {from: {_eq: "${address}"}},
-            {to: {_eq: "${address}"}}
-          ]
+          to: {_eq: "${address}"}
+        }
+      ) {
+        id
+        from
+        to
+        value
+        event_id
+      }
+      outgoingTransfers: ConditionalTokens_TransferSingle(
+        where: {
+          from: {_eq: "${address}"}
         }
       ) {
         id
@@ -95,6 +98,7 @@ async function fetchTransferHistory(address: string): Promise<Transfer[]> {
   if (!SUBGRAPH_URL) {
     throw new Error("SUBGRAPH_URL is not defined");
   }
+
   const response = await fetch(SUBGRAPH_URL, {
     method: "POST",
     headers: {
@@ -108,8 +112,34 @@ async function fetchTransferHistory(address: string): Promise<Transfer[]> {
     throw new Error(`Subgraph request failed: ${response.statusText}`);
   }
 
-  const data = (await response.json()) as SubgraphResponse;
-  return data.data.singleTransfers;
+  const data = (await response.json()) as ExtendedSubgraphResponse;
+
+  // Calculate balances by token ID
+  const balances = new Map<string, string>();
+
+  // Add incoming transfers
+  data.data.incomingTransfers.forEach((transfer) => {
+    const currentBalance = BigInt(balances.get(transfer.id) || "0");
+    balances.set(
+      transfer.id,
+      (currentBalance + BigInt(transfer.value)).toString()
+    );
+  });
+
+  // Subtract outgoing transfers
+  data.data.outgoingTransfers.forEach((transfer) => {
+    const currentBalance = BigInt(balances.get(transfer.id) || "0");
+    balances.set(
+      transfer.id,
+      (currentBalance - BigInt(transfer.value)).toString()
+    );
+  });
+
+  // Return all transfers (both incoming and outgoing)
+  return {
+    transfers: [...data.data.incomingTransfers, ...data.data.outgoingTransfers],
+    balances,
+  };
 }
 
 async function fetchMarketData(
@@ -146,21 +176,37 @@ export async function GET(
     const { address } = params;
     const userAddressLower = address.toLowerCase();
 
-    const transfers = await fetchTransferHistory(address);
-    const marketPromises = transfers.map((transfer) => {
-      const marketAddress =
-        transfer.from.toLowerCase() === userAddressLower
-          ? transfer.to
-          : transfer.from;
-      return fetchMarketData(marketAddress);
-    });
+    const { transfers, balances } = await fetchTransferHistory(address);
 
-    const marketDataResults = await Promise.all(marketPromises);
+    // Get unique market addresses to avoid duplicate fetches
+    const uniqueMarketAddresses = new Set(
+      transfers.map((transfer) => {
+        // For incoming transfers, the 'from' address is the market
+        // For outgoing transfers, the 'to' address is the market
+        return transfer.to.toLowerCase() === userAddressLower
+          ? transfer.from
+          : transfer.to;
+      })
+    );
+
+    // Fetch market data for unique addresses
+    const marketDataMap = new Map();
+    await Promise.all(
+      Array.from(uniqueMarketAddresses).map(async (marketAddress) => {
+        const data = await fetchMarketData(marketAddress);
+        if (data) {
+          marketDataMap.set(marketAddress.toLowerCase(), data);
+        }
+      })
+    );
 
     const completed_orders: Position[] = transfers
-      .map((transfer, index) => {
-        const marketData = marketDataResults[index];
+      .map((transfer) => {
         const isReceivedToken = transfer.to.toLowerCase() === userAddressLower;
+        const marketAddress = (
+          isReceivedToken ? transfer.from : transfer.to
+        ).toLowerCase();
+        const marketData = marketDataMap.get(marketAddress);
 
         if (!marketData) return null;
 
@@ -168,12 +214,12 @@ export async function GET(
           condition_id: marketData.conditionId,
           token_id: transfer.id,
           balance: Number(transfer.value),
+          current_balance: Number(balances.get(transfer.id) || "0"),
           outcome: isReceivedToken ? 1 : 0,
           status: marketData.status.toLowerCase(),
           expiration_timestamp: marketData.expirationTimestamp,
           user_address: address,
-          transaction_hash: transfer.id.split("_")[1], // Assuming format includes tx hash
-
+          transaction_hash: transfer.id.split("_")[1],
           market_data: {
             question: marketData.title,
             description: marketData.description,
@@ -185,7 +231,6 @@ export async function GET(
           },
         };
 
-        // Add resolved market specific data
         if (
           marketData.status === "RESOLVED" &&
           marketData.winningOutcomeIndex !== null
