@@ -4,18 +4,9 @@ import { useSellPosition } from "../../hooks/useSellPosition";
 import { useActiveAccount } from "thirdweb/react";
 import { ChevronDown, ChevronUp, Wallet } from "lucide-react";
 
-const PositionCard: React.FC<{
-  position: Position;
-  value: number;
-  onSell: (
-    tokenId: string,
-    amount: number,
-    isYesToken: boolean,
-    price: number
-  ) => Promise<void>;
-  sellLoading: boolean;
-}> = ({ position, value, onSell, sellLoading }) => {
+const PositionCard = ({ position, value, onSell, onRedeem, sellLoading }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const isResolved = position.status.toUpperCase() === "RESOLVED";
 
   const outcomes = useMemo(() => {
     try {
@@ -27,11 +18,6 @@ const PositionCard: React.FC<{
   }, [position.market_data.outcomes]);
 
   const isYesToken = position.outcome === 1;
-  const formatAmount = (amount: number) => {
-    return (
-      amount / Math.pow(10, position.market_data.collateral_token.decimals)
-    ).toFixed(2);
-  };
 
   return (
     <div className="border rounded-lg p-4 bg-white mb-4 transition-all duration-200">
@@ -45,8 +31,6 @@ const PositionCard: React.FC<{
           </h3>
           <div className="text-sm text-gray-500 mt-1">
             <p>
-              Current Balance: {formatAmount(position.current_balance)}{" "}
-              {position.market_data.collateral_token.symbol} |{" "}
               {outcomes[position.outcome]}
               {position.is_winner !== undefined && (
                 <span
@@ -58,9 +42,11 @@ const PositionCard: React.FC<{
                 </span>
               )}
             </p>
-            <p className="text-sm font-medium text-gray-900">
-              Position Value: ${value.toFixed(2)}
-            </p>
+            {!isResolved && (
+              <p className="text-sm font-medium text-gray-900">
+                Position Value: ${value.toFixed(2)}
+              </p>
+            )}
           </div>
         </div>
         {isExpanded ? (
@@ -73,20 +59,6 @@ const PositionCard: React.FC<{
       {isExpanded && (
         <div className="mt-4 space-y-3 border-t pt-3">
           <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-gray-500">Initial Position:</span>
-              <span className="ml-2 font-medium">
-                {formatAmount(position.balance)}{" "}
-                {position.market_data.collateral_token.symbol}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-500">Current Position:</span>
-              <span className="ml-2 font-medium">
-                {formatAmount(position.current_balance)}{" "}
-                {position.market_data.collateral_token.symbol}
-              </span>
-            </div>
             <div>
               <span className="text-gray-500">Market Volume:</span>
               <span className="ml-2 font-medium">
@@ -104,6 +76,32 @@ const PositionCard: React.FC<{
           <div className="text-sm text-gray-600 mt-2">
             <p>{position.market_data.description}</p>
           </div>
+
+          <div className="pt-3">
+            {!isResolved ? (
+              <button
+                onClick={() =>
+                  onSell(
+                    position.token_id,
+                    position.current_balance,
+                    isYesToken,
+                    value
+                  )
+                }
+                disabled={sellLoading}
+                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-blue-300"
+              >
+                {sellLoading ? "Processing..." : "Sell Position"}
+              </button>
+            ) : (
+              <button
+                onClick={() => onRedeem(position.token_id)}
+                className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700"
+              >
+                Redeem Winnings
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -111,44 +109,35 @@ const PositionCard: React.FC<{
 };
 
 export default function UserPositions() {
-  const {
-    positions,
-    loading,
-    error,
-    isConnected,
-    totalValue,
-    positionValues,
-    isMarketResolved,
-  } = usePositions();
+  const { positions, loading, error, isConnected, positionValues } =
+    usePositions();
   const { sellPosition, loading: sellLoading } = useSellPosition();
   const account = useActiveAccount();
-  const [activeTab, setActiveTab] = useState<"active" | "resolved">("active");
+  const [activeTab, setActiveTab] = useState("active");
   const [isComponentExpanded, setIsComponentExpanded] = useState(true);
 
-  const { activePositions, resolvedPositions } = useMemo(() => {
-    const active: Position[] = [];
-    const resolved: Position[] = [];
+  const { activePositions, resolvedPositions, activeValue } = useMemo(() => {
+    const active = [];
+    const resolved = [];
+    let activeTotal = 0;
 
     positions.forEach((position) => {
       if (position.status.toUpperCase() === "RESOLVED") {
         resolved.push(position);
       } else {
         active.push(position);
+        activeTotal += positionValues[position.token_id] || 0;
       }
     });
 
     return {
       activePositions: active,
       resolvedPositions: resolved,
+      activeValue: activeTotal,
     };
-  }, [positions]);
+  }, [positions, positionValues]);
 
-  const handleSell = async (
-    tokenId: string,
-    amount: number,
-    isYesToken: boolean,
-    price: number
-  ) => {
+  const handleSell = async (tokenId, amount, isYesToken, price) => {
     if (!account?.address) {
       console.error("Wallet not connected");
       return;
@@ -167,7 +156,12 @@ export default function UserPositions() {
     }
   };
 
-  const renderPositions = (positions: Position[]) => {
+  const handleRedeem = async (tokenId) => {
+    // Implement redeem logic here
+    console.log("Redeeming position:", tokenId);
+  };
+
+  const renderPositions = (positions) => {
     if (positions.length === 0) {
       return (
         <div className="text-center py-8 text-gray-500">No positions found</div>
@@ -180,6 +174,7 @@ export default function UserPositions() {
         position={position}
         value={positionValues[position.token_id] || 0}
         onSell={handleSell}
+        onRedeem={handleRedeem}
         sellLoading={sellLoading}
       />
     ));
@@ -226,7 +221,7 @@ export default function UserPositions() {
         <div className="flex items-center space-x-4">
           <div className="text-right mr-4">
             <div className="text-sm font-medium text-gray-900">
-              Portfolio Value: ${totalValue.toFixed(2)}
+              Portfolio Value: ${activeValue.toFixed(2)}
             </div>
           </div>
           {isComponentExpanded ? (
@@ -242,15 +237,15 @@ export default function UserPositions() {
           <div className="p-4 bg-gray-50">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <div className="text-sm text-gray-500">Total Positions</div>
-                <div className="text-lg font-semibold text-gray-900">
-                  {positions.length}
-                </div>
-              </div>
-              <div className="text-right">
                 <div className="text-sm text-gray-500">Active Positions</div>
                 <div className="text-lg font-semibold text-gray-900">
                   {activePositions.length}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-gray-500">Resolved Positions</div>
+                <div className="text-lg font-semibold text-gray-900">
+                  {resolvedPositions.length}
                 </div>
               </div>
             </div>
