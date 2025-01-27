@@ -1,39 +1,12 @@
 import React, { useState, useMemo } from "react";
 import { usePositions } from "../../hooks/usePositions";
 import { useSellPosition } from "../../hooks/useSellPosition";
-import { useMarketPrices } from "../../hooks/useMarketPrices";
 import { useActiveAccount } from "thirdweb/react";
 import { ChevronDown, ChevronUp, Wallet } from "lucide-react";
 
-interface Position {
-  condition_id: string;
-  token_id: string;
-  balance: number;
-  current_balance: number;
-  outcome: number;
-  status: string;
-  expiration_timestamp: number;
-  user_address: string;
-  transaction_hash: string;
-  is_winner?: boolean;
-  market_data: {
-    question: string;
-    description: string;
-    outcomes: string;
-    volume: string;
-    liquidity: string;
-    status: string;
-    winning_outcome?: number;
-    collateral_token: {
-      address: string;
-      decimals: number;
-      symbol: string;
-    };
-  };
-}
-
 const PositionCard: React.FC<{
   position: Position;
+  value: number;
   onSell: (
     tokenId: string,
     amount: number,
@@ -41,7 +14,7 @@ const PositionCard: React.FC<{
     price: number
   ) => Promise<void>;
   sellLoading: boolean;
-}> = ({ position, onSell, sellLoading }) => {
+}> = ({ position, value, onSell, sellLoading }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const outcomes = useMemo(() => {
@@ -59,9 +32,6 @@ const PositionCard: React.FC<{
       amount / Math.pow(10, position.market_data.collateral_token.decimals)
     ).toFixed(2);
   };
-
-  const formattedCurrentBalance = Number(formatAmount(position.current_balance));
-  const formattedInitialBalance = Number(formatAmount(position.balance));
 
   return (
     <div className="border rounded-lg p-4 bg-white mb-4 transition-all duration-200">
@@ -87,6 +57,9 @@ const PositionCard: React.FC<{
                   {position.is_winner ? "(Won)" : "(Lost)"}
                 </span>
               )}
+            </p>
+            <p className="text-sm font-medium text-gray-900">
+              Position Value: ${value.toFixed(2)}
             </p>
           </div>
         </div>
@@ -138,35 +111,37 @@ const PositionCard: React.FC<{
 };
 
 export default function UserPositions() {
-  const { positions, loading, error, isConnected, totalValue } = usePositions();
+  const {
+    positions,
+    loading,
+    error,
+    isConnected,
+    totalValue,
+    positionValues,
+    isMarketResolved,
+  } = usePositions();
   const { sellPosition, loading: sellLoading } = useSellPosition();
   const account = useActiveAccount();
-  const [activeTab, setActiveTab] = useState<"active" | "resolved" | "pending">(
-    "active"
-  );
+  const [activeTab, setActiveTab] = useState<"active" | "resolved">("active");
   const [isComponentExpanded, setIsComponentExpanded] = useState(true);
 
-  const { activePositions, resolvedPositions, pendingPositions } = useMemo(() => {
-      const active: Position[] = [];
-      const resolved: Position[] = [];
-      const pending: Position[] = [];
+  const { activePositions, resolvedPositions } = useMemo(() => {
+    const active: Position[] = [];
+    const resolved: Position[] = [];
 
-      positions.forEach((position) => {
-        if (position.status.toUpperCase() === "RESOLVED") {
-          resolved.push(position);
-        } else if (position.status.toUpperCase() === "ACTIVE") {
-          active.push(position);
-        } else {
-          pending.push(position);
-        }
-      });
+    positions.forEach((position) => {
+      if (position.status.toUpperCase() === "RESOLVED") {
+        resolved.push(position);
+      } else {
+        active.push(position);
+      }
+    });
 
-      return {
-        activePositions: active,
-        resolvedPositions: resolved,
-        pendingPositions: pending,
-      };
-    }, [positions]);
+    return {
+      activePositions: active,
+      resolvedPositions: resolved,
+    };
+  }, [positions]);
 
   const handleSell = async (
     tokenId: string,
@@ -203,6 +178,7 @@ export default function UserPositions() {
       <PositionCard
         key={position.token_id}
         position={position}
+        value={positionValues[position.token_id] || 0}
         onSell={handleSell}
         sellLoading={sellLoading}
       />
@@ -240,25 +216,25 @@ export default function UserPositions() {
       <div
         className="p-4 cursor-pointer flex justify-between items-center bg-white"
         onClick={() => setIsComponentExpanded(!isComponentExpanded)}
-              >
+      >
         <div className="flex items-center space-x-2">
           <h2 className="text-xl font-bold text-gray-900">Your Positions</h2>
           <span className="text-sm text-gray-500">
             ({activePositions.length} Active)
           </span>
-            </div>
+        </div>
         <div className="flex items-center space-x-4">
           <div className="text-right mr-4">
             <div className="text-sm font-medium text-gray-900">
               Portfolio Value: ${totalValue.toFixed(2)}
-          </div>
+            </div>
           </div>
           {isComponentExpanded ? (
             <ChevronUp className="h-5 w-5 text-gray-500" />
           ) : (
             <ChevronDown className="h-5 w-5 text-gray-500" />
-      )}
-    </div>
+          )}
+        </div>
       </div>
 
       {isComponentExpanded && (
@@ -302,23 +278,12 @@ export default function UserPositions() {
               >
                 Resolved ({resolvedPositions.length})
               </button>
-              <button
-                className={`py-2 px-1 text-sm font-medium ${
-                  activeTab === "pending"
-                    ? "border-b-2 border-blue-500 text-blue-600"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-                onClick={() => setActiveTab("pending")}
-              >
-                Pending ({pendingPositions.length})
-              </button>
             </div>
           </div>
 
           <div className="max-h-96 overflow-y-auto p-4">
             {activeTab === "active" && renderPositions(activePositions)}
             {activeTab === "resolved" && renderPositions(resolvedPositions)}
-            {activeTab === "pending" && renderPositions(pendingPositions)}
           </div>
         </div>
       )}
