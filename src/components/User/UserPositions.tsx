@@ -3,122 +3,21 @@ import { usePositions } from "../../hooks/usePositions";
 import { useSellPosition } from "../../hooks/useSellPosition";
 import { useActiveAccount } from "thirdweb/react";
 import { ChevronDown, ChevronUp, Wallet } from "lucide-react";
+import PositionCard from "./PositionCard";
+import { BasePosition, PositionValues } from "../types";
 
-const PositionCard = ({ position, value, onSell, onRedeem, sellLoading }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const isResolved = position.status.toUpperCase() === "RESOLVED";
+type TabType = "active" | "resolved";
 
-  const outcomes = useMemo(() => {
-    try {
-      return JSON.parse(position.market_data.outcomes);
-    } catch (error) {
-      console.warn("Error parsing outcomes, using default:", error);
-      return ["No", "Yes"];
-    }
-  }, [position.market_data.outcomes]);
-
-  const isYesToken = position.outcome === 1;
-
-  return (
-    <div className="border rounded-lg p-4 bg-white mb-4 transition-all duration-200">
-      <div
-        className="flex justify-between items-start cursor-pointer"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex-1">
-          <h3 className="font-medium text-gray-900 break-all">
-            {position.market_data.question}
-          </h3>
-          <div className="text-sm text-gray-500 mt-1">
-            <p>
-              {outcomes[position.outcome]}
-              {position.is_winner !== undefined && (
-                <span
-                  className={`ml-2 ${
-                    position.is_winner ? "text-green-500" : "text-red-500"
-                  }`}
-                >
-                  {position.is_winner ? "(Won)" : "(Lost)"}
-                </span>
-              )}
-            </p>
-            {!isResolved && (
-              <p className="text-sm font-medium text-gray-900">
-                Position Value: ${value.toFixed(2)}
-              </p>
-            )}
-          </div>
-        </div>
-        {isExpanded ? (
-          <ChevronUp className="h-5 w-5 text-gray-500" />
-        ) : (
-          <ChevronDown className="h-5 w-5 text-gray-500" />
-        )}
-      </div>
-
-      {isExpanded && (
-        <div className="mt-4 space-y-3 border-t pt-3">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-gray-500">Market Volume:</span>
-              <span className="ml-2 font-medium">
-                ${position.market_data.volume}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-500">Expiration:</span>
-              <span className="ml-2 font-medium">
-                {new Date(position.expiration_timestamp).toLocaleDateString()}
-              </span>
-            </div>
-          </div>
-
-          <div className="text-sm text-gray-600 mt-2">
-            <p>{position.market_data.description}</p>
-          </div>
-
-          <div className="pt-3">
-            {!isResolved ? (
-              <button
-                onClick={() =>
-                  onSell(
-                    position.token_id,
-                    position.current_balance,
-                    isYesToken,
-                    value
-                  )
-                }
-                disabled={sellLoading}
-                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-blue-300"
-              >
-                {sellLoading ? "Processing..." : "Sell Position"}
-              </button>
-            ) : (
-              <button
-                onClick={() => onRedeem(position.token_id)}
-                className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700"
-              >
-                Redeem Winnings
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default function UserPositions() {
-  const { positions, loading, error, isConnected, positionValues } =
-    usePositions();
+const UserPositions: React.FC = () => {
+  const { positions, loading, isConnected, positionValues } = usePositions();
   const { sellPosition, loading: sellLoading } = useSellPosition();
   const account = useActiveAccount();
-  const [activeTab, setActiveTab] = useState("active");
+  const [activeTab, setActiveTab] = useState<TabType>("active");
   const [isComponentExpanded, setIsComponentExpanded] = useState(true);
 
   const { activePositions, resolvedPositions, activeValue } = useMemo(() => {
-    const active = [];
-    const resolved = [];
+    const active: BasePosition[] = [];
+    const resolved: BasePosition[] = [];
     let activeTotal = 0;
 
     positions.forEach((position) => {
@@ -137,7 +36,12 @@ export default function UserPositions() {
     };
   }, [positions, positionValues]);
 
-  const handleSell = async (tokenId, amount, isYesToken, price) => {
+  const handleSell = async (
+    tokenId: string,
+    amount: number,
+    isYesToken: boolean,
+    price: number
+  ): Promise<void> => {
     if (!account?.address) {
       console.error("Wallet not connected");
       return;
@@ -156,12 +60,12 @@ export default function UserPositions() {
     }
   };
 
-  const handleRedeem = async (tokenId) => {
+  const handleRedeem = async (tokenId: string): Promise<void> => {
     // Implement redeem logic here
     console.log("Redeeming position:", tokenId);
   };
 
-  const renderPositions = (positions) => {
+  const renderPositions = (positions: BasePosition[]) => {
     if (positions.length === 0) {
       return (
         <div className="text-center py-8 text-gray-500">No positions found</div>
@@ -284,4 +188,6 @@ export default function UserPositions() {
       )}
     </div>
   );
-}
+};
+
+export default UserPositions;

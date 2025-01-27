@@ -32,3 +32,15 @@ export interface PositionRequest {
   maxSlippage: number;
   referralCode?: string;
 }
+
+export interface PositionCardProps {
+  position: BasePosition;
+  value: number;
+  onSell: (tokenId: string, amount: number, isYesToken: boolean, price: number) => Promise<void>;
+  onRedeem: (tokenId: string) => Promise<void>;
+  sellLoading: boolean;
+}
+
+export interface PositionValues {
+  [tokenId: string]: number;
+}
