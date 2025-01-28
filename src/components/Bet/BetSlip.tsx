@@ -21,6 +21,16 @@ interface OrderQuote {
   estimatedTotal: number;
 }
 
+// Add proper types for approval step and status
+interface ApprovalStep {
+  status: "success" | "pending" | "failed" | "processing";
+}
+
+interface OrderStatus {
+  state: "idle" | "submitting_order" | "complete" | "error";
+  error?: string;
+}
+
 // FPMM contract interface
 const FPMM_ABI = parseAbi([
   "function calcBuyAmount(uint256 investmentAmount, uint256 outcomeIndex) view returns (uint256)",
@@ -49,7 +59,7 @@ export const BetSlip: React.FC = () => {
 
   // Effect to handle transaction status messages
   useEffect(() => {
-    if (approvalStep.status === "processing") {
+    if (approvalStep.status === "approving") {
       setTransactionStatus("Requesting USDC approval...");
     } else if (approvalStep.status === "pending") {
       setTransactionStatus("Waiting for approval confirmation...");

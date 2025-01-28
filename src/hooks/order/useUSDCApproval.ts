@@ -20,8 +20,8 @@ const ERC20_ABI = [
     name: "approve",
     outputs: [{ name: "", type: "bool" }],
     payable: false,
-    stateMutability: "nonpayable",
-    type: "function",
+    stateMutability: "nonpayable" as const,
+    type: "function" as const,
   },
 ];
 
@@ -58,17 +58,17 @@ export const useUSDCApproval = () => {
       // Prepare approval transaction
       const approvalTx = prepareContractCall({
         contract: usdcContract,
-        method: "approve",
-        params: [spenderAddress, BigInt(amount.toString())],
+        method: "function approve(address spender, uint256 amount)",
+        params: [spenderAddress, BigInt(amount.toString())]
       });
 
       setApprovalStep({
         step: "approval",
-        status: "processing",
+        status: "pending",
       });
 
       // Send approval transaction
-      const receipt = await sendAndConfirmTx(approvalTx);
+      const receipt = await sendAndConfirmTx(approvalTx as unknown as Parameters<typeof sendAndConfirmTx>[0]);
       console.log("Approval confirmed:", receipt.transactionHash);
 
       setApprovalStep({

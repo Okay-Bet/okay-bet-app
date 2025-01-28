@@ -3,6 +3,26 @@ import { getContract } from "thirdweb";
 import { client } from "../app/client";
 import { base } from "thirdweb/chains";
 
+const MARKET_ABI = [
+  {
+    type: "function",
+    name: "calcBuyAmount",
+    inputs: [
+      { type: "uint256", name: "investmentAmount" },
+      { type: "uint256", name: "outcomeIndex" }
+    ],
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "totalSupply",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view"
+  }
+] as const;
+
 export const useMarketReads = (
   marketAddress: string,
   amount?: bigint,
@@ -12,23 +32,30 @@ export const useMarketReads = (
     client,
     chain: base,
     address: marketAddress as `0x${string}`,
+    abi: MARKET_ABI
   });
 
-  const { data: buyAmountData, isPending: buyAmountPending } = useReadContract({
+  // Call hooks directly at the top level
+  const buyAmountQuery = useReadContract({
     contract,
-    method: "function calcBuyAmount(uint256 investmentAmount, uint256 outcomeIndex) view returns (uint256)",
-    params: amount && outcomeIndex ? [amount, outcomeIndex] : undefined,
+    method: "calcBuyAmount",
+    params: amount && outcomeIndex ? [amount, outcomeIndex] as const : async () => [BigInt(0), BigInt(0)] as const,
   });
 
-  const { data: totalSupplyData, isPending: totalSupplyPending } = useReadContract({
+  const totalSupplyQuery = useReadContract({
     contract,
-    method: "function totalSupply() view returns (uint256)",
-    params: [],
+    method: "totalSupply",
+    params: [] as const
   });
 
+  // Return processed data
   return {
-    buyAmountData,
-    totalSupplyData,
-    isPending: buyAmountPending || totalSupplyPending,
+    buyAmountData: buyAmountQuery.data,
+    totalSupplyData: totalSupplyQuery.data,
+    isPending: buyAmountQuery.isPending || totalSupplyQuery.isPending,
+    error: buyAmountQuery.error || totalSupplyQuery.error,
   };
 };
+
+// Export the ABI if needed elsewhere
+export { MARKET_ABI };

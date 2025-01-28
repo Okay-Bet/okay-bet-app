@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import type {
   MarketProvider,
+  Market,
+  PolymarketMarket,
   MarketStatus,
   BaseMarket,
   LimitlessMarket,
   SearchParams,
   Event,
-} from "@/components/types";
-import { SUPPORTED_TOKENS } from "@/services/across/client";
+} from "../../../../components/types";
+import { SUPPORTED_TOKENS } from "../../../../services/across/client";
 
 const LIMITLESS_API_URL = "https://api.limitless.exchange";
 const MAX_RESULTS = 20;

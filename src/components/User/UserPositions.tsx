@@ -4,7 +4,7 @@ import { useSellPosition } from "../../hooks/useSellPosition";
 import { useActiveAccount } from "thirdweb/react";
 import { ChevronDown, ChevronUp, Wallet } from "lucide-react";
 import PositionCard from "./PositionCard";
-import { BasePosition, PositionValues } from "../types";
+import { Position, PositionValues } from "../types";
 
 type TabType = "active" | "resolved";
 
@@ -16,8 +16,8 @@ const UserPositions: React.FC = () => {
   const [isComponentExpanded, setIsComponentExpanded] = useState(true);
 
   const { activePositions, resolvedPositions, activeValue } = useMemo(() => {
-    const active: BasePosition[] = [];
-    const resolved: BasePosition[] = [];
+    const active: Position[] = [];
+    const resolved: Position[] = [];
     let activeTotal = 0;
 
     positions.forEach((position) => {
@@ -65,7 +65,7 @@ const UserPositions: React.FC = () => {
     console.log("Redeeming position:", tokenId);
   };
 
-  const renderPositions = (positions: BasePosition[]) => {
+  const renderPositions = (positions: Position[]) => {
     if (positions.length === 0) {
       return (
         <div className="text-center py-8 text-gray-500">No positions found</div>

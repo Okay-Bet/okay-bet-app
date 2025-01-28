@@ -2,20 +2,26 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { MarketCard } from "./MarketCard";
 import MarketSearch from "./MarketSearch";
-import type { Event, SearchParams, MarketProvider } from "@/components/types";
+import type {
+  Event,
+  SearchParams,
+  MarketProvider,
+  PolymarketMarket,
+  LimitlessMarket,
+} from "../types";
 
 interface MarketState {
   events: Event[];
   loading: boolean;
   error: string | null;
-  activeProvider: MarketProvider;
+  activeProvider: "LIMITLESS";
 }
 
 const INITIAL_STATE: MarketState = {
   events: [],
   loading: true,
   error: null,
-  activeProvider: "LIMITLESS", // You can change the default provider here
+  activeProvider: "LIMITLESS",
 };
 
 const PredictionMarkets: React.FC = () => {
@@ -82,20 +88,6 @@ const PredictionMarkets: React.FC = () => {
       }
     },
     [state.activeProvider]
-  );
-
-  // Function to switch between providers
-  const switchProvider = useCallback(
-    (provider: MarketProvider) => {
-      setState((prev) => ({ ...prev, activeProvider: provider }));
-      // Trigger a new search with the current parameters
-      handleSearch({
-        searchTerm: "",
-        sortBy: "liquidity",
-        sortDirection: "desc",
-      });
-    },
-    [handleSearch]
   );
 
   useEffect(() => {

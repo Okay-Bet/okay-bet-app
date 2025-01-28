@@ -1,6 +1,6 @@
 // components/Markets/MarketCard.tsx
 import React, { useCallback } from "react";
-import { PolymarketMarket } from "@/components/types";
+import { LimitlessMarket} from "@/components/types";
 import { formatPrice } from "../../utils/marketUtils";
 import { useMarketCard } from "../../hooks/useMarketCard";
 import { useMarketPrices } from "../../hooks/useMarketPrices";
@@ -8,7 +8,7 @@ import { useMarketPrices } from "../../hooks/useMarketPrices";
 interface MarketCardProps {
   eventId: string;
   eventTitle: string;
-  markets: PolymarketMarket[];
+  markets: LimitlessMarket[];
 }
 
 export const MarketCard: React.FC<MarketCardProps> = ({

@@ -7,6 +7,7 @@ export interface Bet {
   position: "YES" | "NO";
   price: number;
   tokenId: string;
+  provider?: "LIMITLESS";
 }
 
 interface BetSlipContextType {

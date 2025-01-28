@@ -1,4 +1,7 @@
 // types/market.ts
+import { MarketProvider, MarketStatus } from "./core";
+import { Market } from "./polymarket";
+
 export interface BaseMarket {
   id: string;
   provider: MarketProvider;
@@ -65,8 +68,7 @@ export interface OrderBook {
 export interface MarketCardProps {
   eventId: string;
   eventTitle: string;
-  marketIndices: number[];
-  marketSubTitles: string[];
+  markets: LimitlessMarket[];
 }
 
 export interface MarketCardState {
@@ -96,7 +98,7 @@ export interface Event {
   liquidity: number;
   volume: number;
   description?: string;
-  markets: Market[];
+  markets: LimitlessMarket[]; // Accept both market types
   activeMarketsCount?: number;
 }
 

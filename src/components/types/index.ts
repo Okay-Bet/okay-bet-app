@@ -6,4 +6,5 @@ export * from './market';
 export * from './orders';
 export * from './position';
 export * from './validation';
+export * from './polymarket';
 export * from './provider';

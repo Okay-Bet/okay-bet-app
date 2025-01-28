@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPublicClient, http, parseAbi } from "viem";
 import { base } from "viem/chains";
-import type { Market } from "@/components/types";
+import type { LimitlessMarket } from "@/components/types";
 
 const FPMM_ABI = parseAbi([
   "function totalSupply() view returns (uint256)",
@@ -23,7 +23,7 @@ const publicClient = createPublicClient({
 const CACHE_DURATION = 10000; // 10 seconds cache
 const REFRESH_INTERVAL = 30000; // 30 seconds refresh
 
-export function useMarketPrices(market: Market | null) {
+export function useMarketPrices(market: LimitlessMarket | null) {
   const [prices, setPrices] = useState({
     yes: {
       bid: undefined as number | undefined,

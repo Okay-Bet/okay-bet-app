@@ -13,9 +13,6 @@ export interface PredictionMarketsProps {
   searchParams?: MarketParams;
 }
 
-export interface MarketCardProps {
-  market: Market;
-}
 
 export interface ErrorStateProps {
   message: string;

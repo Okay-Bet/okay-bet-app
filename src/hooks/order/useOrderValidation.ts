@@ -2,12 +2,12 @@
 import { useState } from 'react';
 import { useActiveAccount } from 'thirdweb/react';
 import { OrderRequest } from '../../components/types/orders';
-import { ValidationResponse } from '../../components/types/validation';
+import { ValidationResult } from '../../components/types/validation';
 import { validateOrderRequest } from '../../services/validation';
 import { toUSDCUnits } from './utils';
 
 export const useOrderValidation = () => {
-  const [validationStatus, setValidationStatus] = useState<ValidationResponse | null>(null);
+  const [validationStatus, setValidationStatus] = useState<ValidationResult | null>(null);
   const account = useActiveAccount();
 
   const validateOrder = async (orderRequest: OrderRequest) => {

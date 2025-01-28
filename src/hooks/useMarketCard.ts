@@ -1,24 +1,32 @@
 import { useState } from "react";
-import { Market, LimitlessMarket } from "@/components/types";
+import { LimitlessMarket, MarketCardProps } from "@/components/types";
 import { useBetSlip } from "../app/context/BetSlipContext";
 import { useMarketPrices } from "./useMarketPrices";
 
-function isLimitlessMarket(market: Market): market is LimitlessMarket {
-  return market.provider === "LIMITLESS";
+interface UseMarketCardReturn {
+  currentMarket: LimitlessMarket;
+  showDetails: boolean;
+  showMoneyline: boolean;
+  activeMarketIndex: number;
+  handleBetClick: (position: "YES" | "NO") => void;
+  setShowDetails: (show: boolean) => void;
+  setShowMoneyline: (show: boolean) => void;
+  setActiveMarketIndex: (index: number) => void;
+  pricesLoading: boolean;
 }
 
 export function useMarketCard({
   eventId,
   eventTitle,
   markets,
-}: UseMarketCardParams): UseMarketCardReturn {
+}: MarketCardProps): UseMarketCardReturn {
   const [activeMarketIndex, setActiveMarketIndex] = useState(0);
   const [showDetails, setShowDetails] = useState(false);
   const [showMoneyline, setShowMoneyline] = useState(false);
 
   const { addBet } = useBetSlip();
   const currentMarket =
-    markets && markets.length > 0 ? markets[activeMarketIndex] : null;
+    markets && markets.length > 0 ? markets[activeMarketIndex] : ({} as LimitlessMarket);
 
   // Fetch realtime prices for the current market
   const { prices: realtimePrices, loading: pricesLoading } =
@@ -57,22 +65,19 @@ export function useMarketCard({
 
     console.log("Using validated price:", priceToUse);
 
-    if (isLimitlessMarket(currentMarket)) {
-      const bet = {
-        marketId: currentMarket.id,
-        eventTitle,
-        marketQuestion: currentMarket.question,
-        position,
-        price: priceToUse,
-        tokenId: currentMarket.id,
-      };
+    const bet = {
+      marketId: currentMarket.id,
+      eventTitle,
+      marketQuestion: currentMarket.question,
+      position,
+      price: priceToUse,
+      tokenId: currentMarket.id,
+      provider: "LIMITLESS" as const,
+    };
 
-      // Debug log the final bet object
-      console.log("Submitting bet to BetSlip:", bet);
-      addBet(bet);
-    } else {
-      console.error("Unsupported market provider:", currentMarket.provider);
-    }
+    // Debug log the final bet object
+    console.log("Submitting bet to BetSlip:", bet);
+    addBet(bet);
   };
 
   return {

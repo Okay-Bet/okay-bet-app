@@ -1,66 +1,75 @@
-import { useState } from "react";
-import { useSendTransaction } from "thirdweb/react";
-import { prepareTokenApproval } from "../../../services/across/bridge";
-import { sleep } from "../../../services/transaction";
-import { BridgeStep } from "../../../components/types";
+// import { useState } from "react";
+// import { useSendTransaction } from "thirdweb/react";
+// import { prepareTokenApproval } from "../../../services/across/bridge";
+// import { sleep } from "../../../services/transaction";
+// import { BridgeStep } from "../../../components/types";
 
-export const useTokenApproval = () => {
-  const { mutateAsync: sendTransaction } = useSendTransaction();
-  const [bridgeStep, setBridgeStep] = useState<BridgeStep>({
-    step: "approval",
-    status: "pending",
-  });
+// type PreparedTransactionType = {
+//   __preparedMethod?: () => Promise<any>;
+//   __contract?: Readonly<{
+//     abi: any[];
+//     [key: string]: any;
+//   }>;
+//   [key: string]: any;
+// };
 
-  const handleTokenApproval = async (
-    tokenAddress: string,
-    spenderAddress: string,
-    amount: string
-  ) => {
-    console.log("Preparing USDC approval with:", {
-      tokenAddress,
-      spenderAddress,
-      amount,
-    });
+// export const useTokenApproval = () => {
+//   const { mutateAsync: sendTransaction } = useSendTransaction();
+//   const [bridgeStep, setBridgeStep] = useState<BridgeStep>({
+//     step: "approval",
+//     status: "pending",
+//   });
 
-    try {
-      const approvalTx = prepareTokenApproval(
-        tokenAddress,
-        spenderAddress,
-        amount
-      );
+//   const handleTokenApproval = async (
+//     tokenAddress: string,
+//     spenderAddress: string,
+//     amount: string
+//   ) => {
+//     console.log("Preparing USDC approval with:", {
+//       tokenAddress,
+//       spenderAddress,
+//       amount,
+//     });
 
-      console.log("Approval transaction prepared:", approvalTx);
+//     try {
+//       const approvalTx = await prepareTokenApproval(
+//         tokenAddress,
+//         spenderAddress,
+//         amount
+//       );
 
-      const result = await sendTransaction(approvalTx);
-      console.log("Approval transaction sent:", result);
+//       console.log("Approval transaction prepared:", approvalTx);
 
-      setBridgeStep({
-        step: "approval",
-        status: "pending",
-        txHash: result.hash,
-      });
+//       const result = await sendTransaction(approvalTx as PreparedTransactionType);
+//       console.log("Approval transaction sent:", result);
 
-      await sleep(15000);
+//       setBridgeStep({
+//         step: "approval",
+//         status: "pending",
+//         txHash: result.hash,
+//       });
 
-      setBridgeStep({
-        step: "approval",
-        status: "success",
-        txHash: result.hash,
-      });
+//       await sleep(15000);
 
-      return result;
-    } catch (error) {
-      console.error("Token approval failed:", error);
-      setBridgeStep({
-        step: "approval",
-        status: "failed",
-      });
-      throw error;
-    }
-  };
+//       setBridgeStep({
+//         step: "approval",
+//         status: "success",
+//         txHash: result.hash,
+//       });
 
-  return {
-    handleTokenApproval,
-    bridgeStep,
-  };
-};
+//       return result;
+//     } catch (error) {
+//       console.error("Token approval failed:", error);
+//       setBridgeStep({
+//         step: "approval",
+//         status: "failed",
+//       });
+//       throw error;
+//     }
+//   };
+
+//   return {
+//     handleTokenApproval,
+//     bridgeStep,
+//   };
+// };

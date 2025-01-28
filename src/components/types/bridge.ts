@@ -28,13 +28,7 @@ export interface AcrossQuote {
       };
     };
   }
-  
-  export interface BridgeStep {
-    step: "approval" | "bridging";
-    status: "pending" | "success" | "failed";
-    txHash?: string;
-  }
-  
+    
   export interface DepositParams {
     depositor: string;
     recipient: string;

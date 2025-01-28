@@ -36,8 +36,8 @@ export const useOrder = () => {
           setStatus({ state: "complete", result: nativeResult });
           return nativeResult;
 
-        case "POLYMARKET":
-          throw new Error("Polymarket integration not implemented");
+        // case "POLYMARKET":
+        //   throw new Error("Polymarket integration not implemented");
 
         default:
           throw new Error("Unknown provider");

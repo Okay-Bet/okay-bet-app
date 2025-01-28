@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { PositionCardProps } from "./types";
+import { PositionCardProps } from "../types";
 
 const PositionCard: React.FC<PositionCardProps> = ({
   position,
