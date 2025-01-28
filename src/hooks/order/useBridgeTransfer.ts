@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useSendTransaction, useActiveAccount } from "thirdweb/react";
 import { getAcrossClient } from "../../services/across/client";
-import { DepositParams, AcrossQuote } from "../../components/types/bridge";
+import { DepositParams, AcrossQuote } from "../../components/types";
 import { sleep } from "../../services/transaction";
 import {
   prepareTokenApproval,
@@ -45,8 +45,24 @@ interface BridgeStep {
 const CHAIN_CONFIG = {
   OPTIMISM_CHAIN_ID: 10,
   POLYGON_CHAIN_ID: 137,
+  BASE_CHAIN_ID: 8453,
 } as const;
 type EthereumAddress = `0x${string}`;
+
+const TOKEN_CONFIG = {
+  OPTIMISM: {
+    USDC: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85" as const,
+  },
+  POLYGON: {
+    USDC_E: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174" as const,
+  },
+  BASE: {
+    USDC: "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA" as const,
+  },
+} as const;
+
+type DestinationChain = typeof CHAIN_CONFIG.POLYGON_CHAIN_ID | typeof CHAIN_CONFIG.BASE_CHAIN_ID;
+
 
 // Utility function to safely convert bigint to string
 const bigintToString = (value: bigint | string): string => {
@@ -72,9 +88,9 @@ const isValidQuote = (quote: any): quote is AcrossQuote => {
 
 const isValidTransaction = (tx: any): tx is PreparedTransactionBase => {
   return (
-    typeof tx === 'object' &&
-    typeof tx.to === 'string' &&
-    (!tx.value || typeof tx.value === 'string' || typeof tx.value === 'bigint')
+    typeof tx === "object" &&
+    typeof tx.to === "string" &&
+    (!tx.value || typeof tx.value === "string" || typeof tx.value === "bigint")
   );
 };
 
@@ -83,23 +99,25 @@ const normalizeTxValue = (
   transaction: PreparedTransactionBase
 ): PreparedTransactionBase => {
   const normalizedTx: PreparedTransactionBase = { ...transaction };
-  
+
   // Convert main value if it exists
-  if (typeof normalizedTx.value === 'string') {
+  if (typeof normalizedTx.value === "string") {
     normalizedTx.value = BigInt(normalizedTx.value);
   }
-  
+
   // Convert overrides value if it exists
-  if (normalizedTx.overrides?.value && typeof normalizedTx.overrides.value === 'string') {
+  if (
+    normalizedTx.overrides?.value &&
+    typeof normalizedTx.overrides.value === "string"
+  ) {
     normalizedTx.overrides = {
       ...normalizedTx.overrides,
-      value: BigInt(normalizedTx.overrides.value)
+      value: BigInt(normalizedTx.overrides.value),
     };
   }
-  
+
   return normalizedTx;
 };
-
 
 // Quote transformation function
 const transformQuote = (rawQuote: any): AcrossQuote => {
@@ -155,7 +173,9 @@ function createTransactionSender(mutateAsync: any): SendTransactionFunction {
   };
 }
 
-const AGENT_WALLET_ADDRESS = process.env.NEXT_PUBLIC_AGENT_WALLET_ADDRESS as EthereumAddress | undefined;
+const AGENT_WALLET_ADDRESS = process.env.NEXT_PUBLIC_AGENT_WALLET_ADDRESS as
+  | EthereumAddress
+  | undefined;
 
 // Main hook implementation
 export const useBridgeTransfer = () => {
@@ -170,11 +190,15 @@ export const useBridgeTransfer = () => {
 
   const getValidRecipientAddress = useCallback((): EthereumAddress => {
     if (!AGENT_WALLET_ADDRESS) {
-      throw new Error("NEXT_PUBLIC_AGENT_WALLET_ADDRESS is not defined in environment");
+      throw new Error(
+        "NEXT_PUBLIC_AGENT_WALLET_ADDRESS is not defined in environment"
+      );
     }
 
     if (!/^0x[0-9a-fA-F]{40}$/i.test(AGENT_WALLET_ADDRESS)) {
-      throw new Error(`Invalid Ethereum address format: ${AGENT_WALLET_ADDRESS}`);
+      throw new Error(
+        `Invalid Ethereum address format: ${AGENT_WALLET_ADDRESS}`
+      );
     }
 
     return AGENT_WALLET_ADDRESS;
@@ -185,7 +209,6 @@ export const useBridgeTransfer = () => {
       if (!account) throw new Error("Wallet not connected");
 
       try {
-
         const recipientAddress = getValidRecipientAddress();
 
         // Define our known USDC route configuration

@@ -13,10 +13,4 @@ if (!clientId) {
 export const client = createThirdwebClient({
   clientId: clientId,
 });
-8453
-// connect to your contract
-export const contract = getContract({ 
-  client, 
-  chain: defineChain(8453), 
-  address: "0x50EB806Cbf052c4AD4D4862d36991769fBE397De" 
-});
+

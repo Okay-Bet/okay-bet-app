@@ -1,7 +1,7 @@
 // services/validation.ts
 import { OrderPayload } from '../components/types/orders';
-import { ValidationResponse } from '../components/types/validation';
-import { isAddress } from 'ethers/lib/utils';
+import { ValidationResult } from '../components/types/validation';
+import { isAddress } from 'ethers';
 
 // Custom error for validation-specific issues
 export class ValidationError extends Error {
@@ -12,7 +12,7 @@ export class ValidationError extends Error {
 }
 
 // Core validation function
-export const validateOrderRequest = async (orderData: OrderPayload): Promise<ValidationResponse> => {
+export const validateOrderRequest = async (orderData: OrderPayload): Promise<ValidationResult> => {
   // First, validate the Ethereum address format
   if (!isAddress(orderData.user_address)) {
     throw new ValidationError(`Invalid user address: ${orderData.user_address}`);
@@ -32,5 +32,5 @@ export const validateOrderRequest = async (orderData: OrderPayload): Promise<Val
     throw new ValidationError(data.error?.msg || data.detail || 'Validation failed');
   }
 
-  return data as ValidationResponse;
+  return data as ValidationResult;
 };

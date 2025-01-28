@@ -1,43 +1,86 @@
-// hooks/usePositions.ts
 import { useState, useEffect } from "react";
 import { useActiveAccount } from "thirdweb/react";
-import type { Position, MarketData } from "../components/types/position";
+import { createPublicClient, http, parseAbi } from "viem";
+import { base } from "viem/chains";
+import { Position, PositionValues } from "../components/types";
+
+const FPMM_ABI = parseAbi([
+  "function calcSellAmount(uint256 returnAmount, uint256 outcomeIndex) view returns (uint256 outcomeTokenSellAmount)",
+]);
+
+const publicClient = createPublicClient({
+  chain: base,
+  transport: http(),
+});
 
 export function usePositions() {
   const account = useActiveAccount();
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [totalValue, setTotalValue] = useState(0);
+  const [positionValues, setPositionValues] = useState<PositionValues>({});
 
-  const isMarketResolved = (prices: number[]): boolean => {
-    if (!Array.isArray(prices)) return false;
-    return prices.some((price) => price === 1.0 || price === 0.0);
+  const isMarketResolved = (status: string): boolean => {
+    return status.toUpperCase() === "RESOLVED";
   };
 
-  const totalValue = positions.reduce((total, position) => {
-    if (
-      !position?.prices ||
-      !Array.isArray(position.prices) ||
-      !position.prices.length
-    ) {
-      return total;
+  const getMarketPrice = async (position: Position): Promise<number> => {
+    try {
+      if (
+        !position.contract?.address ||
+        !/^0x[a-fA-F0-9]{40}$/.test(position.contract.address)
+      ) {
+        throw new Error("Invalid contract address");
+      }
+
+      const TEST_SELL_AMOUNT = 1000000n; // 1 USDC (6 decimals)
+      const tokensNeeded = await publicClient.readContract({
+        address: position.contract.address as `0x${string}`,
+        abi: FPMM_ABI,
+        functionName: "calcSellAmount",
+        args: [TEST_SELL_AMOUNT, BigInt(position.outcome)],
+      });
+
+      if (tokensNeeded <= 0n) {
+        throw new Error("Invalid tokens needed amount");
+      }
+
+      return Number(TEST_SELL_AMOUNT) / Number(tokensNeeded);
+    } catch (error) {
+      return 1 / 3; // Fallback price
     }
-    if (
-      !position?.balances ||
-      !Array.isArray(position.balances) ||
-      !position.balances.length
-    ) {
-      return total;
-    }
-    if (isMarketResolved(position.prices)) {
-      return total;
+  };
+
+  const calculatePositionValue = async (
+    position: Position
+  ): Promise<number> => {
+    const decimals = position.market_data.collateral_token.decimals;
+    const currentBalance = position.current_balance / Math.pow(10, decimals);
+
+    if (isMarketResolved(position.status)) {
+      return position.is_winner ? currentBalance : 0;
     }
 
-    const balance = position.balances[0] / 1_000_000;
-    const price = position.prices[0] ?? 0; // Using nullish coalescing
-    const value = balance * price;
-    return total + value;
-  }, 0);
+    const price = await getMarketPrice(position);
+    return Math.round(currentBalance * price * 1000) / 1000;
+  };
+
+  const updateAllPositionValues = async (positions: Position[]) => {
+    const values: PositionValues = {};
+    let total = 0;
+
+    await Promise.all(
+      positions.map(async (position) => {
+        const value = await calculatePositionValue(position);
+        values[position.token_id] = value;
+        total += value;
+      })
+    );
+
+    setPositionValues(values);
+    setTotalValue(Math.round(total * 1000) / 1000);
+  };
 
   useEffect(() => {
     const fetchPositions = async () => {
@@ -61,33 +104,34 @@ export function usePositions() {
         const data = await response.json();
 
         if (data.completed_orders) {
-          // Add type safety checks for filtering
-          const validPositions = data.completed_orders.filter(
-            (position: Position) =>
-              position?.condition_id &&
-              Array.isArray(position?.prices) &&
-              position.prices.length > 0 &&
-              Array.isArray(position?.balances) &&
-              position.balances.length > 0
-          );
+          const validPositions = data.completed_orders
+            .filter(
+              (position: Position) =>
+                position?.condition_id &&
+                position?.current_balance &&
+                position?.market_data
+            )
+            .sort((a: Position, b: Position) => {
+              const aResolved = isMarketResolved(a.status);
+              const bResolved = isMarketResolved(b.status);
 
-          const sortedPositions = [...validPositions].sort((a, b) => {
-            const aResolved = isMarketResolved(a.prices);
-            const bResolved = isMarketResolved(b.prices);
+              if (aResolved !== bResolved) {
+                return aResolved ? 1 : -1;
+              }
 
-            if (aResolved !== bResolved) {
-              return aResolved ? 1 : -1;
-            }
+              const aBalance =
+                a.current_balance /
+                Math.pow(10, a.market_data.collateral_token.decimals);
+              const bBalance =
+                b.current_balance /
+                Math.pow(10, b.market_data.collateral_token.decimals);
+              return bBalance - aBalance;
+            });
 
-            const aValue = (a.balances[0] / 1_000_000) * a.prices[0];
-            const bValue = (b.balances[0] / 1_000_000) * b.prices[0];
-            return bValue - aValue;
-          });
-
-          setPositions(sortedPositions);
+          setPositions(validPositions);
+          await updateAllPositionValues(validPositions);
         }
       } catch (err) {
-        console.error("Error fetching positions:", err);
         setError(
           err instanceof Error ? err.message : "Failed to load positions"
         );
@@ -99,12 +143,20 @@ export function usePositions() {
     fetchPositions();
   }, [account?.address]);
 
+  const getFormattedBalance = (position: Position): string => {
+    const decimals = position.market_data.collateral_token.decimals;
+    const balance = position.current_balance / Math.pow(10, decimals);
+    return balance.toFixed(2);
+  };
+
   return {
     positions,
     loading,
     error,
     isConnected: !!account?.address,
     totalValue,
+    positionValues,
     isMarketResolved,
+    getFormattedBalance,
   };
 }

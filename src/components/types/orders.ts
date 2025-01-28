@@ -1,5 +1,5 @@
 // src/types/order.ts
-import { ValidationResponse } from "./validation";
+import { ValidationResult } from "./validation";
 
 export type OrderSide = "BUY" | "SELL";
 
@@ -9,6 +9,8 @@ export interface OrderRequest {
   amount: number;
   side: OrderSide;
   isYesToken: boolean;
+  estimatedTokens?: number;
+  priceImpact?: number;
 }
 
 export interface OrderPayload {
@@ -40,7 +42,7 @@ export interface BridgeProgress {
 export type OrderStatus =
   | { state: "idle" }
   | { state: "validating" }
-  | { state: "validated"; data: ValidationResponse }
+  | { state: "validated"; data: ValidationResult }
   | {
       state: "preparing_transfer";
       bridgeDetails?: BridgeDetails;
@@ -61,4 +63,18 @@ export interface OrderHook {
   status: OrderStatus;
   isLoading: boolean;
   bridgeStep?: BridgeProgress;
+}
+
+export interface BridgeStep {
+  step: "approval" | "bridging";
+  status: "approving" | "pending" | "success" | "failed";
+  txHash?: string;
+  error?: string;
+}
+
+export interface UseLimitlessOrderReturn {
+  submitOrder: (orderRequest: OrderRequest) => Promise<any>;
+  isLoading: boolean;
+  error: string | null;
+  bridgeStep: BridgeStep;
 }
