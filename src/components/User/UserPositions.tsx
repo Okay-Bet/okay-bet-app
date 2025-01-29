@@ -42,19 +42,32 @@ const UserPositions: React.FC = () => {
     isYesToken: boolean,
     price: number
   ): Promise<void> => {
+    console.log("🎯 handleSell called with:", {
+      tokenId,
+      amount,
+      isYesToken,
+      price,
+    });
+
     if (!account?.address) {
       console.error("Wallet not connected");
       return;
     }
 
     try {
+      console.log("🚀 Selling position with params:", {
+        tokenId,
+        amount,
+        isYesToken}
+      )
+
       await sellPosition({
         token_id: tokenId,
         price,
         amount,
         is_yes_token: isYesToken,
       });
-      window.location.reload();
+      // window.location.reload();
     } catch (error) {
       console.error("Failed to sell position:", error);
     }
