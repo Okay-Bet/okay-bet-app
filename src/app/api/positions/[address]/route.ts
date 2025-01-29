@@ -117,8 +117,6 @@ async function fetchTransferHistory(address: string) {
 
   const data = (await response.json()) as ExtendedSubgraphResponse;
 
-  console.log("Transfer history data:", data);
-
   // Calculate balances by token ID
   const balances = new Map<string, string>();
 

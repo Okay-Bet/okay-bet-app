@@ -28,6 +28,26 @@ const MARKET_ABI = [
     outputs: [{ type: "uint256", name: "outcomeTokenSellAmount" }],
     stateMutability: "view",
   },
+  {
+    type: "function",
+    name: "conditionalTokens",
+    inputs: [],
+    outputs: [{ type: "address" }],
+    stateMutability: "view",
+  },
+] as const;
+
+const ERC1155_ABI = [
+  {
+    type: "function",
+    name: "setApprovalForAll",
+    inputs: [
+      { type: "address", name: "operator" },
+      { type: "bool", name: "approved" },
+    ],
+    outputs: [{ type: "bool" }],
+    stateMutability: "nonpayable",
+  },
 ] as const;
 
 interface SellPositionParams {
@@ -71,6 +91,54 @@ export function useSellPosition() {
   const { mutateAsync: sendAndConfirmTx } = useSendAndConfirmTransaction();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [approvalStatus, setApprovalStatus] = useState<
+    "pending" | "approved" | "failed"
+  >("pending");
+
+  const handleTokenApproval = async (marketAddress: string) => {
+    try {
+      const marketContract = getContract({
+        client,
+        chain: base,
+        address: marketAddress,
+        abi: MARKET_ABI,
+      });
+
+      // Get the conditional tokens address from the market contract
+      const conditionalTokensAddress = await readContract({
+        contract: marketContract,
+        method: "conditionalTokens",
+        params: [],
+      });
+
+      console.log("Preparing ERC1155 approval:", {
+        conditionalTokensAddress,
+        marketAddress,
+      });
+
+      const tokenContract = getContract({
+        client,
+        chain: base,
+        address: conditionalTokensAddress,
+        abi: ERC1155_ABI,
+      });
+
+      const approvalTx = prepareContractCall({
+        contract: tokenContract,
+        method: "function setApprovalForAll(address operator, bool approved)",
+        params: [marketAddress, true],
+      });
+
+      const receipt = await sendAndConfirmTx(approvalTx);
+      console.log("ERC1155 approval confirmed:", receipt.transactionHash);
+      setApprovalStatus("approved");
+      return receipt;
+    } catch (error) {
+      console.error("ERC1155 approval failed:", error);
+      setApprovalStatus("failed");
+      throw error;
+    }
+  };
 
   const getMarketContract = (marketAddress: string) => {
     return getContract({
@@ -81,7 +149,6 @@ export function useSellPosition() {
     });
   };
 
-  const USDC_DECIMALS = 1_000_000n; // 6 decimals for USDC
 
   const calculateSellParams = async (params: SellPositionParams) => {
     const contract = getMarketContract(params.token_id);
@@ -145,6 +212,9 @@ export function useSellPosition() {
     setError(null);
 
     try {
+      await handleTokenApproval(params.token_id);
+
+
       // Get contract instance using the token_id as the market address
       const marketContract = getContract({
         client,
