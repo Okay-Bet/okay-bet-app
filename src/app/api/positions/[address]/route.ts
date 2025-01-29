@@ -57,6 +57,9 @@ interface Position {
       decimals: number;
       symbol: string;
     };
+    contract: {
+      address: string;
+    };
   };
 }
 
@@ -113,6 +116,8 @@ async function fetchTransferHistory(address: string) {
   }
 
   const data = (await response.json()) as ExtendedSubgraphResponse;
+
+  console.log("Transfer history data:", data);
 
   // Calculate balances by token ID
   const balances = new Map<string, string>();
@@ -200,6 +205,8 @@ export async function GET(
       })
     );
 
+    console.log("Market data map:", marketDataMap); 
+
     const completed_orders: Position[] = transfers
       .map((transfer) => {
         const isReceivedToken = transfer.to.toLowerCase() === userAddressLower;
@@ -212,7 +219,7 @@ export async function GET(
 
         const position: Position = {
           condition_id: marketData.conditionId,
-          token_id: transfer.id,
+          token_id: marketData.address,
           balance: Number(transfer.value),
           current_balance: Number(balances.get(transfer.id) || "0"),
           outcome: isReceivedToken ? 1 : 0,
