@@ -149,33 +149,22 @@ export function useSellPosition() {
     });
   };
 
-
   const calculateSellParams = async (params: SellPositionParams) => {
     const contract = getMarketContract(params.token_id);
-    const outcomeIndex = BigInt(params.is_yes_token ? 1 : 2);
+    // Change outcomeIndex to use 0 for yes tokens instead of 1
+    const outcomeIndex = BigInt(params.is_yes_token ? 0 : 1);
 
     // Calculate initial sell amount based on our full balance
     const desiredTokensToSell = BigInt(params.amount);
-    const holdings = BigInt(2_000_000);
-    const otherHoldings = [BigInt(2_000_000)];
-    const fee = 0.1;
 
-    const sellAmountInCollateral = calcSellAmountInCollateral(
-      desiredTokensToSell,
-      holdings,
-      otherHoldings,
-      fee
-    );
+    // Get the AMM's maximum allowed tokens for this trade first
+    const maxOutcomeTokensToSell = desiredTokensToSell; // Use full amount as max
 
-    if (!sellAmountInCollateral) {
-      throw new Error("Failed to calculate sell amount");
-    }
-
-    // Get the AMM's maximum allowed tokens for this trade
-    const maxOutcomeTokensToSell = await readContract({
+    // Calculate return amount using the contract's calcSellAmount
+    const sellAmountInCollateral = await readContract({
       contract,
       method: "calcSellAmount",
-      params: [sellAmountInCollateral, outcomeIndex],
+      params: [maxOutcomeTokensToSell, outcomeIndex],
     });
 
     console.log("Sell calculation results:", {
@@ -195,7 +184,6 @@ export function useSellPosition() {
       outcomeIndex: outcomeIndex.toString(),
     });
 
-    // Use the AMM's maximum allowed amount
     return {
       returnAmount: sellAmountInCollateral,
       outcomeIndex,
@@ -213,7 +201,6 @@ export function useSellPosition() {
 
     try {
       await handleTokenApproval(params.token_id);
-
 
       // Get contract instance using the token_id as the market address
       const marketContract = getContract({

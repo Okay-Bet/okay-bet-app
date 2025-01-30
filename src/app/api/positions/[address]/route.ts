@@ -207,10 +207,6 @@ async function fetchMarketCreationData(marketAddresses: string[]) {
   );
 
   const validConditionIds = conditionIds.filter(Boolean) as string[];
-  console.log(
-    "Fetching parent collection IDs for condition IDs:",
-    validConditionIds
-  );
 
   const query = {
     query: `

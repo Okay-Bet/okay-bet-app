@@ -92,22 +92,23 @@ const PositionCard: React.FC<PositionCardProps> = ({
           </div>
 
           <div className="pt-3">
-            {!isResolved ? (
-              <button
-                onClick={handleSellClick}
-                disabled={sellLoading}
-                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-blue-300"
-              >
-                {sellLoading ? "Processing..." : "Sell Position"}
-              </button>
-            ) : (
+             {!isResolved ? (
+              <div></div>
+              // <button
+              //   onClick={handleSellClick}
+              //   disabled={sellLoading}
+              //   className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-blue-300"
+              // >
+              //   {sellLoading ? "Processing..." : "Sell Position"}
+              // </button>
+            ) : ( 
               <button
                 onClick={handleRedeemClick}
                 className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700"
               >
                 Redeem Winnings
               </button>
-            )}
+            )} 
           </div>
         </div>
       )}

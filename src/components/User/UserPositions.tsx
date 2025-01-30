@@ -38,42 +38,42 @@ const UserPositions: React.FC = () => {
     };
   }, [positions, positionValues]);
 
-  const handleSell = async (
-    tokenId: string,
-    amount: number,
-    isYesToken: boolean,
-    price: number
-  ): Promise<void> => {
-    console.log("🎯 handleSell called with:", {
-      tokenId,
-      amount,
-      isYesToken,
-      price,
-    });
+  // const handleSell = async (
+  //   tokenId: string,
+  //   amount: number,
+  //   isYesToken: boolean,
+  //   price: number
+  // ): Promise<void> => {
+  //   console.log("🎯 handleSell called with:", {
+  //     tokenId,
+  //     amount,
+  //     isYesToken,
+  //     price,
+  //   });
 
-    if (!account?.address) {
-      console.error("Wallet not connected");
-      return;
-    }
+  //   if (!account?.address) {
+  //     console.error("Wallet not connected");
+  //     return;
+  //   }
 
-    try {
-      console.log("🚀 Selling position with params:", {
-        tokenId,
-        amount,
-        isYesToken,
-      });
+  //   try {
+  //     console.log("🚀 Selling position with params:", {
+  //       tokenId,
+  //       amount,
+  //       isYesToken,
+  //     });
 
-      await sellPosition({
-        token_id: tokenId,
-        price,
-        amount,
-        is_yes_token: isYesToken,
-      });
-      // window.location.reload();
-    } catch (error) {
-      console.error("Failed to sell position:", error);
-    }
-  };
+  //     await sellPosition({
+  //       token_id: tokenId,
+  //       price,
+  //       amount,
+  //       is_yes_token: isYesToken,
+  //     });
+  //     // window.location.reload();
+  //   } catch (error) {
+  //     console.error("Failed to sell position:", error);
+  //   }
+  // };
 
   const handleRedeem = async (
     tokenId: string,
@@ -114,7 +114,7 @@ const UserPositions: React.FC = () => {
         key={position.token_id}
         position={position}
         value={positionValues[position.token_id] || 0}
-        onSell={handleSell}
+        // onSell={handleSell}
         onRedeem={handleRedeem}
         sellLoading={sellLoading}
       />
