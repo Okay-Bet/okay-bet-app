@@ -197,24 +197,50 @@ async function fetchMarketData(
 }
 
 async function fetchMarketCreationData(marketAddresses: string[]) {
+  // Get condition IDs from market data first
+  const conditionIds = await Promise.all(
+    marketAddresses.map(async (addr) => {
+      const marketData = await fetchMarketData(addr);
+      return marketData?.conditionId.toLowerCase();
+    })
+  );
+
+  const validConditionIds = conditionIds.filter(Boolean) as string[];
+  console.log(
+    "Fetching parent collection IDs for condition IDs:",
+    validConditionIds
+  );
+
   const query = {
-    query: `query getMarketCreations {
-      markets: FixedProductMarketMakerFactory_FixedProductMarketMakerCreation(
-        where: {
-          fixedProductMarketMaker: {_in: ${JSON.stringify(marketAddresses)}}
+    query: `
+      query getParentCollectionIds($conditionIds: [String!]!) {
+        ConditionalTokens_PositionSplit(
+          where: {
+            conditionId: {_in: $conditionIds}
+          }
+        ) {
+          id
+          conditionId
+          parentCollectionId
         }
-      ) {
-        fixedProductMarketMaker
-        conditionIds
+        ConditionalTokens_PayoutRedemption(
+          where: {
+            conditionId: {_in: $conditionIds}
+          }
+        ) {
+          id
+          conditionId
+          parentCollectionId
+        }
       }
-    }`,
+    `,
+    variables: {
+      conditionIds: validConditionIds,
+    },
   };
 
-  if (!SUBGRAPH_URL) {
-    throw new Error("SUBGRAPH_URL is not defined");
-  }
 
-  const response = await fetch(SUBGRAPH_URL, {
+  const response = await fetch(SUBGRAPH_URL!, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -223,28 +249,44 @@ async function fetchMarketCreationData(marketAddresses: string[]) {
     body: JSON.stringify(query),
   });
 
-  if (!response.ok) {
-    throw new Error(`Subgraph request failed: ${response.statusText}`);
-  }
-
   const data = await response.json();
 
-  // Add debug logging
+  // Create a map of condition ID to parent collection ID
+  const finalParentCollectionIds = new Map<string, string | null>();
 
-  // Create a map of market address to condition IDs
-  const marketToConditionIds = new Map();
+  // Process PositionSplit events
+  if (data?.data?.ConditionalTokens_PositionSplit) {
+    data.data.ConditionalTokens_PositionSplit.forEach((split: any) => {
+      const conditionId = split.conditionId.toLowerCase();
+      const parentCollectionId = split.parentCollectionId;
 
-  // Check if data and data.data exist before accessing markets
-  if (data?.data?.markets) {
-    data.data.markets.forEach((market) => {
-      marketToConditionIds.set(
-        market.fixedProductMarketMaker.toLowerCase(),
-        market.conditionIds[0] // Assuming first condition ID is what we want
-      );
+      if (
+        !finalParentCollectionIds.has(conditionId) ||
+        finalParentCollectionIds.get(conditionId) ===
+          "0x0000000000000000000000000000000000000000000000000000000000000000"
+      ) {
+        finalParentCollectionIds.set(conditionId, parentCollectionId);
+      }
     });
   }
 
-  return marketToConditionIds;
+  // Process PayoutRedemption events
+  if (data?.data?.ConditionalTokens_PayoutRedemption) {
+    data.data.ConditionalTokens_PayoutRedemption.forEach((redemption: any) => {
+      const conditionId = redemption.conditionId.toLowerCase();
+      const parentCollectionId = redemption.parentCollectionId;
+
+      if (
+        !finalParentCollectionIds.has(conditionId) ||
+        finalParentCollectionIds.get(conditionId) ===
+          "0x0000000000000000000000000000000000000000000000000000000000000000"
+      ) {
+        finalParentCollectionIds.set(conditionId, parentCollectionId);
+      }
+    });
+  }
+
+  return finalParentCollectionIds;
 }
 
 export async function GET(
@@ -266,6 +308,7 @@ export async function GET(
         )
       )
     );
+
 
     // Create market data map
     const marketDataMap = new Map();
@@ -296,7 +339,9 @@ export async function GET(
         const position: Position = {
           condition_id: marketData.conditionId,
           token_id: marketData.address,
-          parent_collection_id: marketCreationData.get(marketAddress), // Get parent collection ID from creation data
+          parent_collection_id:
+            marketCreationData.get(marketData.conditionId.toLowerCase()) ??
+            undefined,
           balance: Number(transfer.value),
           current_balance: Number(balances.get(transfer.id) || "0"),
           outcome: isReceivedToken ? 1 : 0,
@@ -315,16 +360,7 @@ export async function GET(
           },
         };
 
-        console.log("Position:", position);
-
-        if (
-          marketData.status === "RESOLVED" &&
-          marketData.winningOutcomeIndex !== null
-        ) {
-          position.is_winner =
-            position.outcome === marketData.winningOutcomeIndex;
-          position.market_data.winning_outcome = marketData.winningOutcomeIndex;
-        }
+        console.log("Created position:", position);
 
         return position;
       })
@@ -353,17 +389,4 @@ export async function GET(
       { status: 500 }
     );
   }
-}
-
-export async function OPTIONS() {
-  return NextResponse.json(
-    {},
-    {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET",
-        "Access-Control-Allow-Headers": "Content-Type",
-      },
-    }
-  );
 }
