@@ -189,7 +189,9 @@ async function fetchMarketData(
       return null;
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log("Limitless API response for market:", marketAddress, data);
+    return data;
   } catch (error) {
     console.error("Error fetching market data:", error);
     return null;
@@ -308,7 +310,6 @@ export async function GET(
         )
       )
     );
-
 
     // Create market data map
     const marketDataMap = new Map();

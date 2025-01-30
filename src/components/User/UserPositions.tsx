@@ -78,7 +78,8 @@ const UserPositions: React.FC = () => {
   const handleRedeem = async (
     tokenId: string,
     isYesToken: boolean,
-    conditionId: string
+    conditionId: string,
+    parentCollectionId: string,
   ): Promise<void> => {
     if (!account?.address) {
       console.error("Wallet not connected");
@@ -96,6 +97,7 @@ const UserPositions: React.FC = () => {
         token_id: tokenId,
         is_yes_token: isYesToken,
         condition_id: conditionId,
+        parent_collection_id: parentCollectionId,
       });
 
       // Optionally refresh the positions

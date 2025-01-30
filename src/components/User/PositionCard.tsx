@@ -30,7 +30,7 @@ const PositionCard: React.FC<PositionCardProps> = ({
 
   const handleRedeemClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent expanding/collapsing when clicking redeem
-    onRedeem(position.token_id, isYesToken, position.condition_id);
+    onRedeem(position.token_id, isYesToken, position.condition_id, position.parent_collection_id);
   };
 
   return (

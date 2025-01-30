@@ -4,6 +4,7 @@ import { MarketOutcome, MarketProvider, PositionStatus, Side } from "./core";
 export interface Position {
   condition_id: string;
   token_id: string;
+  parent_collection_id: string;
   balance: number;
   current_balance: number;
   outcome: number;
@@ -45,7 +46,7 @@ export interface PositionCardProps {
   position: Position;  // Updated to use our API-matching Position type
   value: number;
   onSell: (tokenId: string, amount: number, isYesToken: boolean, price: number) => Promise<void>;
-  onRedeem: (tokenId: string, isYesToken: boolean, conditionId: string) => Promise<void>;
+  onRedeem: (tokenId: string, isYesToken: boolean, conditionId: string, parentCollectionId: string) => Promise<void>;
   sellLoading: boolean;
 }
 

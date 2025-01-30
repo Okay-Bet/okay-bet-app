@@ -1,5 +1,9 @@
 import { useCallback } from "react";
-import { useActiveAccount, useSendAndConfirmTransaction } from "thirdweb/react";
+import {
+  useActiveAccount,
+  useSendAndConfirmTransaction,
+  useReadContract,
+} from "thirdweb/react";
 import { prepareContractCall, getContract } from "thirdweb";
 import { base } from "thirdweb/chains";
 import { client } from "../app/client";
@@ -17,18 +21,40 @@ const CONDITIONAL_TOKEN_ABI = [
     outputs: [],
     stateMutability: "nonpayable",
   },
+  {
+    type: "function",
+    name: "getCollectionId",
+    inputs: [
+      { type: "bytes32", name: "parentCollectionId" },
+      { type: "bytes32", name: "conditionId" },
+      { type: "uint256", name: "indexSet" },
+    ],
+    outputs: [{ type: "bytes32" }],
+    stateMutability: "view",
+  },
+] as const;
+
+const MARKET_CONTRACT_ABI = [
+  {
+    constant: true,
+    inputs: [],
+    name: "conditionalTokens",
+    outputs: [{ name: "", type: "address" }],
+    payable: false,
+    stateMutability: "view",
+    type: "function",
+  },
 ] as const;
 
 interface RedeemPositionParams {
   token_id: string;
   is_yes_token: boolean;
   condition_id: `0x${string}`;
+  parent_collection_id: `0x${string}`;
 }
 
 // Constants
 const USDC_ADDRESS = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
-const PARENT_COLLECTION_ID =
-  "46586342936558472622533862019640626392261451892082962702035323232962338940793";
 
 export function useRedeemPosition() {
   const account = useActiveAccount();
@@ -41,28 +67,49 @@ export function useRedeemPosition() {
       }
 
       try {
+        console.log("getting market contrect");
         const marketContract = getContract({
           client,
           chain: base,
           address: params.token_id,
+          abi: MARKET_CONTRACT_ABI,
+        });
+        console.log("got market contract");
+        const { data: conditionalTokensAddress, isPending } = useReadContract({
+          contract: marketContract,
+          method: "function conditionalTokens() view returns (address)",
+          params: [],
+        });
+
+        console.log("ConditionalTokens contract address:", conditionalTokensAddress);
+
+        const conditionalTokensContract = getContract({
+          client,
+          chain: base,
+          address: conditionalTokensAddress,
           abi: CONDITIONAL_TOKEN_ABI,
         });
 
-        const indexSets = [BigInt(params.is_yes_token ? 1 : 2)];
+        const indexSet = BigInt(params.is_yes_token ? 1 : 2);
+        if (indexSet <= BigInt(0)) {
+          throw new Error("Invalid index set");
+        }
+
+        const indexSets = [indexSet];
 
         console.log("Preparing redeem transaction with params:", {
           collateralToken: USDC_ADDRESS,
-          parentCollectionId: PARENT_COLLECTION_ID,
+          parentCollectionId: params.parent_collection_id || "0x0000000000000000000000000000000000000000000000000000000000000000",
           conditionId: params.condition_id,
-          indexSets: indexSets.map((i) => i.toString()),
+          indexSets: indexSets.map(i => i.toString()),
         });
 
         const transaction = prepareContractCall({
-          contract: marketContract,
+          contract: conditionalTokensContract,
           method: "redeemPositions",
           params: [
             USDC_ADDRESS,
-            PARENT_COLLECTION_ID,
+            params.parent_collection_id,
             params.condition_id,
             indexSets,
           ],
