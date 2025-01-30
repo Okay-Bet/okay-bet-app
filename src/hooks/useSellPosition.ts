@@ -125,11 +125,11 @@ export function useSellPosition() {
 
       const approvalTx = prepareContractCall({
         contract: tokenContract,
-        method: "function setApprovalForAll(address operator, bool approved)",
+        method: "setApprovalForAll",
         params: [marketAddress, true],
       });
 
-      const receipt = await sendAndConfirmTx(approvalTx);
+      const receipt = await sendAndConfirmTx(approvalTx as any);
       console.log("ERC1155 approval confirmed:", receipt.transactionHash);
       setApprovalStatus("approved");
       return receipt;
@@ -230,15 +230,15 @@ export function useSellPosition() {
       });
 
       // Add this before sendAndConfirmTx
-      const txData = await transaction.data();
-      console.log("Transaction data comparison:", {
-        ourTxData: txData,
-        workingTxData:
-          "0xd3c9727c0000000000000000000000000000000000000000000000000000000000136f05000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000001c9ad8",
-        doTheyMatch:
-          txData ===
-          "0xd3c9727c0000000000000000000000000000000000000000000000000000000000136f05000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000001c9ad8",
-      });
+      // const txData = await transaction.data();
+      // console.log("Transaction data comparison:", {
+      //   ourTxData: txData,
+      //   workingTxData:
+      //     "0xd3c9727c0000000000000000000000000000000000000000000000000000000000136f05000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000001c9ad8",
+      //   doTheyMatch:
+      //     txData ===
+      //     "0xd3c9727c0000000000000000000000000000000000000000000000000000000000136f05000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000001c9ad8",
+      // });
       const receipt = await sendAndConfirmTx(transaction);
       console.log("Transaction confirmed:", receipt?.transactionHash);
 

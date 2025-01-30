@@ -353,6 +353,9 @@ export async function GET(
             liquidity: marketData.liquidityFormatted,
             status: marketData.status,
             collateral_token: marketData.collateralToken,
+            contract: {
+              address: marketData.address  // Using the market's address for the contract address
+            },
           },
         };
 

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { usePositions } from "../../hooks/usePositions";
-import { useSellPosition } from "../../hooks/useSellPosition";
+// import { useSellPosition } from "../../hooks/useSellPosition";
 import { useRedeemPosition } from "../../hooks/useRedeemPosition";
 import { useActiveAccount } from "thirdweb/react";
 import { ChevronDown, ChevronUp, Wallet } from "lucide-react";
@@ -11,9 +11,9 @@ type TabType = "active" | "resolved";
 
 const UserPositions: React.FC = () => {
   const { positions, loading, isConnected, positionValues } = usePositions();
-  const { sellPosition, loading: sellLoading } = useSellPosition();
-  const { redeemPosition, loading: redeemLoading } = useRedeemPosition();
-  const account = useActiveAccount();
+  // const { sellPosition } = useSellPosition();
+  const { redeemPosition } = useRedeemPosition();
+    const account = useActiveAccount();
   const [activeTab, setActiveTab] = useState<TabType>("active");
   const [isComponentExpanded, setIsComponentExpanded] = useState(true);
 
@@ -89,10 +89,10 @@ const UserPositions: React.FC = () => {
     try {
 
       await redeemPosition({
-        token_id: tokenId,
+        token_id: `0x${tokenId}`,
         is_yes_token: isYesToken,
-        condition_id: conditionId,
-        parent_collection_id: parentCollectionId,
+        condition_id: `0x${conditionId}`,
+        parent_collection_id: `0x${parentCollectionId}`,
       });
 
       // Optionally refresh the positions
@@ -116,7 +116,6 @@ const UserPositions: React.FC = () => {
         value={positionValues[position.token_id] || 0}
         // onSell={handleSell}
         onRedeem={handleRedeem}
-        sellLoading={sellLoading}
       />
     ));
   };

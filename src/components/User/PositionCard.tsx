@@ -5,9 +5,8 @@ import { PositionCardProps } from "../types";
 const PositionCard: React.FC<PositionCardProps> = ({
   position,
   value,
-  onSell,
+  // onSell,
   onRedeem,
-  sellLoading,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const isResolved = position.status.toUpperCase() === "RESOLVED";
@@ -23,10 +22,10 @@ const PositionCard: React.FC<PositionCardProps> = ({
 
   const isYesToken = position.outcome === 1;
 
-  const handleSellClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent expanding/collapsing when clicking sell
-    onSell(position.token_id, position.current_balance, isYesToken, value);
-  };
+  // const handleSellClick = (e: React.MouseEvent) => {
+  //   e.stopPropagation(); // Prevent expanding/collapsing when clicking sell
+  //   onSell(position.token_id, position.current_balance, isYesToken, value);
+  // };
 
   const handleRedeemClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent expanding/collapsing when clicking redeem

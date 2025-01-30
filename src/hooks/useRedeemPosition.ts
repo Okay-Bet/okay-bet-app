@@ -107,8 +107,8 @@ export function useRedeemPosition() {
           ],
         });
 
-        const receipt = await sendAndConfirmTx(transaction);
-
+        const receipt = await sendAndConfirmTx(transaction as any);
+        
         return receipt;
       } catch (error) {
         console.error("Redeem process failed:", error);
