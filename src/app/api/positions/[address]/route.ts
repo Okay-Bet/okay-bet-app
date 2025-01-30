@@ -12,6 +12,26 @@ interface Transfer {
   event_id: string;
 }
 
+interface PositionEvent {
+  id: string;
+  stakeholder: string;
+  collateralToken: string;
+  parentCollectionId: string;
+  conditionId: string;
+  partition: string[];
+  amount: string;
+}
+
+interface MarketCreationEvent {
+  id: string;
+  creator: string;
+  fixedProductMarketMaker: string;
+  conditionalTokens: string;
+  collateralToken: string;
+  conditionIds: string[];
+  fee: string;
+}
+
 interface LimitlessMarket {
   address: string;
   conditionId: string;
@@ -37,12 +57,13 @@ interface Position {
   condition_id: string;
   token_id: string;
   balance: number;
-  current_balance: number; // Add this field
+  current_balance: number;
   outcome: number;
   status: string;
   expiration_timestamp: number;
   user_address: string;
   transaction_hash: string;
+  parent_collection_id?: string;
   is_winner?: boolean;
   market_data: {
     question: string;
@@ -67,15 +88,16 @@ interface ExtendedSubgraphResponse {
   data: {
     incomingTransfers: Transfer[];
     outgoingTransfers: Transfer[];
+    markets: MarketCreationEvent[];
   };
 }
 
 async function fetchTransferHistory(address: string) {
   const query = {
-    query: `query getTradeHistory {
+    query: `query getTradeHistory($address: String!) {
       incomingTransfers: ConditionalTokens_TransferSingle(
         where: {
-          to: {_eq: "${address}"}
+          to: {_eq: $address}
         }
       ) {
         id
@@ -86,7 +108,7 @@ async function fetchTransferHistory(address: string) {
       }
       outgoingTransfers: ConditionalTokens_TransferSingle(
         where: {
-          from: {_eq: "${address}"}
+          from: {_eq: $address}
         }
       ) {
         id
@@ -96,6 +118,9 @@ async function fetchTransferHistory(address: string) {
         event_id
       }
     }`,
+    variables: {
+      address: address,
+    },
   };
 
   if (!SUBGRAPH_URL) {
@@ -171,6 +196,57 @@ async function fetchMarketData(
   }
 }
 
+async function fetchMarketCreationData(marketAddresses: string[]) {
+  const query = {
+    query: `query getMarketCreations {
+      markets: FixedProductMarketMakerFactory_FixedProductMarketMakerCreation(
+        where: {
+          fixedProductMarketMaker: {_in: ${JSON.stringify(marketAddresses)}}
+        }
+      ) {
+        fixedProductMarketMaker
+        conditionIds
+      }
+    }`,
+  };
+
+  if (!SUBGRAPH_URL) {
+    throw new Error("SUBGRAPH_URL is not defined");
+  }
+
+  const response = await fetch(SUBGRAPH_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(query),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Subgraph request failed: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+
+  // Add debug logging
+
+  // Create a map of market address to condition IDs
+  const marketToConditionIds = new Map();
+
+  // Check if data and data.data exist before accessing markets
+  if (data?.data?.markets) {
+    data.data.markets.forEach((market) => {
+      marketToConditionIds.set(
+        market.fixedProductMarketMaker.toLowerCase(),
+        market.conditionIds[0] // Assuming first condition ID is what we want
+      );
+    });
+  }
+
+  return marketToConditionIds;
+}
+
 export async function GET(
   request: Request,
   { params }: { params: { address: string } }
@@ -178,32 +254,34 @@ export async function GET(
   try {
     const { address } = params;
     const userAddressLower = address.toLowerCase();
-
     const { transfers, balances } = await fetchTransferHistory(address);
 
-    // Get unique market addresses to avoid duplicate fetches
-    const uniqueMarketAddresses = new Set(
-      transfers.map((transfer) => {
-        // For incoming transfers, the 'from' address is the market
-        // For outgoing transfers, the 'to' address is the market
-        return transfer.to.toLowerCase() === userAddressLower
-          ? transfer.from
-          : transfer.to;
-      })
+    // Get unique market addresses
+    const uniqueMarketAddresses = Array.from(
+      new Set(
+        transfers.map((transfer) =>
+          transfer.to.toLowerCase() === userAddressLower
+            ? transfer.from
+            : transfer.to
+        )
+      )
     );
 
-    // Fetch market data for unique addresses
+    // Create market data map
     const marketDataMap = new Map();
-    await Promise.all(
-      Array.from(uniqueMarketAddresses).map(async (marketAddress) => {
-        const data = await fetchMarketData(marketAddress);
-        if (data) {
-          marketDataMap.set(marketAddress.toLowerCase(), data);
-        }
-      })
-    );
 
-    console.log("Market data map:", marketDataMap); 
+    // Fetch both market data and creation data in parallel
+    const [marketDataResponses, marketCreationData] = await Promise.all([
+      Promise.all(uniqueMarketAddresses.map((addr) => fetchMarketData(addr))),
+      fetchMarketCreationData(uniqueMarketAddresses),
+    ]);
+
+    // Populate market data map
+    marketDataResponses.forEach((data, index) => {
+      if (data) {
+        marketDataMap.set(uniqueMarketAddresses[index].toLowerCase(), data);
+      }
+    });
 
     const completed_orders: Position[] = transfers
       .map((transfer) => {
@@ -218,6 +296,7 @@ export async function GET(
         const position: Position = {
           condition_id: marketData.conditionId,
           token_id: marketData.address,
+          parent_collection_id: marketCreationData.get(marketAddress), // Get parent collection ID from creation data
           balance: Number(transfer.value),
           current_balance: Number(balances.get(transfer.id) || "0"),
           outcome: isReceivedToken ? 1 : 0,
@@ -235,6 +314,8 @@ export async function GET(
             collateral_token: marketData.collateralToken,
           },
         };
+
+        console.log("Position:", position);
 
         if (
           marketData.status === "RESOLVED" &&

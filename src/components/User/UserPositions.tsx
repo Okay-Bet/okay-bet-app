@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { usePositions } from "../../hooks/usePositions";
 import { useSellPosition } from "../../hooks/useSellPosition";
+import { useRedeemPosition } from "../../hooks/useRedeemPosition";
 import { useActiveAccount } from "thirdweb/react";
 import { ChevronDown, ChevronUp, Wallet } from "lucide-react";
 import PositionCard from "./PositionCard";
@@ -11,6 +12,7 @@ type TabType = "active" | "resolved";
 const UserPositions: React.FC = () => {
   const { positions, loading, isConnected, positionValues } = usePositions();
   const { sellPosition, loading: sellLoading } = useSellPosition();
+  const { redeemPosition, loading: redeemLoading } = useRedeemPosition();
   const account = useActiveAccount();
   const [activeTab, setActiveTab] = useState<TabType>("active");
   const [isComponentExpanded, setIsComponentExpanded] = useState(true);
@@ -58,8 +60,8 @@ const UserPositions: React.FC = () => {
       console.log("🚀 Selling position with params:", {
         tokenId,
         amount,
-        isYesToken}
-      )
+        isYesToken,
+      });
 
       await sellPosition({
         token_id: tokenId,
@@ -73,9 +75,34 @@ const UserPositions: React.FC = () => {
     }
   };
 
-  const handleRedeem = async (tokenId: string): Promise<void> => {
-    // Implement redeem logic here
-    console.log("Redeeming position:", tokenId);
+  const handleRedeem = async (
+    tokenId: string,
+    isYesToken: boolean,
+    conditionId: string
+  ): Promise<void> => {
+    if (!account?.address) {
+      console.error("Wallet not connected");
+      return;
+    }
+
+    try {
+      console.log("🎯 Redeeming position:", {
+        tokenId,
+        isYesToken,
+        conditionId,
+      });
+
+      await redeemPosition({
+        token_id: tokenId,
+        is_yes_token: isYesToken,
+        condition_id: conditionId,
+      });
+
+      // Optionally refresh the positions
+      // window.location.reload();
+    } catch (error) {
+      console.error("Failed to redeem position:", error);
+    }
   };
 
   const renderPositions = (positions: Position[]) => {
