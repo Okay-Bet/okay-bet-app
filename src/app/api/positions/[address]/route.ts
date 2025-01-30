@@ -190,7 +190,6 @@ async function fetchMarketData(
     }
 
     const data = await response.json();
-    console.log("Limitless API response for market:", marketAddress, data);
     return data;
   } catch (error) {
     console.error("Error fetching market data:", error);
@@ -361,7 +360,7 @@ export async function GET(
           },
         };
 
-        console.log("Created position:", position);
+        // console.log("Created position:", position);
 
         return position;
       })

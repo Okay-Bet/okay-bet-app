@@ -87,11 +87,6 @@ const UserPositions: React.FC = () => {
     }
 
     try {
-      console.log("🎯 Redeeming position:", {
-        tokenId,
-        isYesToken,
-        conditionId,
-      });
 
       await redeemPosition({
         token_id: tokenId,

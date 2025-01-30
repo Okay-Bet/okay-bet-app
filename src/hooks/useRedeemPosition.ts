@@ -2,11 +2,13 @@ import { useCallback } from "react";
 import {
   useActiveAccount,
   useSendAndConfirmTransaction,
-  useReadContract,
 } from "thirdweb/react";
 import { prepareContractCall, getContract } from "thirdweb";
 import { base } from "thirdweb/chains";
 import { client } from "../app/client";
+import { createPublicClient, http } from 'viem';
+import { base as viemBase } from 'viem/chains';
+import { getContract as getViemContract } from 'viem';
 
 const CONDITIONAL_TOKEN_ABI = [
   {
@@ -47,11 +49,16 @@ const MARKET_CONTRACT_ABI = [
 ] as const;
 
 interface RedeemPositionParams {
-  token_id: string;
+  token_id: `0x${string}`;
   is_yes_token: boolean;
   condition_id: `0x${string}`;
   parent_collection_id: `0x${string}`;
 }
+
+const publicClient = createPublicClient({
+  chain: viemBase,
+  transport: http()
+});
 
 // Constants
 const USDC_ADDRESS = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
@@ -67,21 +74,13 @@ export function useRedeemPosition() {
       }
 
       try {
-        console.log("getting market contrect");
-        const marketContract = getContract({
-          client,
-          chain: base,
+        const marketContract = getViemContract({
           address: params.token_id,
           abi: MARKET_CONTRACT_ABI,
-        });
-        console.log("got market contract");
-        const { data: conditionalTokensAddress, isPending } = useReadContract({
-          contract: marketContract,
-          method: "function conditionalTokens() view returns (address)",
-          params: [],
+          client: publicClient,
         });
 
-        console.log("ConditionalTokens contract address:", conditionalTokensAddress);
+        const conditionalTokensAddress = await marketContract.read.conditionalTokens() as `0x${string}`;
 
         const conditionalTokensContract = getContract({
           client,
@@ -90,19 +89,12 @@ export function useRedeemPosition() {
           abi: CONDITIONAL_TOKEN_ABI,
         });
 
-        const indexSet = BigInt(params.is_yes_token ? 1 : 2);
+        const indexSet = BigInt(params.is_yes_token ? 2 : 1);
         if (indexSet <= BigInt(0)) {
           throw new Error("Invalid index set");
         }
 
         const indexSets = [indexSet];
-
-        console.log("Preparing redeem transaction with params:", {
-          collateralToken: USDC_ADDRESS,
-          parentCollectionId: params.parent_collection_id || "0x0000000000000000000000000000000000000000000000000000000000000000",
-          conditionId: params.condition_id,
-          indexSets: indexSets.map(i => i.toString()),
-        });
 
         const transaction = prepareContractCall({
           contract: conditionalTokensContract,
@@ -115,9 +107,7 @@ export function useRedeemPosition() {
           ],
         });
 
-        console.log("Sending redeem transaction:", transaction);
         const receipt = await sendAndConfirmTx(transaction);
-        console.log("Redeem transaction confirmed:", receipt.transactionHash);
 
         return receipt;
       } catch (error) {
