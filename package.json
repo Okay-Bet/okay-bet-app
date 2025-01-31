@@ -69,9 +69,7 @@
         "web-push": "^3.6.7",
         "web3modal": "^1.9.12",
         "webpack-bundle-analyzer": "^4.10.2",
-        "workbox-webpack-plugin": "^7.1.0"
-    },
-    "devDependencies": {
+        "workbox-webpack-plugin": "^7.1.0",
         "@types/big.js": "^6.2.2"
     }
 }
