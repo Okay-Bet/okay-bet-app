@@ -1,126 +1,42 @@
 // app/api/positions/[address]/route.ts
 import { NextResponse } from "next/server";
+import {
+  Transfer,
+  Position,
+  LimitlessMarket,
+  ExtendedSubgraphResponse,
+} from "../../../../components/types";
 
 const SUBGRAPH_URL = process.env.SUBGRAPH_URL;
 const LIMITLESS_API_URL = "https://api.limitless.exchange/markets";
 
-interface Transfer {
-  id: string;
-  from: string;
-  to: string;
-  value: string;
-  event_id: string;
-}
-
-interface PositionEvent {
-  id: string;
-  stakeholder: string;
-  collateralToken: string;
-  parentCollectionId: string;
-  conditionId: string;
-  partition: string[];
-  amount: string;
-}
-
-interface MarketCreationEvent {
-  id: string;
-  creator: string;
-  fixedProductMarketMaker: string;
-  conditionalTokens: string;
-  collateralToken: string;
-  conditionIds: string[];
-  fee: string;
-}
-
-interface LimitlessMarket {
-  address: string;
-  conditionId: string;
-  title: string;
-  description: string;
-  status: string;
-  winningOutcomeIndex: number | null;
-  openInterest: string;
-  openInterestFormatted: string;
-  volume: string;
-  volumeFormatted: string;
-  liquidity: string;
-  liquidityFormatted: string;
-  expirationTimestamp: number;
-  collateralToken: {
-    address: string;
-    decimals: number;
-    symbol: string;
-  };
-}
-
-interface Position {
-  condition_id: string;
-  token_id: string;
-  balance: number;
-  current_balance: number;
-  outcome: number;
-  status: string;
-  expiration_timestamp: number;
-  user_address: string;
-  transaction_hash: string;
-  parent_collection_id?: string;
-  is_winner?: boolean;
-  market_data: {
-    question: string;
-    description: string;
-    outcomes: string;
-    volume: string;
-    liquidity: string;
-    status: string;
-    winning_outcome?: number;
-    collateral_token: {
-      address: string;
-      decimals: number;
-      symbol: string;
-    };
-    contract: {
-      address: string;
-    };
-  };
-}
-
-interface ExtendedSubgraphResponse {
-  data: {
-    incomingTransfers: Transfer[];
-    outgoingTransfers: Transfer[];
-    markets: MarketCreationEvent[];
-  };
-}
-
 async function fetchTransferHistory(address: string) {
+  console.log(`Fetching transfer history for address: ${address}`);
   const query = {
-    query: `query getTradeHistory($address: String!) {
-      incomingTransfers: ConditionalTokens_TransferSingle(
-        where: {
-          to: {_eq: $address}
+    query: `query getTradeHistory {
+        incomingTransfers: ConditionalTokens_TransferSingle(
+          where: {
+            to: {_eq: "${address}"}
+          }
+        ) {
+          id
+          from
+          to
+          value
+          event_id
         }
-      ) {
-        id
-        from
-        to
-        value
-        event_id
-      }
-      outgoingTransfers: ConditionalTokens_TransferSingle(
-        where: {
-          from: {_eq: $address}
+        outgoingTransfers: ConditionalTokens_TransferSingle(
+          where: {
+            from: {_eq: "${address}"}
+          }
+        ) {
+          id
+          from
+          to
+          value
+          event_id
         }
-      ) {
-        id
-        from
-        to
-        value
-        event_id
-      }
-    }`,
-    variables: {
-      address: address,
-    },
+      }`,
   };
 
   if (!SUBGRAPH_URL) {
@@ -142,11 +58,21 @@ async function fetchTransferHistory(address: string) {
 
   const data = (await response.json()) as ExtendedSubgraphResponse;
 
+  console.log(`Raw transfer data:`, {
+    incomingTransfersCount: data.data.incomingTransfers.length,
+    outgoingTransfersCount: data.data.outgoingTransfers.length,
+  });
+
   // Calculate balances by token ID
   const balances = new Map<string, string>();
 
   // Add incoming transfers
   data.data.incomingTransfers.forEach((transfer) => {
+    console.log(`Processing incoming transfer:`, {
+      id: transfer.id,
+      from: transfer.from,
+      value: transfer.value,
+    });
     const currentBalance = BigInt(balances.get(transfer.id) || "0");
     balances.set(
       transfer.id,
@@ -156,12 +82,19 @@ async function fetchTransferHistory(address: string) {
 
   // Subtract outgoing transfers
   data.data.outgoingTransfers.forEach((transfer) => {
+    console.log(`Processing outgoing transfer:`, {
+      id: transfer.id,
+      to: transfer.to,
+      value: transfer.value,
+    });
     const currentBalance = BigInt(balances.get(transfer.id) || "0");
     balances.set(
       transfer.id,
       (currentBalance - BigInt(transfer.value)).toString()
     );
   });
+
+  console.log(`Final balances:`, Object.fromEntries(balances));
 
   // Return all transfers (both incoming and outgoing)
   return {
@@ -173,6 +106,10 @@ async function fetchTransferHistory(address: string) {
 async function fetchMarketData(
   marketAddress: string
 ): Promise<LimitlessMarket | null> {
+  console.log(`Fetching market data for address: ${marketAddress}`);
+  if (marketAddress === "0x0000000000000000000000000000000000000000") {
+    return null;
+  }
   try {
     const response = await fetch(`${LIMITLESS_API_URL}/${marketAddress}`, {
       headers: {
@@ -190,6 +127,11 @@ async function fetchMarketData(
     }
 
     const data = await response.json();
+    console.log(`Market data received for ${marketAddress}:`, {
+      conditionId: data.conditionId,
+      title: data.title,
+      status: data.status,
+    });
     return data;
   } catch (error) {
     console.error("Error fetching market data:", error);
@@ -198,6 +140,8 @@ async function fetchMarketData(
 }
 
 async function fetchMarketCreationData(marketAddresses: string[]) {
+  console.log(`Fetching market creation data for addresses:`, marketAddresses);
+
   // Get condition IDs from market data first
   const conditionIds = await Promise.all(
     marketAddresses.map(async (addr) => {
@@ -205,6 +149,7 @@ async function fetchMarketCreationData(marketAddresses: string[]) {
       return marketData?.conditionId.toLowerCase();
     })
   );
+  console.log(`Resolved condition IDs:`, conditionIds);
 
   const validConditionIds = conditionIds.filter(Boolean) as string[];
 
@@ -235,7 +180,6 @@ async function fetchMarketCreationData(marketAddresses: string[]) {
       conditionIds: validConditionIds,
     },
   };
-
 
   const response = await fetch(SUBGRAPH_URL!, {
     method: "POST",
@@ -282,6 +226,10 @@ async function fetchMarketCreationData(marketAddresses: string[]) {
       }
     });
   }
+  console.log(
+    `Final parent collection IDs:`,
+    Object.fromEntries(finalParentCollectionIds)
+  );
 
   return finalParentCollectionIds;
 }
@@ -292,8 +240,11 @@ export async function GET(
 ) {
   try {
     const { address } = params;
+    console.log(`Processing GET request for address: ${address}`);
+
     const userAddressLower = address.toLowerCase();
     const { transfers, balances } = await fetchTransferHistory(address);
+    console.log(`Total transfers found:`, transfers.length);
 
     // Get unique market addresses
     const uniqueMarketAddresses = Array.from(
@@ -305,6 +256,7 @@ export async function GET(
         )
       )
     );
+    console.log(`Unique market addresses:`, uniqueMarketAddresses);
 
     // Create market data map
     const marketDataMap = new Map();
@@ -321,7 +273,10 @@ export async function GET(
         marketDataMap.set(uniqueMarketAddresses[index].toLowerCase(), data);
       }
     });
-
+    console.log(`Market data responses received:`, {
+      totalResponses: marketDataResponses.length,
+      validResponses: marketDataResponses.filter(Boolean).length,
+    });
     const completed_orders: Position[] = transfers
       .map((transfer) => {
         const isReceivedToken = transfer.to.toLowerCase() === userAddressLower;
@@ -354,16 +309,23 @@ export async function GET(
             status: marketData.status,
             collateral_token: marketData.collateralToken,
             contract: {
-              address: marketData.address  // Using the market's address for the contract address
+              address: marketData.address, // Using the market's address for the contract address
             },
           },
         };
 
-        // console.log("Created position:", position);
-
+        console.log(`Created position:`, {
+          condition_id: position.condition_id,
+          token_id: position.token_id,
+          outcome: position.outcome,
+          balance: position.balance,
+          current_balance: position.current_balance,
+        });
         return position;
       })
       .filter(Boolean) as Position[];
+
+    console.log(`Final completed orders count:`, completed_orders.length);
 
     return NextResponse.json(
       {
