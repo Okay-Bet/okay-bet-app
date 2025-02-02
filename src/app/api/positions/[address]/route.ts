@@ -20,18 +20,9 @@ export async function GET(
     const limitlessService = new LimitlessService(LIMITLESS_API_URL);
     const positionService = new PositionService();
 
-    // Fetch transfer history
-    const { transfers, balances, buyTrades, sellTrades } =
+    // Fetch transfer history with position outcomes
+    const { transfers, balances, positionOutcomes, marketInfo } =
       await subgraphService.fetchTransferHistory(address);
-
-    // Process trades
-    const tradesByMarket = new Map();
-    [...buyTrades, ...sellTrades].forEach((trade: any) => {
-      tradesByMarket.set(
-        trade.id.split("_")[0].toLowerCase(),
-        Number(trade.outcomeIndex)
-      );
-    });
 
     // Get unique market addresses
     const uniqueMarketAddresses = Array.from(
@@ -47,7 +38,9 @@ export async function GET(
     // Fetch market data and creation data
     const marketDataMap = new Map();
     const marketDataResponses = await Promise.all(
-      uniqueMarketAddresses.map((addr) => limitlessService.fetchMarketData(addr))
+      uniqueMarketAddresses.map((addr) =>
+        limitlessService.fetchMarketData(addr)
+      )
     );
 
     const conditionIds = marketDataResponses
@@ -66,14 +59,31 @@ export async function GET(
       }
     });
 
-    // Process positions
+    // Process positions with position outcomes
     const completed_orders = positionService.processPositions(
       transfers,
       address,
       balances,
       marketDataMap,
-      tradesByMarket,
+      positionOutcomes, // Pass position outcomes
       marketCreationData
+    );
+
+    // Log position results
+    console.log(
+      "[Route] Position results:",
+      completed_orders.map((order) => ({
+        market: order.token_id,
+        position: order.outcome === 0 ? "No" : "Yes",
+        status: order.status,
+        winning_outcome:
+          order.winning_outcome !== undefined
+            ? order.winning_outcome === 0
+              ? "No"
+              : "Yes"
+            : undefined,
+        result: order.position_result,
+      }))
     );
 
     return NextResponse.json(

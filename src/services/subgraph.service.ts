@@ -1,4 +1,3 @@
-// services/subgraph.service.ts
 import { ExtendedSubgraphResponse, Transfer } from "../components/types";
 
 export class SubgraphService {
@@ -12,11 +11,13 @@ export class SubgraphService {
   }
 
   async fetchTransferHistory(address: string) {
-    console.log(`Fetching transfer history for address: ${address}`);
+    console.log(
+      `[SubgraphService] Fetching transfer history for address: ${address}`
+    );
     const query = {
-      query: `query getTradeHistory {
+      query: `{
         incomingTransfers: ConditionalTokens_TransferSingle(
-          where: { to: {_eq: "${address}"} }
+          where: { to: { _eq: "${address}" } }
         ) {
           id
           from
@@ -25,7 +26,7 @@ export class SubgraphService {
           event_id
         }
         outgoingTransfers: ConditionalTokens_TransferSingle(
-          where: { from: {_eq: "${address}"} }
+          where: { from: { _eq: "${address}" } }
         ) {
           id
           from
@@ -34,110 +35,224 @@ export class SubgraphService {
           event_id
         }
         buyTrades: FixedProductMarketMakerFactory_FPMMBuy(
-          where: { buyer: {_eq: "${address}"} }
+          where: { buyer: { _eq: "${address}" } }
         ) {
           id
-          outcomeIndex
           buyer
           investmentAmount
+          feeAmount
+          outcomeIndex
+          outcomeTokensBought
         }
         sellTrades: FixedProductMarketMakerFactory_FPMMSell(
-          where: { seller: {_eq: "${address}"} }
+          where: { seller: { _eq: "${address}" } }
         ) {
           id
-          outcomeIndex
           seller
           returnAmount
+          feeAmount
+          outcomeIndex
+          outcomeTokensSold
         }
-      }`
+      }`,
     };
 
-    const response = await fetch(this.subgraphUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(query),
-    });
+    try {
+      const response = await fetch(this.subgraphUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(query),
+      });
 
-    if (!response.ok) {
-      throw new Error(`Subgraph request failed: ${response.statusText}`);
+      if (!response.ok) {
+        throw new Error(`Subgraph request failed: ${response.statusText}`);
+      }
+
+      const rawData = await response.json();
+      console.log(
+        "[SubgraphService] Raw response:",
+        JSON.stringify(rawData, null, 2)
+      );
+
+      if (!rawData.data) {
+        throw new Error("Invalid response format from subgraph");
+      }
+
+      const data: ExtendedSubgraphResponse = {
+        data: {
+          incomingTransfers: rawData.data.incomingTransfers || [],
+          outgoingTransfers: rawData.data.outgoingTransfers || [],
+          buyTrades: rawData.data.buyTrades || [],
+          sellTrades: rawData.data.sellTrades || [],
+        },
+      };
+
+      return this.processTransferData(data);
+    } catch (error) {
+      console.error(
+        "[SubgraphService] Error fetching transfer history:",
+        error
+      );
+      throw error;
     }
-
-    const data = (await response.json()) as ExtendedSubgraphResponse;
-    return this.processTransferData(data);
   }
 
   private processTransferData(data: ExtendedSubgraphResponse) {
     const balances = new Map<string, string>();
+    const positionOutcomes = new Map<string, number>();
+    const marketInfo = new Map<string, { eventId: string; value: string }>();
+
+    console.log("[SubgraphService] Processing transfers:", {
+      incomingCount: data.data.incomingTransfers.length,
+      outgoingCount: data.data.outgoingTransfers.length,
+      buyTradesCount: data.data.buyTrades.length,
+      sellTradesCount: data.data.sellTrades.length,
+    });
 
     // Process incoming transfers
     data.data.incomingTransfers.forEach((transfer) => {
       const currentBalance = BigInt(balances.get(transfer.id) || "0");
-      balances.set(
-        transfer.id,
-        (currentBalance + BigInt(transfer.value)).toString()
-      );
+      const newBalance = (currentBalance + BigInt(transfer.value)).toString();
+      balances.set(transfer.id, newBalance);
+
+      // Extract position info from event_id
+      const eventIdBN = BigInt(transfer.event_id);
+      // The last bit of the event_id indicates the position (0 for No, 1 for Yes)
+      const outcomeIndex = Number(eventIdBN % 2n);
+      positionOutcomes.set(transfer.id, outcomeIndex);
+
+      // Store market info
+      marketInfo.set(transfer.from, {
+        eventId: transfer.event_id,
+        value: transfer.value,
+      });
+
+      console.log("[SubgraphService] Processed incoming transfer:", {
+        id: transfer.id,
+        from: transfer.from,
+        value: transfer.value,
+        eventId: transfer.event_id,
+        outcomeIndex,
+        position: outcomeIndex === 0 ? "No" : "Yes",
+        newBalance,
+      });
     });
 
     // Process outgoing transfers
     data.data.outgoingTransfers.forEach((transfer) => {
       const currentBalance = BigInt(balances.get(transfer.id) || "0");
-      balances.set(
-        transfer.id,
-        (currentBalance - BigInt(transfer.value)).toString()
-      );
+      const newBalance = (currentBalance - BigInt(transfer.value)).toString();
+      balances.set(transfer.id, newBalance);
+
+      const eventIdBN = BigInt(transfer.event_id);
+      const outcomeIndex = Number(eventIdBN % 2n);
+      positionOutcomes.set(transfer.id, outcomeIndex);
+
+      // Store market info
+      marketInfo.set(transfer.to, {
+        eventId: transfer.event_id,
+        value: transfer.value,
+      });
+
+      console.log("[SubgraphService] Processed outgoing transfer:", {
+        id: transfer.id,
+        to: transfer.to,
+        value: transfer.value,
+        eventId: transfer.event_id,
+        outcomeIndex,
+        position: outcomeIndex === 0 ? "No" : "Yes",
+        newBalance,
+      });
     });
 
+    // Log position summary
+    console.log(
+      "[SubgraphService] Position summary:",
+      Array.from(positionOutcomes.entries()).map(([id, outcome]) => ({
+        id,
+        position: outcome === 0 ? "No" : "Yes",
+        balance: balances.get(id),
+        marketAddress: id.split("_")[0],
+      }))
+    );
+
+
     return {
-      transfers: [...data.data.incomingTransfers, ...data.data.outgoingTransfers],
+      transfers: [
+        ...data.data.incomingTransfers,
+        ...data.data.outgoingTransfers,
+      ],
       balances,
+      positionOutcomes,
       buyTrades: data.data.buyTrades || [],
       sellTrades: data.data.sellTrades || [],
+      marketInfo,
     };
   }
 
-  async fetchMarketCreationData(marketAddresses: string[], conditionIds: string[]) {
+  async fetchMarketCreationData(
+    marketAddresses: string[],
+    conditionIds: string[]
+  ) {
     const validConditionIds = conditionIds.filter(Boolean);
-    
+
     const query = {
-      query: `
-        query getParentCollectionIds($conditionIds: [String!]!) {
-          ConditionalTokens_PositionSplit(
-            where: { conditionId: {_in: $conditionIds} }
-          ) {
-            id
-            conditionId
-            parentCollectionId
-          }
-          ConditionalTokens_PayoutRedemption(
-            where: { conditionId: {_in: $conditionIds} }
-          ) {
-            id
-            conditionId
-            parentCollectionId
-          }
+      query: `{
+        positionSplits: ConditionalTokens_PositionSplit(
+          where: { conditionId: { _in: ${JSON.stringify(validConditionIds)} } }
+        ) {
+          id
+          conditionId
+          parentCollectionId
         }
-      `,
-      variables: { conditionIds: validConditionIds },
+        payoutRedemptions: ConditionalTokens_PayoutRedemption(
+          where: { conditionId: { _in: ${JSON.stringify(validConditionIds)} } }
+        ) {
+          id
+          conditionId
+          parentCollectionId
+        }
+      }`,
     };
 
-    const response = await fetch(this.subgraphUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(query),
-    });
+    try {
+      const response = await fetch(this.subgraphUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(query),
+      });
 
-    const data = await response.json();
-    return this.processMarketCreationData(data);
+      if (!response.ok) {
+        throw new Error(
+          `Market creation data request failed: ${response.statusText}`
+        );
+      }
+
+      const data = await response.json();
+      // console.log(
+      //   "[SubgraphService] Market creation raw data:",
+      //   JSON.stringify(data, null, 2)
+      // );
+
+      return this.processMarketCreationData(data);
+    } catch (error) {
+      console.error(
+        "[SubgraphService] Error fetching market creation data:",
+        error
+      );
+      throw error;
+    }
   }
 
   private processMarketCreationData(data: any) {
     const finalParentCollectionIds = new Map<string, string | null>();
+
     const processEvents = (events: any[], type: string) => {
       events?.forEach((event: any) => {
         const conditionId = event.conditionId.toLowerCase();
@@ -147,12 +262,18 @@ export class SubgraphService {
             "0x0000000000000000000000000000000000000000000000000000000000000000"
         ) {
           finalParentCollectionIds.set(conditionId, event.parentCollectionId);
+          // console.log(
+          //   `[SubgraphService] Found ${type} event for condition ${conditionId}:`,
+          //   {
+          //     parentCollectionId: event.parentCollectionId,
+          //   }
+          // );
         }
       });
     };
 
-    processEvents(data?.data?.ConditionalTokens_PositionSplit, "split");
-    processEvents(data?.data?.ConditionalTokens_PayoutRedemption, "redemption");
+    processEvents(data?.data?.positionSplits, "split");
+    processEvents(data?.data?.payoutRedemptions, "redemption");
 
     return finalParentCollectionIds;
   }

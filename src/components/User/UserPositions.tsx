@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from "react";
 import { usePositions } from "../../hooks/usePositions";
-// import { useSellPosition } from "../../hooks/useSellPosition";
 import { useRedeemPosition } from "../../hooks/useRedeemPosition";
 import { useActiveAccount } from "thirdweb/react";
 import { ChevronDown, ChevronUp, Wallet } from "lucide-react";
@@ -10,21 +9,40 @@ import { Position, PositionValues } from "../types";
 type TabType = "active" | "resolved";
 
 const UserPositions: React.FC = () => {
-  const { positions, loading, isConnected, positionValues } = usePositions();
-  // const { sellPosition } = useSellPosition();
+  const {
+    positions,
+    loading,
+    isConnected,
+    positionValues,
+    getPositionOutcome,
+    getMarketResult,
+  } = usePositions();
   const { redeemPosition } = useRedeemPosition();
-    const account = useActiveAccount();
+  const account = useActiveAccount();
   const [activeTab, setActiveTab] = useState<TabType>("active");
   const [isComponentExpanded, setIsComponentExpanded] = useState(true);
 
-  const { activePositions, resolvedPositions, activeValue } = useMemo(() => {
+  const {
+    activePositions,
+    resolvedPositions,
+    activeValue,
+    winningPositions,
+    losingPositions,
+  } = useMemo(() => {
     const active: Position[] = [];
     const resolved: Position[] = [];
+    const winning: Position[] = [];
+    const losing: Position[] = [];
     let activeTotal = 0;
 
     positions.forEach((position) => {
       if (position.status.toUpperCase() === "RESOLVED") {
         resolved.push(position);
+        if (position.position_result === "won") {
+          winning.push(position);
+        } else {
+          losing.push(position);
+        }
       } else {
         active.push(position);
         activeTotal += positionValues[position.token_id] || 0;
@@ -34,52 +52,17 @@ const UserPositions: React.FC = () => {
     return {
       activePositions: active,
       resolvedPositions: resolved,
+      winningPositions: winning,
+      losingPositions: losing,
       activeValue: activeTotal,
     };
   }, [positions, positionValues]);
-
-  // const handleSell = async (
-  //   tokenId: string,
-  //   amount: number,
-  //   isYesToken: boolean,
-  //   price: number
-  // ): Promise<void> => {
-  //   console.log("🎯 handleSell called with:", {
-  //     tokenId,
-  //     amount,
-  //     isYesToken,
-  //     price,
-  //   });
-
-  //   if (!account?.address) {
-  //     console.error("Wallet not connected");
-  //     return;
-  //   }
-
-  //   try {
-  //     console.log("🚀 Selling position with params:", {
-  //       tokenId,
-  //       amount,
-  //       isYesToken,
-  //     });
-
-  //     await sellPosition({
-  //       token_id: tokenId,
-  //       price,
-  //       amount,
-  //       is_yes_token: isYesToken,
-  //     });
-  //     // window.location.reload();
-  //   } catch (error) {
-  //     console.error("Failed to sell position:", error);
-  //   }
-  // };
 
   const handleRedeem = async (
     tokenId: string,
     isYesToken: boolean,
     conditionId: string,
-    parentCollectionId: string,
+    parentCollectionId: string
   ): Promise<void> => {
     if (!account?.address) {
       console.error("Wallet not connected");
@@ -87,16 +70,12 @@ const UserPositions: React.FC = () => {
     }
 
     try {
-
       await redeemPosition({
         token_id: `0x${tokenId}`,
         is_yes_token: isYesToken,
         condition_id: `0x${conditionId}`,
         parent_collection_id: `0x${parentCollectionId}`,
       });
-
-      // Optionally refresh the positions
-      // window.location.reload();
     } catch (error) {
       console.error("Failed to redeem position:", error);
     }
@@ -114,27 +93,40 @@ const UserPositions: React.FC = () => {
         key={position.token_id}
         position={position}
         value={positionValues[position.token_id] || 0}
-        // onSell={handleSell}
+        outcome={getPositionOutcome(position)}
+        result={getMarketResult(position)}
         onRedeem={handleRedeem}
+        canRedeem={
+          position.position_result === "won" && position.current_balance > 0
+        }
       />
     ));
   };
 
-  if (!isConnected) {
-    return (
-      <div className="rounded-lg border border-gray-200 p-6">
-        <div className="text-center py-8">
-          <Wallet className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-lg font-medium text-gray-900">
-            Connect Wallet
-          </h3>
-          <p className="mt-2 text-sm text-gray-500">
-            Connect your wallet to view positions
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const renderResolvedTabs = () => (
+    <div className="grid grid-cols-2 gap-4 mb-4">
+      <button
+        className={`py-2 px-4 rounded-lg ${
+          activeTab === "winning"
+            ? "bg-green-100 text-green-800"
+            : "bg-gray-100 text-gray-600"
+        }`}
+        onClick={() => setActiveTab("winning")}
+      >
+        Won ({winningPositions.length})
+      </button>
+      <button
+        className={`py-2 px-4 rounded-lg ${
+          activeTab === "losing"
+            ? "bg-red-100 text-red-800"
+            : "bg-gray-100 text-gray-600"
+        }`}
+        onClick={() => setActiveTab("losing")}
+      >
+        Lost ({losingPositions.length})
+      </button>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -163,6 +155,11 @@ const UserPositions: React.FC = () => {
             <div className="text-sm font-medium text-gray-900">
               Portfolio Value: ${activeValue.toFixed(2)}
             </div>
+            {resolvedPositions.length > 0 && (
+              <div className="text-xs text-gray-500">
+                Won: {winningPositions.length} / Lost: {losingPositions.length}
+              </div>
+            )}
           </div>
           {isComponentExpanded ? (
             <ChevronUp className="h-5 w-5 text-gray-500" />
@@ -186,6 +183,11 @@ const UserPositions: React.FC = () => {
                 <div className="text-sm text-gray-500">Resolved Positions</div>
                 <div className="text-lg font-semibold text-gray-900">
                   {resolvedPositions.length}
+                  {resolvedPositions.length > 0 && (
+                    <span className="text-sm ml-2">
+                      ({winningPositions.length} Won)
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -218,7 +220,14 @@ const UserPositions: React.FC = () => {
 
           <div className="max-h-96 overflow-y-auto p-4">
             {activeTab === "active" && renderPositions(activePositions)}
-            {activeTab === "resolved" && renderPositions(resolvedPositions)}
+            {activeTab === "resolved" && (
+              <>
+                {renderResolvedTabs()}
+                {renderPositions(
+                  activeTab === "winning" ? winningPositions : losingPositions
+                )}
+              </>
+            )}
           </div>
         </div>
       )}

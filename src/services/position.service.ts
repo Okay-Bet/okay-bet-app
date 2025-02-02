@@ -1,4 +1,3 @@
-// services/position.service.ts
 import { Position, Transfer } from "../components/types";
 
 export class PositionService {
@@ -7,7 +6,7 @@ export class PositionService {
     userAddress: string,
     balances: Map<string, string>,
     marketDataMap: Map<string, any>,
-    tradesByMarket: Map<string, number>,
+    positionOutcomes: Map<string, number>, // Add this parameter
     marketCreationData: Map<string, string | null>
   ): Position[] {
     const userAddressLower = userAddress.toLowerCase();
@@ -22,9 +21,14 @@ export class PositionService {
 
         if (!marketData) return null;
 
-        const outcome =
-          tradesByMarket.get(marketAddress) ??
-          (transfer.event_id % 2 === 0 ? 0 : 1);
+        // Get position outcome from the transfer
+        const transferOutcome = positionOutcomes.get(transfer.id);
+        console.log(`[PositionService] Processing transfer ${transfer.id}:`, {
+          marketAddress,
+          transferOutcome,
+          marketStatus: marketData.status,
+          winningOutcome: marketData.winningOutcomeIndex,
+        });
 
         return {
           condition_id: marketData.conditionId,
@@ -34,11 +38,21 @@ export class PositionService {
             undefined,
           balance: Number(transfer.value),
           current_balance: Number(balances.get(transfer.id) || "0"),
-          outcome,
+          outcome: transferOutcome ?? 0, // Default to 0 if not found
           status: marketData.status.toLowerCase(),
           expiration_timestamp: marketData.expirationTimestamp,
           user_address: userAddress,
           transaction_hash: transfer.id.split("_")[1],
+          winning_outcome:
+            marketData.status.toLowerCase() === "resolved"
+              ? marketData.winningOutcomeIndex
+              : undefined,
+          position_result:
+            marketData.status.toLowerCase() === "resolved"
+              ? transferOutcome === marketData.winningOutcomeIndex
+                ? "won"
+                : "lost"
+              : undefined,
           market_data: {
             question: marketData.title,
             description: marketData.description,

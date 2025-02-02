@@ -25,18 +25,29 @@ export function usePositions() {
     return status.toUpperCase() === "RESOLVED";
   };
 
+  const getPositionOutcome = (position: Position): string => {
+    return position.outcome === 0 ? "No" : "Yes";
+  };
+
+  const getMarketResult = (position: Position): string | undefined => {
+    if (!isMarketResolved(position.status)) {
+      return undefined;
+    }
+    return position.position_result || undefined;
+  };
+
   const getMarketPrice = async (position: Position): Promise<number> => {
     try {
       if (
-        !position.contract?.address ||
-        !/^0x[a-fA-F0-9]{40}$/.test(position.contract.address)
+        !position.market_data.contract?.address ||
+        !/^0x[a-fA-F0-9]{40}$/.test(position.market_data.contract.address)
       ) {
         throw new Error("Invalid contract address");
       }
 
       const TEST_SELL_AMOUNT = 1000000n; // 1 USDC (6 decimals)
       const tokensNeeded = await publicClient.readContract({
-        address: position.contract.address as `0x${string}`,
+        address: position.market_data.contract.address as `0x${string}`,
         abi: FPMM_ABI,
         functionName: "calcSellAmount",
         args: [TEST_SELL_AMOUNT, BigInt(position.outcome)],
@@ -48,6 +59,7 @@ export function usePositions() {
 
       return Number(TEST_SELL_AMOUNT) / Number(tokensNeeded);
     } catch (error) {
+      console.error("[usePositions] Error getting market price:", error);
       return 1 / 3; // Fallback price
     }
   };
@@ -59,7 +71,8 @@ export function usePositions() {
     const currentBalance = position.current_balance / Math.pow(10, decimals);
 
     if (isMarketResolved(position.status)) {
-      return position.is_winner ? currentBalance : 0;
+      // Use position_result to determine value
+      return position.position_result === "won" ? currentBalance : 0;
     }
 
     const price = await getMarketPrice(position);
@@ -104,6 +117,8 @@ export function usePositions() {
         const data = await response.json();
 
         if (data.completed_orders) {
+          console.log("[usePositions] Raw positions:", data.completed_orders);
+
           const validPositions = data.completed_orders
             .filter(
               (position: Position) =>
@@ -112,6 +127,7 @@ export function usePositions() {
                 position?.market_data
             )
             .sort((a: Position, b: Position) => {
+              // Sort by status (active first) and then by balance
               const aResolved = isMarketResolved(a.status);
               const bResolved = isMarketResolved(b.status);
 
@@ -119,6 +135,16 @@ export function usePositions() {
                 return aResolved ? 1 : -1;
               }
 
+              // For resolved markets, put winning positions first
+              if (aResolved && bResolved) {
+                const aWon = a.position_result === "won";
+                const bWon = b.position_result === "won";
+                if (aWon !== bWon) {
+                  return aWon ? -1 : 1;
+                }
+              }
+
+              // Sort by balance
               const aBalance =
                 a.current_balance /
                 Math.pow(10, a.market_data.collateral_token.decimals);
@@ -128,10 +154,22 @@ export function usePositions() {
               return bBalance - aBalance;
             });
 
+          console.log(
+            "[usePositions] Processed positions:",
+            validPositions.map((p) => ({
+              market: p.market_data.question,
+              position: getPositionOutcome(p),
+              status: p.status,
+              result: p.position_result,
+              balance: p.current_balance,
+            }))
+          );
+
           setPositions(validPositions);
           await updateAllPositionValues(validPositions);
         }
       } catch (err) {
+        console.error("[usePositions] Error:", err);
         setError(
           err instanceof Error ? err.message : "Failed to load positions"
         );
@@ -158,5 +196,7 @@ export function usePositions() {
     positionValues,
     isMarketResolved,
     getFormattedBalance,
+    getPositionOutcome,
+    getMarketResult,
   };
 }

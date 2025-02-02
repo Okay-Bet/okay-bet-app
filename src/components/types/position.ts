@@ -13,10 +13,12 @@ export interface Position {
   user_address: string;
   transaction_hash: string;
   is_winner?: boolean;
+  winning_outcome?: number;
+  position_result?: "won" | "lost";
   market_data: {
     question: string;
     description: string;
-    outcomes: string; 
+    outcomes: string;
     volume: string;
     liquidity: string;
     status: string;
@@ -35,6 +37,17 @@ export interface Transfer {
   to: string;
   value: string;
   event_id: string;
+}
+
+export interface Trade {
+  id: string;
+  outcomeIndex: string;
+  investmentAmount?: string; // for buy trades
+  returnAmount?: string; // for sell trades
+  buyer?: string; // for buy trades
+  seller?: string; // for sell trades
+  outcomeTokensBought?: string;
+  outcomeTokensSold?: string;
 }
 
 export interface PositionEvent {
@@ -75,15 +88,18 @@ export interface MarketCreationEvent {
 // }
 
 // UI Component Props
-export interface PositionCardProps {
+interface PositionCardProps {
   position: Position;
   value: number;
+  outcome: string;
+  result?: string;
   onRedeem: (
     tokenId: string,
     isYesToken: boolean,
     conditionId: string,
     parentCollectionId: string
   ) => Promise<void>;
+  canRedeem: boolean;
 }
 
 // Utility Interfaces
