@@ -106,6 +106,7 @@ export interface PositionRequest {
 
 export interface ExtendedSubgraphResponse {
   data: {
+    trades: never[];
     incomingTransfers: Transfer[];
     outgoingTransfers: Transfer[];
     markets: MarketCreationEvent[];
