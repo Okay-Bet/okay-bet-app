@@ -6,8 +6,9 @@ export class PositionService {
     userAddress: string,
     balances: Map<string, string>,
     marketDataMap: Map<string, any>,
-    positionOutcomes: Map<string, number>, // Add this parameter
-    marketCreationData: Map<string, string | null>
+    positionOutcomes: Map<string, number>,
+    marketCreationData: Map<string, string | null>,
+    redeemedConditions: Set<string>
   ): Position[] {
     const userAddressLower = userAddress.toLowerCase();
 
@@ -21,14 +22,41 @@ export class PositionService {
 
         if (!marketData) return null;
 
-        // Get position outcome from the transfer
-        const transferOutcome = positionOutcomes.get(transfer.id);
-        console.log(`[PositionService] Processing transfer ${transfer.id}:`, {
-          marketAddress,
-          transferOutcome,
-          marketStatus: marketData.status,
-          winningOutcome: marketData.winningOutcomeIndex,
-        });
+        const outcome = positionOutcomes.get(transfer.id) ?? 0;
+        const isRedeemed = redeemedConditions.has(
+          marketData.conditionId.toLowerCase()
+        );
+
+        // Get winning outcome and determine if position won
+        const winning_outcome =
+          marketData.status.toUpperCase() === "RESOLVED"
+            ? marketData.winningOutcomeIndex
+            : undefined;
+
+        const position_result =
+          marketData.status.toUpperCase() === "RESOLVED"
+            ? outcome === winning_outcome
+              ? "won"
+              : "lost"
+            : undefined;
+
+        console.log(
+          `[PositionService] Processing position for market ${marketAddress}:`,
+          {
+            question: marketData.title,
+            conditionId: marketData.conditionId,
+            status: marketData.status,
+            userPosition: outcome === 0 ? "No" : "Yes",
+            winningOutcome:
+              winning_outcome !== undefined
+                ? winning_outcome === 0
+                  ? "No"
+                  : "Yes"
+                : undefined,
+            result: position_result,
+            isRedeemed,
+          }
+        );
 
         return {
           condition_id: marketData.conditionId,
@@ -38,21 +66,14 @@ export class PositionService {
             undefined,
           balance: Number(transfer.value),
           current_balance: Number(balances.get(transfer.id) || "0"),
-          outcome: transferOutcome ?? 0, // Default to 0 if not found
+          outcome,
           status: marketData.status.toLowerCase(),
           expiration_timestamp: marketData.expirationTimestamp,
           user_address: userAddress,
           transaction_hash: transfer.id.split("_")[1],
-          winning_outcome:
-            marketData.status.toLowerCase() === "resolved"
-              ? marketData.winningOutcomeIndex
-              : undefined,
-          position_result:
-            marketData.status.toLowerCase() === "resolved"
-              ? transferOutcome === marketData.winningOutcomeIndex
-                ? "won"
-                : "lost"
-              : undefined,
+          isRedeemed,
+          winning_outcome,
+          position_result,
           market_data: {
             question: marketData.title,
             description: marketData.description,

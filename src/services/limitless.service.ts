@@ -15,10 +15,6 @@ export class LimitlessService {
     }
 
     try {
-      console.log(
-        `[LimitlessService] Fetching market data for address: ${marketAddress}`
-      );
-
       const response = await fetch(`${this.apiUrl}/${marketAddress}`, {
         headers: { accept: "*/*" },
       });
@@ -34,16 +30,12 @@ export class LimitlessService {
 
       const marketData = await response.json();
 
-      // Log relevant market resolution data
-      console.log(
-        `[LimitlessService] Market ${marketAddress} resolution info:`,
-        {
-          status: marketData.status,
-          winningOutcomeIndex: marketData.winningOutcomeIndex,
-          expired: marketData.expired,
-          title: marketData.title,
-        }
-      );
+      console.log(`[LimitlessService] Market data for ${marketAddress}:`, {
+        title: marketData.title,
+        status: marketData.status,
+        winningOutcomeIndex: marketData.winningOutcomeIndex,
+        isResolved: marketData.status.toUpperCase() === "RESOLVED",
+      });
 
       return marketData;
     } catch (error) {

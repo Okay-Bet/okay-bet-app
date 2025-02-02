@@ -20,9 +20,19 @@ export async function GET(
     const limitlessService = new LimitlessService(LIMITLESS_API_URL);
     const positionService = new PositionService();
 
-    // Fetch transfer history with position outcomes
-    const { transfers, balances, positionOutcomes, marketInfo } =
-      await subgraphService.fetchTransferHistory(address);
+    // Fetch transfer history with position outcomes and redemptions
+    const {
+      transfers,
+      balances,
+      positionOutcomes,
+      marketInfo,
+      redeemedConditions,
+    } = await subgraphService.fetchTransferHistory(address);
+
+    console.log("[Route] Redemption data received:", {
+      redeemedConditionsCount: redeemedConditions.size,
+      redeemedConditions: Array.from(redeemedConditions),
+    });
 
     // Get unique market addresses
     const uniqueMarketAddresses = Array.from(
@@ -59,21 +69,23 @@ export async function GET(
       }
     });
 
-    // Process positions with position outcomes
+    // Process positions with position outcomes and redemption data
     const completed_orders = positionService.processPositions(
       transfers,
       address,
       balances,
       marketDataMap,
-      positionOutcomes, // Pass position outcomes
-      marketCreationData
+      positionOutcomes,
+      marketCreationData,
+      redeemedConditions
     );
 
-    // Log position results
+    // Log position results with redemption status
     console.log(
       "[Route] Position results:",
       completed_orders.map((order) => ({
         market: order.token_id,
+        question: order.market_data.question,
         position: order.outcome === 0 ? "No" : "Yes",
         status: order.status,
         winning_outcome:
@@ -83,13 +95,28 @@ export async function GET(
               : "Yes"
             : undefined,
         result: order.position_result,
+        isRedeemed: order.isRedeemed,
+        conditionId: order.condition_id,
+        balance: order.current_balance,
       }))
     );
+
+    // Count redeemable positions
+    const redeemablePositions = completed_orders.filter(
+      (order) =>
+        order.status.toUpperCase() === "RESOLVED" &&
+        order.position_result === "won" &&
+        !order.isRedeemed &&
+        order.current_balance > 0
+    ).length;
+
+    console.log("[Route] Redeemable positions count:", redeemablePositions);
 
     return NextResponse.json(
       {
         pending_orders: [],
         completed_orders,
+        redeemable_count: redeemablePositions,
       },
       {
         headers: {

@@ -14,6 +14,7 @@ export interface Position {
   transaction_hash: string;
   is_winner?: boolean;
   winning_outcome?: number;
+  isRedeemed: boolean; 
   position_result?: "won" | "lost";
   market_data: {
     question: string;
@@ -119,6 +120,12 @@ export interface PositionRequest {
 //   decimals: number;
 //   symbol: string;
 // }
+
+export interface RedemptionInfo {
+  conditionId: string;
+  payout: string;
+  redeemer: string;
+}
 
 export interface ExtendedSubgraphResponse {
   data: {

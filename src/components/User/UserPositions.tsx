@@ -7,6 +7,7 @@ import PositionCard from "./PositionCard";
 import { Position, PositionValues } from "../types";
 
 type TabType = "active" | "resolved";
+type ResolvedTabType = "winning" | "losing";
 
 const UserPositions: React.FC = () => {
   const {
@@ -20,6 +21,7 @@ const UserPositions: React.FC = () => {
   const { redeemPosition } = useRedeemPosition();
   const account = useActiveAccount();
   const [activeTab, setActiveTab] = useState<TabType>("active");
+  const [resolvedTab, setResolvedTab] = useState<ResolvedTabType>("winning");
   const [isComponentExpanded, setIsComponentExpanded] = useState(true);
 
   const {
@@ -97,7 +99,10 @@ const UserPositions: React.FC = () => {
         result={getMarketResult(position)}
         onRedeem={handleRedeem}
         canRedeem={
-          position.position_result === "won" && position.current_balance > 0
+          position.status.toUpperCase() === "RESOLVED" &&
+          position.position_result === "won" &&
+          !position.isRedeemed &&
+          position.current_balance > 0
         }
       />
     ));
@@ -107,26 +112,42 @@ const UserPositions: React.FC = () => {
     <div className="grid grid-cols-2 gap-4 mb-4">
       <button
         className={`py-2 px-4 rounded-lg ${
-          activeTab === "winning"
+          resolvedTab === "winning"
             ? "bg-green-100 text-green-800"
             : "bg-gray-100 text-gray-600"
         }`}
-        onClick={() => setActiveTab("winning")}
+        onClick={() => setResolvedTab("winning")}
       >
         Won ({winningPositions.length})
       </button>
       <button
         className={`py-2 px-4 rounded-lg ${
-          activeTab === "losing"
+          resolvedTab === "losing"
             ? "bg-red-100 text-red-800"
             : "bg-gray-100 text-gray-600"
         }`}
-        onClick={() => setActiveTab("losing")}
+        onClick={() => setResolvedTab("losing")}
       >
         Lost ({losingPositions.length})
       </button>
     </div>
   );
+
+  if (!isConnected) {
+    return (
+      <div className="rounded-lg border border-gray-200 p-6">
+        <div className="text-center py-8">
+          <Wallet className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-lg font-medium text-gray-900">
+            Connect Wallet
+          </h3>
+          <p className="mt-2 text-sm text-gray-500">
+            Connect your wallet to view positions
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -224,7 +245,7 @@ const UserPositions: React.FC = () => {
               <>
                 {renderResolvedTabs()}
                 {renderPositions(
-                  activeTab === "winning" ? winningPositions : losingPositions
+                  resolvedTab === "winning" ? winningPositions : losingPositions
                 )}
               </>
             )}

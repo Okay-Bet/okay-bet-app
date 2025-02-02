@@ -11,9 +11,7 @@ export class SubgraphService {
   }
 
   async fetchTransferHistory(address: string) {
-    console.log(
-      `[SubgraphService] Fetching transfer history for address: ${address}`
-    );
+    console.log(`[SubgraphService] Fetching transfer history for address: ${address}`);
     const query = {
       query: `{
         incomingTransfers: ConditionalTokens_TransferSingle(
@@ -33,6 +31,15 @@ export class SubgraphService {
           to
           value
           event_id
+        }
+        redemptions: ConditionalTokens_PayoutRedemption(
+          where: { redeemer: { _eq: "${address}" } }
+        ) {
+          id
+          conditionId
+          redeemer
+          payout
+          parentCollectionId
         }
         buyTrades: FixedProductMarketMakerFactory_FPMMBuy(
           where: { buyer: { _eq: "${address}" } }
@@ -72,10 +79,8 @@ export class SubgraphService {
       }
 
       const rawData = await response.json();
-      console.log(
-        "[SubgraphService] Raw response:",
-        JSON.stringify(rawData, null, 2)
-      );
+      console.log("[SubgraphService] Redemptions in raw response:", 
+        rawData.data.redemptions || []);
 
       if (!rawData.data) {
         throw new Error("Invalid response format from subgraph");
@@ -87,15 +92,13 @@ export class SubgraphService {
           outgoingTransfers: rawData.data.outgoingTransfers || [],
           buyTrades: rawData.data.buyTrades || [],
           sellTrades: rawData.data.sellTrades || [],
+          redemptions: rawData.data.redemptions || [],
         },
       };
 
       return this.processTransferData(data);
     } catch (error) {
-      console.error(
-        "[SubgraphService] Error fetching transfer history:",
-        error
-      );
+      console.error("[SubgraphService] Error fetching transfer history:", error);
       throw error;
     }
   }
@@ -104,12 +107,27 @@ export class SubgraphService {
     const balances = new Map<string, string>();
     const positionOutcomes = new Map<string, number>();
     const marketInfo = new Map<string, { eventId: string; value: string }>();
+    const redeemedConditions = new Set<string>();
+
+    // Process redemptions first
+    if (data.data.redemptions) {
+      data.data.redemptions.forEach((redemption) => {
+        const conditionId = redemption.conditionId.toLowerCase();
+        redeemedConditions.add(conditionId);
+        console.log("[SubgraphService] Found redemption:", {
+          conditionId,
+          payout: redemption.payout,
+          redeemer: redemption.redeemer
+        });
+      });
+    }
 
     console.log("[SubgraphService] Processing transfers:", {
       incomingCount: data.data.incomingTransfers.length,
       outgoingCount: data.data.outgoingTransfers.length,
       buyTradesCount: data.data.buyTrades.length,
       sellTradesCount: data.data.sellTrades.length,
+      redemptionsCount: redeemedConditions.size
     });
 
     // Process incoming transfers
@@ -118,13 +136,10 @@ export class SubgraphService {
       const newBalance = (currentBalance + BigInt(transfer.value)).toString();
       balances.set(transfer.id, newBalance);
 
-      // Extract position info from event_id
       const eventIdBN = BigInt(transfer.event_id);
-      // The last bit of the event_id indicates the position (0 for No, 1 for Yes)
       const outcomeIndex = Number(eventIdBN % 2n);
       positionOutcomes.set(transfer.id, outcomeIndex);
 
-      // Store market info
       marketInfo.set(transfer.from, {
         eventId: transfer.event_id,
         value: transfer.value,
@@ -151,7 +166,6 @@ export class SubgraphService {
       const outcomeIndex = Number(eventIdBN % 2n);
       positionOutcomes.set(transfer.id, outcomeIndex);
 
-      // Store market info
       marketInfo.set(transfer.to, {
         eventId: transfer.event_id,
         value: transfer.value,
@@ -168,9 +182,14 @@ export class SubgraphService {
       });
     });
 
-    // Log position summary
-    console.log(
-      "[SubgraphService] Position summary:",
+    // Log redemption summary
+    console.log("[SubgraphService] Redemption summary:", {
+      redeemedConditions: Array.from(redeemedConditions),
+      totalRedemptions: redeemedConditions.size
+    });
+
+    // Log position summary with redemption status
+    console.log("[SubgraphService] Position summary:",
       Array.from(positionOutcomes.entries()).map(([id, outcome]) => ({
         id,
         position: outcome === 0 ? "No" : "Yes",
@@ -179,17 +198,14 @@ export class SubgraphService {
       }))
     );
 
-
     return {
-      transfers: [
-        ...data.data.incomingTransfers,
-        ...data.data.outgoingTransfers,
-      ],
+      transfers: [...data.data.incomingTransfers, ...data.data.outgoingTransfers],
       balances,
       positionOutcomes,
       buyTrades: data.data.buyTrades || [],
       sellTrades: data.data.sellTrades || [],
       marketInfo,
+      redeemedConditions, // Add this to the return value
     };
   }
 
