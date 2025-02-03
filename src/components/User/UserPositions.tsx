@@ -91,7 +91,7 @@ const UserPositions: React.FC = () => {
     positions.forEach((position: Position) => {
       if (position.status.toUpperCase() === "RESOLVED") {
         resolved.push(position);
-        
+
         if (position.position_result === "won") {
           winning.push(position);
         } else if (position.position_result === "lost") {
@@ -127,10 +127,16 @@ const UserPositions: React.FC = () => {
     }
 
     try {
-      const formattedTokenId = tokenId.startsWith('0x') ? tokenId : `0x${tokenId}`;
-      const formattedConditionId = conditionId.startsWith('0x') ? conditionId : `0x${conditionId}`;
-      const formattedParentCollectionId = parentCollectionId.startsWith('0x') ? parentCollectionId : `0x${parentCollectionId}`;
-      
+      const formattedTokenId = tokenId.startsWith("0x")
+        ? tokenId
+        : `0x${tokenId}`;
+      const formattedConditionId = conditionId.startsWith("0x")
+        ? conditionId
+        : `0x${conditionId}`;
+      const formattedParentCollectionId = parentCollectionId.startsWith("0x")
+        ? parentCollectionId
+        : `0x${parentCollectionId}`;
+
       await redeemPosition({
         token_id: formattedTokenId as `0x${string}`,
         is_yes_token: isYesToken,
@@ -273,15 +279,42 @@ const UserPositions: React.FC = () => {
             </div>
           </div>
 
-          <div className="max-h-96 overflow-y-auto p-4">
-            {activeTab === "active" && renderPositions(activePositions)}
+          <div className="max-h-96 overflow-y-auto">
+            {activeTab === "active" && (
+              <div className="p-4">{renderPositions(activePositions)}</div>
+            )}
             {activeTab === "resolved" && (
-              <>
-                {/* {renderResolvedTabs()} */}
-                {renderPositions(
-                  resolvedTab === "winning" ? winningPositions : losingPositions
-                )}
-              </>
+              <div>
+                <div className="px-4 pt-2 flex space-x-4 border-t border-gray-200">
+                  <button
+                    className={`py-2 px-1 text-sm font-medium ${
+                      resolvedTab === "winning"
+                        ? "border-b-2 border-green-500 text-green-600"
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                    onClick={() => setResolvedTab("winning")}
+                  >
+                    Won ({winningPositions.length})
+                  </button>
+                  <button
+                    className={`py-2 px-1 text-sm font-medium ${
+                      resolvedTab === "losing"
+                        ? "border-b-2 border-red-500 text-red-600"
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                    onClick={() => setResolvedTab("losing")}
+                  >
+                    Lost ({losingPositions.length})
+                  </button>
+                </div>
+                <div className="p-4">
+                  {renderPositions(
+                    resolvedTab === "winning"
+                      ? winningPositions
+                      : losingPositions
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </div>
