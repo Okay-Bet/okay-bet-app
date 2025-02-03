@@ -30,13 +30,6 @@ export class LimitlessService {
 
       const marketData = await response.json();
 
-      console.log(`[LimitlessService] Market data for ${marketAddress}:`, {
-        title: marketData.title,
-        status: marketData.status,
-        winningOutcomeIndex: marketData.winningOutcomeIndex,
-        isResolved: marketData.status.toUpperCase() === "RESOLVED",
-      });
-
       return marketData;
     } catch (error) {
       console.error("[LimitlessService] Error fetching market data:", error);

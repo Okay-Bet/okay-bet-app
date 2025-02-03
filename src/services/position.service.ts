@@ -40,23 +40,6 @@ export class PositionService {
               : "lost"
             : undefined;
 
-        console.log(
-          `[PositionService] Processing position for market ${marketAddress}:`,
-          {
-            question: marketData.title,
-            conditionId: marketData.conditionId,
-            status: marketData.status,
-            userPosition: outcome === 0 ? "No" : "Yes",
-            winningOutcome:
-              winning_outcome !== undefined
-                ? winning_outcome === 0
-                  ? "No"
-                  : "Yes"
-                : undefined,
-            result: position_result,
-            isRedeemed,
-          }
-        );
 
         return {
           condition_id: marketData.conditionId,

@@ -127,11 +127,15 @@ const UserPositions: React.FC = () => {
     }
 
     try {
+      const formattedTokenId = tokenId.startsWith('0x') ? tokenId : `0x${tokenId}`;
+      const formattedConditionId = conditionId.startsWith('0x') ? conditionId : `0x${conditionId}`;
+      const formattedParentCollectionId = parentCollectionId.startsWith('0x') ? parentCollectionId : `0x${parentCollectionId}`;
+      
       await redeemPosition({
-        token_id: `0x${tokenId}`,
+        token_id: formattedTokenId as `0x${string}`,
         is_yes_token: isYesToken,
-        condition_id: `0x${conditionId}`,
-        parent_collection_id: `0x${parentCollectionId}`,
+        condition_id: formattedConditionId as `0x${string}`,
+        parent_collection_id: formattedParentCollectionId as `0x${string}`,
       });
     } catch (error) {
       console.error("Failed to redeem position:", error);

@@ -27,10 +27,6 @@ export async function GET(
       redeemedConditions,
     } = await subgraphService.fetchTransferHistory(address);
 
-    console.log("[Route] Redemption data received:", {
-      redeemedConditionsCount: redeemedConditions.size,
-      redeemedConditions: Array.from(redeemedConditions),
-    });
 
     // Get unique market addresses
     const uniqueMarketAddresses = Array.from(
@@ -82,26 +78,26 @@ export async function GET(
       redeemedConditions
     );
 
-    // Log position results with redemption status
-    console.log(
-      "[Route] Position results:",
-      completed_orders.map((order) => ({
-        market: order.token_id,
-        question: order.market_data.question,
-        position: order.outcome === 0 ? "No" : "Yes",
-        status: order.status,
-        winning_outcome:
-          order.winning_outcome !== undefined
-            ? order.winning_outcome === 0
-              ? "No"
-              : "Yes"
-            : undefined,
-        result: order.position_result,
-        isRedeemed: order.isRedeemed,
-        conditionId: order.condition_id,
-        balance: order.current_balance,
-      }))
-    );
+    // // Log position results with redemption status
+    // console.log(
+    //   "[Route] Position results:",
+    //   completed_orders.map((order) => ({
+    //     market: order.token_id,
+    //     question: order.market_data.question,
+    //     position: order.outcome === 0 ? "No" : "Yes",
+    //     status: order.status,
+    //     winning_outcome:
+    //       order.winning_outcome !== undefined
+    //         ? order.winning_outcome === 0
+    //           ? "No"
+    //           : "Yes"
+    //         : undefined,
+    //     result: order.position_result,
+    //     isRedeemed: order.isRedeemed,
+    //     conditionId: order.condition_id,
+    //     balance: order.current_balance,
+    //   }))
+    // );
 
     // Count redeemable positions
     const redeemablePositions = completed_orders.filter(

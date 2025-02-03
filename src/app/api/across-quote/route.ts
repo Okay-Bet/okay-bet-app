@@ -74,10 +74,6 @@ export async function POST(request: Request) {
     const apiUrl = new URL("https://app.across.to/api/suggested-fees");
     apiUrl.search = params.toString();
 
-    console.log("Fetching quote with params:", {
-      url: apiUrl.toString(),
-      params: Object.fromEntries(params.entries()),
-    });
 
     const response = await fetch(apiUrl.toString(), {
       method: "GET",
