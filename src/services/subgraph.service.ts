@@ -25,28 +25,32 @@ export class SubgraphService {
           where: { to: { _eq: "${address}" } }
         ) {
           id
+          operator
           from
           to
-          value
           event_id
+          value
         }
         outgoingTransfers: ConditionalTokens_TransferSingle(
           where: { from: { _eq: "${address}" } }
         ) {
           id
+          operator
           from
           to
-          value
           event_id
+          value
         }
         redemptions: ConditionalTokens_PayoutRedemption(
           where: { redeemer: { _eq: "${address}" } }
         ) {
           id
-          conditionId
           redeemer
-          payout
+          collateralToken
           parentCollectionId
+          conditionId
+          indexSets
+          payout
         }
         buyTrades: FixedProductMarketMakerFactory_FPMMBuy(
           where: { buyer: { _eq: "${address}" } }
@@ -82,12 +86,14 @@ export class SubgraphService {
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[SubgraphService] Error response:", errorText);
         throw new Error(`Subgraph request failed: ${response.statusText}`);
       }
 
       const rawData = await response.json();
-
       if (!rawData.data) {
+        console.error("[SubgraphService] Invalid response structure:", rawData);
         throw new Error("Invalid response format from subgraph");
       }
 
@@ -99,13 +105,16 @@ export class SubgraphService {
           sellTrades: rawData.data.sellTrades || [],
           redemptions: rawData.data.redemptions || [],
           trades: [],
-          markets: []
+          markets: [],
         },
       };
 
       return this.processTransferData(data);
     } catch (error) {
-      console.error("[SubgraphService] Error fetching transfer history:", error);
+      console.error(
+        "[SubgraphService] Error fetching transfer history:",
+        error
+      );
       throw error;
     }
   }
@@ -118,12 +127,11 @@ export class SubgraphService {
 
     // Process redemptions first
     if (data.data.redemptions) {
-      data.data.redemptions.forEach((redemption: { conditionId: string; }) => {
+      data.data.redemptions.forEach((redemption: { conditionId: string }) => {
         const conditionId = redemption.conditionId.toLowerCase();
-        redeemedConditions.add(conditionId); 
+        redeemedConditions.add(conditionId);
       });
     }
-
 
     // Process incoming transfers
     data.data.incomingTransfers.forEach((transfer) => {
@@ -139,7 +147,6 @@ export class SubgraphService {
         eventId: transfer.event_id,
         value: transfer.value,
       });
-
     });
 
     // Process outgoing transfers
@@ -159,13 +166,16 @@ export class SubgraphService {
     });
 
     return {
-      transfers: [...data.data.incomingTransfers, ...data.data.outgoingTransfers],
+      transfers: [
+        ...data.data.incomingTransfers,
+        ...data.data.outgoingTransfers,
+      ],
       balances,
       positionOutcomes,
       buyTrades: data.data.buyTrades || [],
       sellTrades: data.data.sellTrades || [],
       marketInfo,
-      redeemedConditions, 
+      redeemedConditions,
     };
   }
 

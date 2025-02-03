@@ -108,8 +108,6 @@ export async function GET(
         order.current_balance > 0
     ).length;
 
-    console.log("[Route] Redeemable positions count:", redeemablePositions);
-
     return NextResponse.json(
       {
         pending_orders: [],
