@@ -64,17 +64,14 @@ export const BetSlipProvider: React.FC<{ children: React.ReactNode }> = ({
       return;
     }
 
-    console.log("Setting validated bet:", validatedBet);
     setBet(validatedBet);
   }, []);
 
   const removeBet = useCallback((marketId: string) => {
-    console.log("Removing bet for market:", marketId);
     setBet(null);
   }, []);
 
   const clearBets = useCallback(() => {
-    console.log("Clearing all bets");
     setBet(null);
   }, []);
 

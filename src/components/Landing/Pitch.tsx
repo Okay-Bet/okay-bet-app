@@ -55,8 +55,13 @@ const Pitch = () => {
           BET BETTER
         </h1>
         <p className="text-xl text-quaternary mb-12 max-w-2xl">
-          Manage positions on any prediction market and  any chain from Okay Bet.
+          Manage positions on any prediction market and any chain from Okay Bet.
         </p>
+        <div className="mb-16">
+          <p className="text-xl text-quaternary mb-6">
+            Start placing prediction market positions with Okay Bet on Limitless Markets right now.
+          </p>
+        </div>
         <h2 className="text-3xl md:text-4xl font-heading text-font tracking-tighter italic mb-16">
           COMING SOON
         </h2>

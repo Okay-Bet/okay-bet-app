@@ -48,7 +48,7 @@ export const useLimitlessNativeOrder = () => {
             "function buy(uint256 investmentAmount, uint256 outcomeIndex, uint256 minOutcomeTokensToBuy)",
           params: [
             BigInt(orderRequest.amount),
-            BigInt(orderRequest.isYesToken ? 1 : 0),
+            BigInt(orderRequest.isYesToken ? 0 : 1),
             BigInt(Math.floor((orderRequest.estimatedTokens || 0) * 0.98)),
           ],
         });

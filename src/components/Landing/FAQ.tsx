@@ -9,11 +9,15 @@ const FAQ = () => {
   const faqs = [
     {
       question: "How does the aggregation work?",
-      answer: "When you make an order a quote is generated for relayers to execute it on the other chains for a minimal fee.",
+      answer: "Instead of going to only one prediction market, you can compare prices, rules, and liquidity between similar prediction markets on any chain.",
     },
     {
       question: "When will this be live?",
-      answer: "Cross chain orders will be available in December, everything else will come out iteratively.",
+      answer: <>We are currently live with <a href="https://limitless.exchange/">Limitless Markets</a> on Base, we are looking to add more prediction markets so please get in touch!</>,
+    },
+    {
+      question: "How do prediction market parlays work?",
+      answer: "The user selects multiple unrelated markets and a smart contract create quotes and bids to take on the risk of it hitting to pay out the user. This is still under development so check back soon.",
     },
   ];
   

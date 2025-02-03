@@ -4,6 +4,12 @@ import { createPublicClient, http, parseAbi } from "viem";
 import { base } from "viem/chains";
 import { Position, PositionValues } from "../components/types";
 
+interface PositionsApiResponse {
+  completed_orders: Position[];
+  pending_orders: Position[];
+  redeemable_count: number;
+}
+
 const FPMM_ABI = parseAbi([
   "function calcSellAmount(uint256 returnAmount, uint256 outcomeIndex) view returns (uint256 outcomeTokenSellAmount)",
 ]);
@@ -25,18 +31,29 @@ export function usePositions() {
     return status.toUpperCase() === "RESOLVED";
   };
 
+  const getPositionOutcome = (position: Position): string => {
+    return position.outcome === 0 ? "No" : "Yes";
+  };
+
+  const getMarketResult = (position: Position): string | undefined => {
+    if (!isMarketResolved(position.status)) {
+      return undefined;
+    }
+    return position.position_result || undefined;
+  };
+
   const getMarketPrice = async (position: Position): Promise<number> => {
     try {
       if (
-        !position.contract?.address ||
-        !/^0x[a-fA-F0-9]{40}$/.test(position.contract.address)
+        !position.market_data.contract?.address ||
+        !/^0x[a-fA-F0-9]{40}$/.test(position.market_data.contract.address)
       ) {
         throw new Error("Invalid contract address");
       }
 
       const TEST_SELL_AMOUNT = 1000000n; // 1 USDC (6 decimals)
       const tokensNeeded = await publicClient.readContract({
-        address: position.contract.address as `0x${string}`,
+        address: position.market_data.contract.address as `0x${string}`,
         abi: FPMM_ABI,
         functionName: "calcSellAmount",
         args: [TEST_SELL_AMOUNT, BigInt(position.outcome)],
@@ -48,6 +65,7 @@ export function usePositions() {
 
       return Number(TEST_SELL_AMOUNT) / Number(tokensNeeded);
     } catch (error) {
+      console.error("[usePositions] Error getting market price:", error);
       return 1 / 3; // Fallback price
     }
   };
@@ -59,7 +77,8 @@ export function usePositions() {
     const currentBalance = position.current_balance / Math.pow(10, decimals);
 
     if (isMarketResolved(position.status)) {
-      return position.is_winner ? currentBalance : 0;
+      // Use position_result to determine value
+      return position.position_result === "won" ? currentBalance : 0;
     }
 
     const price = await getMarketPrice(position);
@@ -101,17 +120,25 @@ export function usePositions() {
           );
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as PositionsApiResponse;
 
         if (data.completed_orders) {
+
+          // Type guard to validate Position object
+          const isValidPosition = (position: any): position is Position => {
+            return (
+              position &&
+              typeof position.condition_id === "string" &&
+              typeof position.current_balance === "number" &&
+              position.market_data &&
+              typeof position.market_data === "object"
+            );
+          };
+
           const validPositions = data.completed_orders
-            .filter(
-              (position: Position) =>
-                position?.condition_id &&
-                position?.current_balance &&
-                position?.market_data
-            )
+            .filter(isValidPosition)
             .sort((a: Position, b: Position) => {
+              // Sort by status (active first) and then by balance
               const aResolved = isMarketResolved(a.status);
               const bResolved = isMarketResolved(b.status);
 
@@ -119,6 +146,16 @@ export function usePositions() {
                 return aResolved ? 1 : -1;
               }
 
+              // For resolved markets, put winning positions first
+              if (aResolved && bResolved) {
+                const aWon = a.position_result === "won";
+                const bWon = b.position_result === "won";
+                if (aWon !== bWon) {
+                  return aWon ? -1 : 1;
+                }
+              }
+
+              // Sort by balance
               const aBalance =
                 a.current_balance /
                 Math.pow(10, a.market_data.collateral_token.decimals);
@@ -132,6 +169,7 @@ export function usePositions() {
           await updateAllPositionValues(validPositions);
         }
       } catch (err) {
+        console.error("[usePositions] Error:", err);
         setError(
           err instanceof Error ? err.message : "Failed to load positions"
         );
@@ -158,5 +196,7 @@ export function usePositions() {
     positionValues,
     isMarketResolved,
     getFormattedBalance,
+    getPositionOutcome,
+    getMarketResult,
   };
 }

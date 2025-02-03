@@ -20,6 +20,7 @@
         "@across-protocol/app-sdk": "^0.0.4",
         "@emotion/react": "^11.11.4",
         "@emotion/styled": "^11.11.5",
+        "@fvictorio/newton-raphson-method": "^1.0.5",
         "@mui/icons-material": "^5.16.1",
         "@mui/material": "^5.16.1",
         "@next/bundle-analyzer": "^14.2.5",
@@ -68,6 +69,7 @@
         "web-push": "^3.6.7",
         "web3modal": "^1.9.12",
         "webpack-bundle-analyzer": "^4.10.2",
-        "workbox-webpack-plugin": "^7.1.0"
+        "workbox-webpack-plugin": "^7.1.0",
+        "@types/big.js": "^6.2.2"
     }
 }
