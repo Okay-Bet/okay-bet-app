@@ -40,7 +40,6 @@ export class PositionService {
               : "lost"
             : undefined;
 
-
         return {
           condition_id: marketData.conditionId,
           token_id: marketData.address,
