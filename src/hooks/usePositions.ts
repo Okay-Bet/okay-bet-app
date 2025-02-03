@@ -4,6 +4,12 @@ import { createPublicClient, http, parseAbi } from "viem";
 import { base } from "viem/chains";
 import { Position, PositionValues } from "../components/types";
 
+interface PositionsApiResponse {
+  completed_orders: Position[];
+  pending_orders: Position[];
+  redeemable_count: number;
+}
+
 const FPMM_ABI = parseAbi([
   "function calcSellAmount(uint256 returnAmount, uint256 outcomeIndex) view returns (uint256 outcomeTokenSellAmount)",
 ]);
@@ -114,18 +120,23 @@ export function usePositions() {
           );
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as PositionsApiResponse;
 
         if (data.completed_orders) {
-          console.log("[usePositions] Raw positions:", data.completed_orders);
+
+          // Type guard to validate Position object
+          const isValidPosition = (position: any): position is Position => {
+            return (
+              position &&
+              typeof position.condition_id === "string" &&
+              typeof position.current_balance === "number" &&
+              position.market_data &&
+              typeof position.market_data === "object"
+            );
+          };
 
           const validPositions = data.completed_orders
-            .filter(
-              (position: Position) =>
-                position?.condition_id &&
-                position?.current_balance &&
-                position?.market_data
-            )
+            .filter(isValidPosition)
             .sort((a: Position, b: Position) => {
               // Sort by status (active first) and then by balance
               const aResolved = isMarketResolved(a.status);
@@ -153,17 +164,6 @@ export function usePositions() {
                 Math.pow(10, b.market_data.collateral_token.decimals);
               return bBalance - aBalance;
             });
-
-          console.log(
-            "[usePositions] Processed positions:",
-            validPositions.map((p) => ({
-              market: p.market_data.question,
-              position: getPositionOutcome(p),
-              status: p.status,
-              result: p.position_result,
-              balance: p.current_balance,
-            }))
-          );
 
           setPositions(validPositions);
           await updateAllPositionValues(validPositions);

@@ -1,4 +1,3 @@
-// app/api/positions/[address]/route.ts
 import { NextResponse } from "next/server";
 import { SubgraphService } from "../../../../services/subgraph.service";
 import { LimitlessService } from "../../../../services/limitless.service";
@@ -13,7 +12,6 @@ export async function GET(
 ) {
   try {
     const { address } = params;
-    console.log(`Processing GET request for address: ${address}`);
 
     // Initialize services
     const subgraphService = new SubgraphService(SUBGRAPH_URL!);
@@ -54,17 +52,21 @@ export async function GET(
     );
 
     const conditionIds = marketDataResponses
-      .filter(Boolean)
-      .map((data) => data?.conditionId.toLowerCase());
+      .filter(
+        (response): response is NonNullable<typeof response> =>
+          response !== null &&
+          response !== undefined &&
+          typeof response.conditionId === "string"
+      )
+      .map((data) => data.conditionId.toLowerCase());
 
     const marketCreationData = await subgraphService.fetchMarketCreationData(
       uniqueMarketAddresses,
       conditionIds
     );
 
-    // Populate market data map
     marketDataResponses.forEach((data, index) => {
-      if (data) {
+      if (data && uniqueMarketAddresses[index]) {
         marketDataMap.set(uniqueMarketAddresses[index].toLowerCase(), data);
       }
     });

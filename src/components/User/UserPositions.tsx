@@ -4,10 +4,61 @@ import { useRedeemPosition } from "../../hooks/useRedeemPosition";
 import { useActiveAccount } from "thirdweb/react";
 import { ChevronDown, ChevronUp, Wallet } from "lucide-react";
 import PositionCard from "./PositionCard";
-import { Position, PositionValues } from "../types";
+import { Position, PositionCardProps } from "../types";
 
 type TabType = "active" | "resolved";
 type ResolvedTabType = "winning" | "losing";
+
+type ResolvedPosition = Position & { position_result: "won" | "lost" };
+type WinningPosition = Position & { position_result: "won" };
+type LosingPosition = Position & { position_result: "lost" };
+
+const isWinningPosition = (
+  position: ResolvedPosition
+): position is WinningPosition => {
+  return position.position_result === "won";
+};
+
+const isLosingPosition = (
+  position: ResolvedPosition
+): position is LosingPosition => {
+  return position.position_result === "lost";
+};
+
+const isResolvedPosition = (
+  position: Position
+): position is ResolvedPosition => {
+  return (
+    position.position_result === "won" || position.position_result === "lost"
+  );
+};
+
+const toPositionCardProps = (
+  position: Position
+): PositionCardProps["position"] => {
+  return {
+    status: position.status,
+    market_data: {
+      outcomes: position.market_data.outcomes,
+      question: position.market_data.question,
+      volume:
+        typeof position.market_data.volume === "string"
+          ? parseFloat(position.market_data.volume)
+          : position.market_data.volume,
+      collateral_token: position.market_data.collateral_token,
+      description: position.market_data.description,
+    },
+    outcome: position.outcome,
+    token_id: position.token_id,
+    current_balance: position.current_balance,
+    condition_id: position.condition_id,
+    parent_collection_id: position.parent_collection_id,
+    winning_outcome: position.winning_outcome,
+    isRedeemed: position.isRedeemed,
+    position_result: position.position_result,
+    expiration_timestamp: position.expiration_timestamp,
+  };
+};
 
 const UserPositions: React.FC = () => {
   const {
@@ -31,25 +82,22 @@ const UserPositions: React.FC = () => {
     winningPositions,
     losingPositions,
   } = useMemo(() => {
-    const active: Position[] = [];
-    const resolved: Position[] = [];
-    const winning: Position[] = [];
-    const losing: Position[] = [];
+    const active: Array<Position> = [];
+    const resolved: Array<Position & { position_result: "won" | "lost" }> = [];
+    const winning: Array<Position & { position_result: "won" }> = [];
+    const losing: Array<Position & { position_result: "lost" }> = [];
     let activeTotal = 0;
 
-    positions.forEach((position) => {
-      if (position.status.toUpperCase() === "RESOLVED") {
+    for (const position of positions) {
+      if (isResolvedPosition(position)) {
         resolved.push(position);
-        if (position.position_result === "won") {
+        if (isWinningPosition(position)) {
           winning.push(position);
-        } else {
+        } else if (isLosingPosition(position)) {
           losing.push(position);
         }
-      } else {
-        active.push(position);
-        activeTotal += positionValues[position.token_id] || 0;
       }
-    });
+    }
 
     return {
       activePositions: active,
@@ -90,48 +138,23 @@ const UserPositions: React.FC = () => {
       );
     }
 
-    return positions.map((position) => (
-      <PositionCard
-        key={position.token_id}
-        position={position}
-        value={positionValues[position.token_id] || 0}
-        outcome={getPositionOutcome(position)}
-        result={getMarketResult(position)}
-        onRedeem={handleRedeem}
-        canRedeem={
-          position.status.toUpperCase() === "RESOLVED" &&
+    return positions.map((position) => {
+      const positionCardProps: PositionCardProps = {
+        position: toPositionCardProps(position),
+        value: positionValues[position.token_id] || 0,
+        positionOutcome: getPositionOutcome(position),
+        marketResult: getMarketResult(position),
+        onRedeem: handleRedeem,
+        canRedeem:
+          isResolvedPosition(position) &&
           position.position_result === "won" &&
           !position.isRedeemed &&
-          position.current_balance > 0
-        }
-      />
-    ));
-  };
+          position.current_balance > 0,
+      };
 
-  const renderResolvedTabs = () => (
-    <div className="grid grid-cols-2 gap-4 mb-4">
-      <button
-        className={`py-2 px-4 rounded-lg ${
-          resolvedTab === "winning"
-            ? "bg-green-100 text-green-800"
-            : "bg-gray-100 text-gray-600"
-        }`}
-        onClick={() => setResolvedTab("winning")}
-      >
-        Won ({winningPositions.length})
-      </button>
-      <button
-        className={`py-2 px-4 rounded-lg ${
-          resolvedTab === "losing"
-            ? "bg-red-100 text-red-800"
-            : "bg-gray-100 text-gray-600"
-        }`}
-        onClick={() => setResolvedTab("losing")}
-      >
-        Lost ({losingPositions.length})
-      </button>
-    </div>
-  );
+      return <PositionCard key={position.token_id} {...positionCardProps} />;
+    });
+  };
 
   if (!isConnected) {
     return (
@@ -243,7 +266,7 @@ const UserPositions: React.FC = () => {
             {activeTab === "active" && renderPositions(activePositions)}
             {activeTab === "resolved" && (
               <>
-                {renderResolvedTabs()}
+                {/* {renderResolvedTabs()} */}
                 {renderPositions(
                   resolvedTab === "winning" ? winningPositions : losingPositions
                 )}

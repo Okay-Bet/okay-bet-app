@@ -10,8 +10,15 @@ export class SubgraphService {
     this.subgraphUrl = subgraphUrl;
   }
 
-  async fetchTransferHistory(address: string) {
-    console.log(`[SubgraphService] Fetching transfer history for address: ${address}`);
+  async fetchTransferHistory(address: string): Promise<{
+    transfers: Transfer[];
+    balances: Map<string, string>;
+    positionOutcomes: Map<string, number>;
+    buyTrades: any[];
+    sellTrades: any[];
+    marketInfo: Map<string, { eventId: string; value: string }>;
+    redeemedConditions: Set<string>;
+  }> {
     const query = {
       query: `{
         incomingTransfers: ConditionalTokens_TransferSingle(
@@ -79,8 +86,6 @@ export class SubgraphService {
       }
 
       const rawData = await response.json();
-      console.log("[SubgraphService] Redemptions in raw response:", 
-        rawData.data.redemptions || []);
 
       if (!rawData.data) {
         throw new Error("Invalid response format from subgraph");
@@ -93,6 +98,8 @@ export class SubgraphService {
           buyTrades: rawData.data.buyTrades || [],
           sellTrades: rawData.data.sellTrades || [],
           redemptions: rawData.data.redemptions || [],
+          trades: [],
+          markets: []
         },
       };
 
@@ -111,24 +118,12 @@ export class SubgraphService {
 
     // Process redemptions first
     if (data.data.redemptions) {
-      data.data.redemptions.forEach((redemption) => {
+      data.data.redemptions.forEach((redemption: { conditionId: string; }) => {
         const conditionId = redemption.conditionId.toLowerCase();
-        redeemedConditions.add(conditionId);
-        console.log("[SubgraphService] Found redemption:", {
-          conditionId,
-          payout: redemption.payout,
-          redeemer: redemption.redeemer
-        });
+        redeemedConditions.add(conditionId); 
       });
     }
 
-    console.log("[SubgraphService] Processing transfers:", {
-      incomingCount: data.data.incomingTransfers.length,
-      outgoingCount: data.data.outgoingTransfers.length,
-      buyTradesCount: data.data.buyTrades.length,
-      sellTradesCount: data.data.sellTrades.length,
-      redemptionsCount: redeemedConditions.size
-    });
 
     // Process incoming transfers
     data.data.incomingTransfers.forEach((transfer) => {
@@ -145,15 +140,6 @@ export class SubgraphService {
         value: transfer.value,
       });
 
-      console.log("[SubgraphService] Processed incoming transfer:", {
-        id: transfer.id,
-        from: transfer.from,
-        value: transfer.value,
-        eventId: transfer.event_id,
-        outcomeIndex,
-        position: outcomeIndex === 0 ? "No" : "Yes",
-        newBalance,
-      });
     });
 
     // Process outgoing transfers
@@ -170,33 +156,7 @@ export class SubgraphService {
         eventId: transfer.event_id,
         value: transfer.value,
       });
-
-      console.log("[SubgraphService] Processed outgoing transfer:", {
-        id: transfer.id,
-        to: transfer.to,
-        value: transfer.value,
-        eventId: transfer.event_id,
-        outcomeIndex,
-        position: outcomeIndex === 0 ? "No" : "Yes",
-        newBalance,
-      });
     });
-
-    // Log redemption summary
-    console.log("[SubgraphService] Redemption summary:", {
-      redeemedConditions: Array.from(redeemedConditions),
-      totalRedemptions: redeemedConditions.size
-    });
-
-    // Log position summary with redemption status
-    console.log("[SubgraphService] Position summary:",
-      Array.from(positionOutcomes.entries()).map(([id, outcome]) => ({
-        id,
-        position: outcome === 0 ? "No" : "Yes",
-        balance: balances.get(id),
-        marketAddress: id.split("_")[0],
-      }))
-    );
 
     return {
       transfers: [...data.data.incomingTransfers, ...data.data.outgoingTransfers],
@@ -205,7 +165,7 @@ export class SubgraphService {
       buyTrades: data.data.buyTrades || [],
       sellTrades: data.data.sellTrades || [],
       marketInfo,
-      redeemedConditions, // Add this to the return value
+      redeemedConditions, 
     };
   }
 
@@ -251,10 +211,6 @@ export class SubgraphService {
       }
 
       const data = await response.json();
-      // console.log(
-      //   "[SubgraphService] Market creation raw data:",
-      //   JSON.stringify(data, null, 2)
-      // );
 
       return this.processMarketCreationData(data);
     } catch (error) {
@@ -278,12 +234,6 @@ export class SubgraphService {
             "0x0000000000000000000000000000000000000000000000000000000000000000"
         ) {
           finalParentCollectionIds.set(conditionId, event.parentCollectionId);
-          // console.log(
-          //   `[SubgraphService] Found ${type} event for condition ${conditionId}:`,
-          //   {
-          //     parentCollectionId: event.parentCollectionId,
-          //   }
-          // );
         }
       });
     };

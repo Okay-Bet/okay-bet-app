@@ -1,5 +1,4 @@
-import { MarketOutcome, MarketProvider, PositionStatus, Side } from "./core";
-
+import { CollateralToken } from "./polymarket";
 // Core Position Interfaces
 export interface Position {
   condition_id: string;
@@ -14,17 +13,20 @@ export interface Position {
   transaction_hash: string;
   is_winner?: boolean;
   winning_outcome?: number;
-  isRedeemed: boolean; 
-  position_result?: "won" | "lost";
+  isRedeemed: boolean;
+  position_result: "won" | "lost";
   market_data: {
     question: string;
     description: string;
     outcomes: string;
-    volume: string;
+    volume: number;
     liquidity: string;
     status: string;
     winning_outcome?: number;
     collateral_token: CollateralToken;
+    contract?: {  
+      address: string;
+    };
   };
   contract: {
     address: string;
@@ -89,17 +91,40 @@ export interface MarketCreationEvent {
 // }
 
 // UI Component Props
-interface PositionCardProps {
-  position: Position;
+
+// other imports or code
+
+export interface PositionCardProps {
+  position: {
+    status: string;
+    market_data: {
+      outcomes: string;
+      question: string;
+      volume: number;
+      collateral_token: {
+        decimals: number;
+      };
+      description: string;
+    };
+    outcome: number;
+    token_id: string;
+    current_balance: number;
+    condition_id: string;
+    parent_collection_id?: string;
+    winning_outcome?: number;
+    isRedeemed: boolean;
+    position_result: string;
+    expiration_timestamp: number;
+  };
   value: number;
-  outcome: string;
-  result?: string;
+  positionOutcome?: any; // Replace 'any' with the actual type from your usePositions hook
+  marketResult?: any; // Replace 'any' with the actual type from your usePositions hook
   onRedeem: (
     tokenId: string,
     isYesToken: boolean,
     conditionId: string,
     parentCollectionId: string
-  ) => Promise<void>;
+  ) => void;
   canRedeem: boolean;
 }
 
@@ -115,11 +140,6 @@ export interface PositionRequest {
   isYesToken: boolean;
 }
 
-// export interface CollateralToken {
-//   address: string;
-//   decimals: number;
-//   symbol: string;
-// }
 
 export interface RedemptionInfo {
   conditionId: string;
@@ -129,6 +149,9 @@ export interface RedemptionInfo {
 
 export interface ExtendedSubgraphResponse {
   data: {
+    sellTrades: any;
+    buyTrades: any;
+    redemptions: any;
     trades: never[];
     incomingTransfers: Transfer[];
     outgoingTransfers: Transfer[];
