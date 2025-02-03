@@ -82,22 +82,29 @@ const UserPositions: React.FC = () => {
     winningPositions,
     losingPositions,
   } = useMemo(() => {
-    const active: Array<Position> = [];
-    const resolved: Array<Position & { position_result: "won" | "lost" }> = [];
-    const winning: Array<Position & { position_result: "won" }> = [];
-    const losing: Array<Position & { position_result: "lost" }> = [];
+    const active: Position[] = [];
+    const resolved: Position[] = [];
+    const winning: Position[] = [];
+    const losing: Position[] = [];
     let activeTotal = 0;
 
-    for (const position of positions) {
-      if (isResolvedPosition(position)) {
+    positions.forEach((position: Position) => {
+      if (position.status.toUpperCase() === "RESOLVED") {
         resolved.push(position);
-        if (isWinningPosition(position)) {
+        
+        if (position.position_result === "won") {
           winning.push(position);
-        } else if (isLosingPosition(position)) {
+        } else if (position.position_result === "lost") {
           losing.push(position);
         }
+      } else {
+        // Active position
+        active.push(position);
+        if (positionValues[position.token_id]) {
+          activeTotal += positionValues[position.token_id];
+        }
       }
-    }
+    });
 
     return {
       activePositions: active,
