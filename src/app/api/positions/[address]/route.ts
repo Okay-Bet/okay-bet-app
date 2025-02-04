@@ -78,26 +78,13 @@ export async function GET(
       redeemedConditions
     );
 
-    // // Log position results with redemption status
-    // console.log(
-    //   "[Route] Position results:",
-    //   completed_orders.map((order) => ({
-    //     market: order.token_id,
-    //     question: order.market_data.question,
-    //     position: order.outcome === 0 ? "No" : "Yes",
-    //     status: order.status,
-    //     winning_outcome:
-    //       order.winning_outcome !== undefined
-    //         ? order.winning_outcome === 0
-    //           ? "No"
-    //           : "Yes"
-    //         : undefined,
-    //     result: order.position_result,
-    //     isRedeemed: order.isRedeemed,
-    //     conditionId: order.condition_id,
-    //     balance: order.current_balance,
-    //   }))
-    // );
+    // console.log("Transfer Data Debug:", {
+    //   transfersCount: transfers.length,
+    //   sampleTransfers: transfers.slice(0, 3),
+    //   positionOutcomesMap: Object.fromEntries(positionOutcomes),
+    //   balancesMap: Object.fromEntries(balances),
+    //   marketInfoSize: marketInfo.size
+    // });
 
     // Count redeemable positions
     const redeemablePositions = completed_orders.filter(

@@ -41,6 +41,17 @@ export class SubgraphService {
           event_id
           value
         }
+        positionSplits: ConditionalTokens_PositionSplit(
+          where: { stakeholder: { _eq: "${address}" } }
+        ) {
+          id
+          conditionId
+          partition
+        }
+        conditionPreparations: ConditionalTokens_ConditionPreparation {
+          conditionId
+          outcomeSlotCount
+        }
         redemptions: ConditionalTokens_PayoutRedemption(
           where: { redeemer: { _eq: "${address}" } }
         ) {
@@ -125,22 +136,16 @@ export class SubgraphService {
     const marketInfo = new Map<string, { eventId: string; value: string }>();
     const redeemedConditions = new Set<string>();
 
-    // Process redemptions first
-    if (data.data.redemptions) {
-      data.data.redemptions.forEach((redemption: { conditionId: string }) => {
-        const conditionId = redemption.conditionId.toLowerCase();
-        redeemedConditions.add(conditionId);
-      });
-    }
-
     // Process incoming transfers
     data.data.incomingTransfers.forEach((transfer) => {
       const currentBalance = BigInt(balances.get(transfer.id) || "0");
       const newBalance = (currentBalance + BigInt(transfer.value)).toString();
       balances.set(transfer.id, newBalance);
 
-      const eventIdBN = BigInt(transfer.event_id);
-      const outcomeIndex = Number(eventIdBN % 2n);
+      // Extract outcome from event_id (token ID)
+      // The last bit of the token ID determines if it's a YES or NO position
+      const tokenId = BigInt(transfer.event_id);
+      const outcomeIndex = Number(!((tokenId >> 255n) & 1n));
       positionOutcomes.set(transfer.id, outcomeIndex);
 
       marketInfo.set(transfer.from, {
@@ -155,15 +160,18 @@ export class SubgraphService {
       const newBalance = (currentBalance - BigInt(transfer.value)).toString();
       balances.set(transfer.id, newBalance);
 
-      const eventIdBN = BigInt(transfer.event_id);
-      const outcomeIndex = Number(eventIdBN % 2n);
+      // Extract outcome from event_id (token ID)
+      const tokenId = BigInt(transfer.event_id);
+      const outcomeIndex = Number((tokenId >> 255n) & 1n);
       positionOutcomes.set(transfer.id, outcomeIndex);
-
-      marketInfo.set(transfer.to, {
-        eventId: transfer.event_id,
-        value: transfer.value,
-      });
     });
+
+    // Process redemptions
+    if (data.data.redemptions) {
+      data.data.redemptions.forEach((redemption: { conditionId: string }) => {
+        redeemedConditions.add(redemption.conditionId.toLowerCase());
+      });
+    }
 
     return {
       transfers: [
