@@ -1,9 +1,10 @@
-/* External CSS libraries first */
-@import 'slick-carousel/slick/slick.css';
-@import 'slick-carousel/slick/slick-theme.css';
+/* External CSS libraries */
+@import "slick-carousel/slick/slick.css";
+@import "slick-carousel/slick/slick-theme.css";
 
 /* Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap");
 
 /* Custom fonts */
 @font-face {
@@ -11,6 +12,7 @@
   src: url('../../public/fonts/MonumentExtended-Regular.otf') format('opentype');
   font-weight: normal;
   font-style: normal;
+  font-display: swap;
 }
 
 /* Tailwind directives */
@@ -18,24 +20,89 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Root variables and custom styles */
+/* Root variables */
 :root {
+  --tw-gradient-from: theme("colors.accent-red.500");
+  --tw-gradient-to: theme("colors.tertiary");
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
 }
 
 @layer base {
-  body {
-    @apply font-body;
+  html {
+    @apply antialiased;
   }
-  h1, h2, h3, h4, h5, h6 {
+
+  body {
+    @apply font-body text-font;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-heading;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-gradient-aggressive from-accent-red-500 to-tertiary 
+           px-6 py-3 rounded-lg font-header text-white 
+           shadow-sharp transition-all duration-300 
+           hover:shadow-aggressive hover:translate-y-[-2px];
+  }
+
+  .card-aggressive {
+    @apply bg-gradient-aggressive from-accent-red-500 via-secondary to-tertiary 
+           p-0.5 rounded-xl shadow-aggressive;
+  }
+
+  .card-content {
+    @apply bg-accent-gray-900 rounded-xl p-6;
+  }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-aggressive 
+           from-accent-red-500 to-tertiary;
+  }
+}
+
+@layer utilities {
+  .text-shadow-aggressive {
+    text-shadow: 2px 2px 0 theme("colors.primary");
+  }
+
+  .border-gradient {
+    border-image: linear-gradient(
+        45deg,
+        theme("colors.accent-red.500"),
+        theme("colors.tertiary")
+      )
+      1;
   }
 }
 
 /* Component-specific styles */
 .qrcode-icon-button .MuiSvgIcon-root {
-  color: black;
+  @apply text-primary transition-colors duration-300;
 }
+
 .qrcode-icon-button:hover .MuiSvgIcon-root {
-  color: white;
+  @apply text-font;
+}
+
+/* Animation utilities */
+@keyframes glow {
+  0% {
+    box-shadow: 0 0 5px theme("colors.accent-red.500");
+  }
+  100% {
+    box-shadow: 0 0 20px theme("colors.accent-red.500");
+  }
+}
+
+.animate-glow {
+  animation: glow 1.5s ease-in-out infinite alternate;
 }

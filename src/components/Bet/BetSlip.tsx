@@ -206,116 +206,174 @@ export const BetSlip: React.FC = () => {
     );
   };
 
-  // Early return if no active bet
+  const getButtonText = () => {
+    if (!amount || parseFloat(amount) < MIN_TOKENS) return "Enter Amount";
+    if (!quote) return "Loading Quote...";
+    if (isLoading) {
+      if (approvalStep.status === "approving") return "Approving USDC...";
+      if (approvalStep.status === "pending") return "Confirming...";
+      if (status.state === "submitting_order") return "Placing Order...";
+      return "Processing...";
+    }
+    if (status.state === "error") return "Failed - Try Again";
+    return "Place Order";
+  };
+
+  const getButtonStyle = () => {
+    if (status.state === "error")
+      return "bg-accent-red-500 hover:bg-accent-red-600";
+    if (isLoading) return "bg-accent-gray-600";
+    return "bg-gradient-aggressive from-accent-red-500 to-tertiary hover:shadow-aggressive";
+  };
+
   if (!bet) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg">
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-accent-red-500 shadow-xl">
       <div className="container mx-auto max-w-4xl">
-        <div className="max-h-[400px] overflow-y-auto">
-          <div className="p-4 space-y-4">
-            {/* Header */}
-            <div className="flex justify-between items-center pb-3 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Bet Slip</h3>
-              <button
-                onClick={clearBets}
-                className="text-sm text-red-600 hover:text-red-800 transition-colors"
-                disabled={isLoading}
-              >
-                Clear
-              </button>
+        <div className="p-4 space-y-4">
+          {/* Header */}
+          <div className="flex justify-between items-center">
+            <div className="flex items-baseline gap-2">
+              <h3 className="text-xl font-bold text-black">Bet Slip</h3>
+              <span className="text-accent-gray-500 text-sm">
+                {isLoading &&
+                  (approvalStep.status === "approving"
+                    ? "Requesting approval..."
+                    : approvalStep.status === "pending"
+                    ? "Confirming approval..."
+                    : status.state === "submitting_order"
+                    ? "Submitting order..."
+                    : "")}
+              </span>
             </div>
+            <button
+              onClick={clearBets}
+              className="text-sm text-accent-red-500 hover:text-accent-red-600"
+              disabled={isLoading}
+            >
+              Clear
+            </button>
+          </div>
 
-            {/* Transaction Status Message */}
-            {transactionStatus && (
-              <div
-                className={`p-4 rounded-lg ${
-                  status.state === "error"
-                    ? "bg-red-50 text-red-700"
-                    : status.state === "complete"
-                    ? "bg-green-50 text-green-700"
-                    : "bg-blue-50 text-blue-700"
-                }`}
-              >
-                <p className="text-sm font-medium">{transactionStatus}</p>
-              </div>
-            )}
-
-            {/* Bet Details */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="flex justify-between items-start">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-gray-900">
-                    {bet.eventTitle}
-                  </p>
-                  <p className="text-xs text-gray-600">{bet.marketQuestion}</p>
-                  <p className="text-sm font-medium text-gray-900 mt-2">
-                    {bet.position} @ ${bet.price.toFixed(3)}
-                  </p>
-                </div>
-                <button
-                  onClick={() => removeBet(bet.marketId)}
-                  className="text-gray-400 hover:text-gray-600 p-1"
-                  disabled={isLoading}
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-
-            {/* Quote Section */}
-            {isQuoting ? (
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-sm text-blue-600">Getting price quote...</p>
-              </div>
-            ) : (
-              renderQuote()
-            )}
-
-            {/* Input and Action Section */}
-            <div className="flex items-center gap-4 pt-2">
-              <div className="flex-1">
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={amount}
-                    onChange={handleAmountChange}
-                    placeholder="0.00"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg pr-16 font-medium text-gray-900 placeholder-gray-400"
-                    disabled={isLoading}
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">
-                    USDC
+          {/* Bet Details */}
+          <div className="bg-white border border-accent-gray-200 rounded-lg p-4">
+            <div className="flex justify-between items-start">
+              <div className="space-y-2">
+                <p className="font-medium text-black">{bet.eventTitle}</p>
+                <p className="text-sm text-accent-gray-600">
+                  {bet.marketQuestion}
+                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span
+                    className={`px-2 py-0.5 rounded text-sm font-medium
+                    ${
+                      bet.position === "YES"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    {bet.position}
+                  </span>
+                  <span className="font-medium text-black">
+                    @ ${bet.price.toFixed(3)}
                   </span>
                 </div>
-                <p className="text-sm text-gray-600 mt-2">
-                  Minimum bet size: {MIN_TOKENS.toFixed(2)} USDC
-                </p>
               </div>
               <button
-                className={`px-6 py-3 bg-blue-600 text-white font-medium rounded-lg transition-colors
-                  ${
-                    !amount ||
-                    parseFloat(amount) < MIN_TOKENS ||
-                    isLoading ||
-                    !quote
-                      ? "opacity-50 cursor-not-allowed"
-                      : "hover:bg-blue-700"
-                  }`}
-                disabled={
+                onClick={() => removeBet(bet.marketId)}
+                className="text-accent-gray-400 hover:text-accent-gray-600"
+                disabled={isLoading}
+              >
+                ×
+              </button>
+            </div>
+          </div>
+
+          {/* Quote Section */}
+          {quote && !isQuoting && (
+            <div className="bg-white border border-accent-gray-200 rounded-lg p-4">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-accent-gray-600">
+                    Tokens to receive
+                  </span>
+                  <span className="font-medium text-black">
+                    {quote.tokenAmount.toFixed(6)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-accent-gray-600">Price Impact</span>
+                  <span
+                    className={`font-medium ${
+                      quote.priceImpact > 0.05 ? "text-red-600" : "text-black"
+                    }`}
+                  >
+                    {(quote.priceImpact * 100).toFixed(2)}%
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-accent-gray-600">Total Cost</span>
+                  <span className="font-medium text-black">
+                    {quote.estimatedTotal.toFixed(2)} USDC
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Input and Action Section */}
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={amount}
+                  onChange={handleAmountChange}
+                  placeholder="0.00"
+                  className="w-full px-4 py-3 border border-accent-gray-300 rounded-lg pr-16 
+                           text-black placeholder-accent-gray-400
+                           focus:border-accent-red-500 focus:ring-1 focus:ring-accent-red-500"
+                  disabled={isLoading}
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-accent-gray-500">
+                  USDC
+                </span>
+              </div>
+            </div>
+            <button
+              className={`px-6 py-3 text-white font-medium rounded-lg transition-colors
+                ${
+                  status.state === "error"
+                    ? "bg-red-600 hover:bg-red-700"
+                    : "bg-accent-red-500 hover:bg-accent-red-600"
+                }
+                ${
                   !amount ||
                   parseFloat(amount) < MIN_TOKENS ||
                   isLoading ||
                   !quote
-                }
-                onClick={handlePlaceOrder}
-              >
-                {isLoading
-                  ? transactionStatus || "Processing..."
-                  : "Place Order"}
-              </button>
-            </div>
+                    ? "opacity-50 cursor-not-allowed"
+                    : ""
+                }`}
+              disabled={
+                !amount ||
+                parseFloat(amount) < MIN_TOKENS ||
+                isLoading ||
+                !quote
+              }
+              onClick={handlePlaceOrder}
+            >
+              {getButtonText()}
+            </button>
           </div>
+
+          {/* Error Message */}
+          {status.state === "error" && (
+            <p className="text-sm text-red-600 mt-2">
+              {status.error || "Transaction failed. Please try again."}
+            </p>
+          )}
         </div>
       </div>
     </div>
