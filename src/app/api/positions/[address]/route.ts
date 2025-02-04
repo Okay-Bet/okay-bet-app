@@ -6,6 +6,10 @@ import { PositionService } from "../../../../services/position.service";
 const SUBGRAPH_URL = process.env.SUBGRAPH_URL;
 const LIMITLESS_API_URL = "https://api.limitless.exchange/markets";
 
+// Disable Next.js cache for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(
   request: Request,
   { params }: { params: { address: string } }
@@ -106,6 +110,9 @@ export async function GET(
           "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Methods": "GET",
           "Access-Control-Allow-Headers": "Content-Type",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0",
         },
       }
     );
