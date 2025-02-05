@@ -229,7 +229,7 @@ export const BetSlip: React.FC = () => {
   if (!bet) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-accent-red-500 shadow-xl">
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-accent-red-500 shadow-xl z-50">
       <div className="container mx-auto max-w-4xl">
         <div className="p-4 space-y-4">
           {/* Header */}
@@ -295,11 +295,11 @@ export const BetSlip: React.FC = () => {
             <div className="bg-white border border-accent-gray-200 rounded-lg p-4">
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-accent-gray-600">
-                    Tokens to receive
+                  <span className="text-accent-gray-600 flex items-center gap-1">
+                    Potential Payout
                   </span>
                   <span className="font-medium text-black">
-                    {quote.tokenAmount.toFixed(6)}
+                    {quote.tokenAmount.toFixed(2)} USDC
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -313,7 +313,7 @@ export const BetSlip: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-accent-gray-600">Total Cost</span>
+                  <span className="text-accent-gray-600">You Pay</span>
                   <span className="font-medium text-black">
                     {quote.estimatedTotal.toFixed(2)} USDC
                   </span>
