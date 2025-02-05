@@ -35,13 +35,6 @@ export const useLimitlessNativeOrder = () => {
           address: orderRequest.tokenId,
         });
 
-        console.log("Preparing market order:", {
-          marketAddress: orderRequest.tokenId,
-          amount: orderRequest.amount,
-          isYesToken: orderRequest.isYesToken,
-          estimatedTokens: orderRequest.estimatedTokens,
-        });
-
         const transaction = prepareContractCall({
           contract: marketContract,
           method:
@@ -56,12 +49,16 @@ export const useLimitlessNativeOrder = () => {
         setStatus({ state: "submitting_order" });
 
         const receipt = await sendAndConfirmTx(transaction);
-        console.log("Market order confirmed:", receipt.transactionHash);
 
         setStatus({
           state: "complete",
           result: receipt,
         });
+
+        // Reset status after 3 seconds
+        setTimeout(() => {
+          setStatus({ state: "idle" });
+        }, 2000);
 
         return receipt;
       } catch (error) {

@@ -13,7 +13,7 @@ export const useOrder = () => {
   // Get both order handlers and approval status
   const {
     submitOrder: submitNativeOrder,
-    approvalStep, // Important: We now destructure approvalStep
+    approvalStep,
   } = useLimitlessNativeOrder();
 
   // Default to native limitless implementation
@@ -30,7 +30,6 @@ export const useOrder = () => {
     try {
       switch (provider) {
         case "LIMITLESS":
-          console.log("useOrder: Proceeding with native Limitless order flow");
           setStatus({ state: "preparing_transfer" });
           const nativeResult = await submitNativeOrder(orderRequest);
           setStatus({ state: "complete", result: nativeResult });
@@ -55,11 +54,10 @@ export const useOrder = () => {
     status.state
   );
 
-  // Return approvalStep in the hook's interface
   return {
     submitOrder,
     status,
     isLoading,
-    approvalStep, // Now exposed to consuming components
+    approvalStep, 
   };
 };

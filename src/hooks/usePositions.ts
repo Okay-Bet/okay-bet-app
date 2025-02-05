@@ -26,6 +26,7 @@ export function usePositions() {
   const [error, setError] = useState<string | null>(null);
   const [totalValue, setTotalValue] = useState(0);
   const [positionValues, setPositionValues] = useState<PositionValues>({});
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const isMarketResolved = (status: string): boolean => {
     return status.toUpperCase() === "RESOLVED";
@@ -179,7 +180,11 @@ export function usePositions() {
     };
 
     fetchPositions();
-  }, [account?.address]);
+  }, [account?.address, refreshTrigger]);
+
+  const refreshPositions = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
 
   const getFormattedBalance = (position: Position): string => {
     const decimals = position.market_data.collateral_token.decimals;
@@ -198,5 +203,6 @@ export function usePositions() {
     getFormattedBalance,
     getPositionOutcome,
     getMarketResult,
+    refreshPositions,
   };
 }

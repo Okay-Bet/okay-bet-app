@@ -21,16 +21,6 @@ interface OrderQuote {
   estimatedTotal: number;
 }
 
-// Add proper types for approval step and status
-interface ApprovalStep {
-  status: "success" | "pending" | "failed" | "processing";
-}
-
-interface OrderStatus {
-  state: "idle" | "submitting_order" | "complete" | "error";
-  error?: string;
-}
-
 // FPMM contract interface
 const FPMM_ABI = parseAbi([
   "function calcBuyAmount(uint256 investmentAmount, uint256 outcomeIndex) view returns (uint256)",
@@ -59,22 +49,24 @@ export const BetSlip: React.FC = () => {
 
   // Effect to handle transaction status messages
   useEffect(() => {
-    if (approvalStep.status === "approving") {
-      setTransactionStatus("Requesting USDC approval...");
-    } else if (approvalStep.status === "pending") {
-      setTransactionStatus("Waiting for approval confirmation...");
-    } else if (status.state === "submitting_order") {
-      setTransactionStatus("Placing your order...");
-    } else if (status.state === "complete") {
+    if (status.state === "complete") {
       setTransactionStatus("Order completed successfully!");
-      // Only clear bets after showing success message
+      // Wait for completion animation and then refresh
       const timeoutId = setTimeout(() => {
         clearBets();
         setAmount("");
         setQuote(null);
         setTransactionStatus("");
-      }, 3000); // Clear after 3 seconds
+        // Refresh the entire page
+        window.location.reload();
+      }, 3000); // Matches the animation duration
       return () => clearTimeout(timeoutId);
+    } else if (approvalStep.status === "approving") {
+      setTransactionStatus("Requesting USDC approval...");
+    } else if (approvalStep.status === "pending") {
+      setTransactionStatus("Waiting for approval confirmation...");
+    } else if (status.state === "submitting_order") {
+      setTransactionStatus("Placing your order...");
     } else if (status.state === "error") {
       setTransactionStatus(`Error: ${status.error || "Transaction failed"}`);
     }
@@ -164,7 +156,6 @@ export const BetSlip: React.FC = () => {
         priceImpact: quote.priceImpact,
       };
 
-      console.log("Submitting order request:", orderRequest);
       await submitOrder(orderRequest);
     } catch (err) {
       console.error("Order placement error:", err);
@@ -172,38 +163,23 @@ export const BetSlip: React.FC = () => {
     }
   };
 
-  // Quote display component
-  const renderQuote = () => {
-    if (!quote) return null;
+  const getButtonClasses = () => {
+    const baseClasses =
+      "px-6 py-3 text-white font-medium rounded-lg transition-all duration-300";
 
-    return (
-      <div className="bg-gray-50 p-4 rounded-lg">
-        <div className="space-y-3">
-          <div className="flex justify-between items-center text-sm">
-            <span className="text-gray-600">Tokens to receive</span>
-            <span className="font-medium text-gray-900">
-              {quote.tokenAmount.toFixed(6)}
-            </span>
-          </div>
-          <div className="flex justify-between items-center text-sm">
-            <span className="text-gray-600">Price Impact</span>
-            <span
-              className={`font-medium ${
-                quote.priceImpact > 0.05 ? "text-yellow-600" : "text-gray-900"
-              }`}
-            >
-              {(quote.priceImpact * 100).toFixed(2)}%
-            </span>
-          </div>
-          <div className="flex justify-between items-center text-sm">
-            <span className="text-gray-600">Total Cost</span>
-            <span className="font-medium text-gray-900">
-              {quote.estimatedTotal.toFixed(2)} USDC
-            </span>
-          </div>
-        </div>
-      </div>
-    );
+    if (status.state === "complete") {
+      return `${baseClasses} bg-green-500 hover:bg-green-600 transform scale-105 shadow-lg`;
+    }
+
+    if (status.state === "error") {
+      return `${baseClasses} bg-red-600 hover:bg-red-700`;
+    }
+
+    const disabledState =
+      !amount || parseFloat(amount) < MIN_TOKENS || isLoading || !quote;
+
+    return `${baseClasses} bg-accent-red-500 hover:bg-accent-red-600 
+      ${disabledState ? "opacity-50 cursor-not-allowed" : ""}`;
   };
 
   const getButtonText = () => {
@@ -215,15 +191,9 @@ export const BetSlip: React.FC = () => {
       if (status.state === "submitting_order") return "Placing Order...";
       return "Processing...";
     }
+    if (status.state === "complete") return "COMPLETE ✓";
     if (status.state === "error") return "Failed - Try Again";
     return "Place Order";
-  };
-
-  const getButtonStyle = () => {
-    if (status.state === "error")
-      return "bg-accent-red-500 hover:bg-accent-red-600";
-    if (isLoading) return "bg-accent-gray-600";
-    return "bg-gradient-aggressive from-accent-red-500 to-tertiary hover:shadow-aggressive";
   };
 
   if (!bet) return null;
@@ -334,7 +304,7 @@ export const BetSlip: React.FC = () => {
                   className="w-full px-4 py-3 border border-accent-gray-300 rounded-lg pr-16 
                            text-black placeholder-accent-gray-400
                            focus:border-accent-red-500 focus:ring-1 focus:ring-accent-red-500"
-                  disabled={isLoading}
+                  disabled={isLoading || status.state === "complete"}
                 />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-accent-gray-500">
                   USDC
@@ -342,25 +312,13 @@ export const BetSlip: React.FC = () => {
               </div>
             </div>
             <button
-              className={`px-6 py-3 text-white font-medium rounded-lg transition-colors
-                ${
-                  status.state === "error"
-                    ? "bg-red-600 hover:bg-red-700"
-                    : "bg-accent-red-500 hover:bg-accent-red-600"
-                }
-                ${
-                  !amount ||
-                  parseFloat(amount) < MIN_TOKENS ||
-                  isLoading ||
-                  !quote
-                    ? "opacity-50 cursor-not-allowed"
-                    : ""
-                }`}
+              className={getButtonClasses()}
               disabled={
                 !amount ||
                 parseFloat(amount) < MIN_TOKENS ||
                 isLoading ||
-                !quote
+                !quote ||
+                status.state === "complete"
               }
               onClick={handlePlaceOrder}
             >
