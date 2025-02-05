@@ -28,13 +28,13 @@ const Testimonials = () => {
     <section className="py-5 bg-primary text-quaternary">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center">
-          <a
+          {/* <a
             href="https://docs.okaybet.fun/docs/intro" 
             className="text-font transform hover:scale-110 transition-transform flex items-center"
           >
             <FaBook style={{ fontSize: 35 }} />
             <span className="ml-2 mr-2 font-heading font-bold">Docs</span>
-          </a>
+          </a> */}
           <div className="flex items-center space-x-6">
             {partners.map((partner, index) => (
               <a
