@@ -207,12 +207,12 @@ const UserPositions: React.FC = () => {
           onClick={() => setIsComponentExpanded(!isComponentExpanded)}
         >
           <div className="flex items-center space-x-4">
-            <h2 className="text-3xl font-header text-white tracking-wide">YOUR POSITIONS</h2>
+            <h2 className="text-3xl font-header text-white tracking-wide">POSITIONS</h2>
             <span className="px-3 py-1 rounded-full text-sm font-bold bg-accent-red-500 text-white shadow-sharp">
               {activePositions.length} ACTIVE
             </span>
           </div>
-          <div className="flex items-center space-x-8">
+          <div className="flex items-center space-x-4">
             <div className="text-right">
               <div className="text-2xl font-header text-accent-red-500">
                 ${activeValue.toFixed(2)}

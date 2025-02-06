@@ -111,7 +111,7 @@ const Pitch = () => {
               </p>
             </div>
 
-            <div className="inline-block mb-16">
+            <div className="inline-block mb-5">
               <div className="bg-white/10 px-8 py-4 rounded-lg border border-white/20">
                 <h2 className="text-3xl md:text-4xl font-heading text-white tracking-tighter italic">
                   COMING SOON

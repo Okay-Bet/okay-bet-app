@@ -189,21 +189,15 @@ export const MarketCard: React.FC<MarketCardProps> = ({
           </div>
 
           {/* Market Stats */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-black p-2 rounded border border-accent-gray-800">
-              <div className="text-xs font-header text-accent-gray-400">
-                VOLUME
+          <div className="bg-black p-3 rounded border border-accent-gray-800 hover:border-accent-red-500 
+                        transition-all duration-300 group/stats">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-header text-accent-gray-400">
+                TOTAL VOLUME
               </div>
-              <div className="text-sm font-header text-accent-red-500">
-                ${parseFloat(currentMarket.metrics.volume).toLocaleString()}
-              </div>
-            </div>
-            <div className="bg-black p-2 rounded border border-accent-gray-800">
-              <div className="text-xs font-header text-accent-gray-400">
-                LIQUIDITY
-              </div>
-              <div className="text-sm font-header text-accent-red-500">
-                ${parseFloat(currentMarket.metrics.liquidity).toLocaleString()}
+              <div className="text-lg font-header text-electric-cyan group-hover/stats:text-accent-red-500 
+                           transition-colors">
+                ${parseFloat(currentMarket.metrics.volume).toFixed(2).toLocaleString()}
               </div>
             </div>
           </div>
