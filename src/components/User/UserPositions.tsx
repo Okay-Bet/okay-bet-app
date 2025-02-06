@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { usePositions } from "../../hooks/usePositions";
-import { useRedeemPosition } from "../../hooks/useRedeemPosition";
+import { useRedeemPosition, RedeemStatus } from "../../hooks/useRedeemPosition";
 import { useActiveAccount } from "thirdweb/react";
 import { ChevronDown, ChevronUp, Wallet } from "lucide-react";
 import PositionCard from "./PositionCard";
@@ -68,12 +68,17 @@ const UserPositions: React.FC = () => {
     positionValues,
     getPositionOutcome,
     getMarketResult,
+    refreshPositions,
   } = usePositions();
-  const { redeemPosition } = useRedeemPosition();
   const account = useActiveAccount();
   const [activeTab, setActiveTab] = useState<TabType>("active");
   const [resolvedTab, setResolvedTab] = useState<ResolvedTabType>("winning");
   const [isComponentExpanded, setIsComponentExpanded] = useState(true);
+  
+  const { redeemPosition, status: redeemStatus } = useRedeemPosition(() => {
+    // Callback that runs after successful redemption
+    refreshPositions();
+  });
 
   const {
     activePositions,
@@ -156,6 +161,9 @@ const UserPositions: React.FC = () => {
     }
 
     return positions.map((position) => {
+      const isRedeeming = redeemStatus.state === 'redeeming' && 
+                         redeemStatus.tokenId === position.token_id;
+                         
       const positionCardProps: PositionCardProps = {
         position: toPositionCardProps(position),
         value: positionValues[position.token_id] || 0,
@@ -167,6 +175,7 @@ const UserPositions: React.FC = () => {
           position.position_result === "won" &&
           !position.isRedeemed &&
           position.current_balance > 0,
+          isRedeeming,
       };
 
       return <PositionCard key={position.token_id} {...positionCardProps} />;

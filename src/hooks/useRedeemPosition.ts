@@ -1,14 +1,11 @@
-import { useCallback } from "react";
-import {
-  useActiveAccount,
-  useSendAndConfirmTransaction,
-} from "thirdweb/react";
+import { useCallback, useState } from "react";
+import { useActiveAccount, useSendAndConfirmTransaction } from "thirdweb/react";
 import { prepareContractCall, getContract } from "thirdweb";
 import { base } from "thirdweb/chains";
 import { client } from "../app/client";
-import { createPublicClient, http } from 'viem';
-import { base as viemBase } from 'viem/chains';
-import { getContract as getViemContract } from 'viem';
+import { createPublicClient, http } from "viem";
+import { base as viemBase } from "viem/chains";
+import { getContract as getViemContract } from "viem";
 
 const CONDITIONAL_TOKEN_ABI = [
   {
@@ -57,21 +54,30 @@ interface RedeemPositionParams {
 
 const publicClient = createPublicClient({
   chain: viemBase,
-  transport: http()
+  transport: http(),
 });
 
 // Constants
 const USDC_ADDRESS = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
 
-export function useRedeemPosition() {
+export type RedeemStatus = {
+  state: "idle" | "redeeming" | "success" | "error";
+  error?: string;
+  tokenId?: string;
+};
+
+export function useRedeemPosition(onSuccess?: () => void) {
   const account = useActiveAccount();
   const { mutateAsync: sendAndConfirmTx } = useSendAndConfirmTransaction();
+  const [status, setStatus] = useState<RedeemStatus>({ state: "idle" });
 
   const redeemPosition = useCallback(
     async (params: RedeemPositionParams) => {
       if (!account?.address) {
         throw new Error("Wallet not connected");
       }
+
+      setStatus({ state: "redeeming", tokenId: params.token_id });
 
       try {
         const marketContract = getViemContract({
@@ -80,7 +86,8 @@ export function useRedeemPosition() {
           client: publicClient,
         });
 
-        const conditionalTokensAddress = await marketContract.read.conditionalTokens() as `0x${string}`;
+        const conditionalTokensAddress =
+          (await marketContract.read.conditionalTokens()) as `0x${string}`;
 
         const conditionalTokensContract = getContract({
           client,
@@ -108,19 +115,33 @@ export function useRedeemPosition() {
         });
 
         const receipt = await sendAndConfirmTx(transaction as any);
-        
+
+        setStatus({ state: "success", tokenId: params.token_id });
+        onSuccess?.();
+
+        // Reset status after 3 seconds
+        setTimeout(() => {
+          setStatus({ state: "idle" });
+        }, 3000);
+
         return receipt;
       } catch (error) {
         console.error("Redeem process failed:", error);
         const errorMessage =
           error instanceof Error ? error.message : "Transaction failed";
+        setStatus({
+          state: "error",
+          error: errorMessage,
+          tokenId: params.token_id,
+        });
         throw new Error(errorMessage);
       }
     },
-    [account, sendAndConfirmTx]
+    [account, sendAndConfirmTx, onSuccess]
   );
 
   return {
     redeemPosition,
+    status,
   };
 }

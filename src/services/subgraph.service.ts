@@ -145,7 +145,7 @@ export class SubgraphService {
       // Extract outcome from event_id (token ID)
       // The last bit of the token ID determines if it's a YES or NO position
       const tokenId = BigInt(transfer.event_id);
-      const outcomeIndex = Number(!((tokenId >> 255n) & 1n));
+      const outcomeIndex = Number((tokenId >> 255n) & 1n);
       positionOutcomes.set(transfer.id, outcomeIndex);
 
       marketInfo.set(transfer.from, {

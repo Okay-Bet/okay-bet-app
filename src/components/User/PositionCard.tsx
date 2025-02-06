@@ -8,6 +8,7 @@ const PositionCard: React.FC<PositionCardProps> = ({
   // onSell,
   onRedeem,
   canRedeem,
+  isRedeeming,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const isResolved = position.status.toUpperCase() === "RESOLVED";
@@ -140,7 +141,7 @@ const PositionCard: React.FC<PositionCardProps> = ({
                 {isResolved && position.current_balance > 0 && (
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-accent-gray-400">
-                      Balance:
+                      To Win:
                     </span>
                     <span className="text-sm font-header text-accent-red-500">
                       {formatBalance(
@@ -207,12 +208,24 @@ const PositionCard: React.FC<PositionCardProps> = ({
                       </div>
                     ) : position.position_result === "won" ? (
                       canRedeem ? (
-                        <button
-                          onClick={handleRedeemClick}
-                          className="w-full bg-gradient-aggressive from-accent-red-500 to-tertiary text-white py-4 px-6 rounded-lg font-header text-lg hover:shadow-aggressive transition-all duration-300 shadow-sharp"
-                        >
-                          REDEEM WINNINGS
-                        </button>
+                        isRedeeming ? (
+                          <button
+                            disabled
+                            className="w-full bg-gradient-aggressive from-accent-red-500 to-tertiary text-white py-4 px-6 rounded-lg font-header text-lg shadow-sharp opacity-75"
+                          >
+                            <div className="flex items-center justify-center space-x-3">
+                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                              <span>REDEEMING...</span>
+                            </div>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={handleRedeemClick}
+                            className="w-full bg-gradient-aggressive from-accent-red-500 to-tertiary text-white py-4 px-6 rounded-lg font-header text-lg hover:shadow-aggressive transition-all duration-300 shadow-sharp"
+                          >
+                            REDEEM WINNINGS
+                          </button>
+                        )
                       ) : (
                         <div className="text-center font-header text-accent-gray-400 bg-accent-gray-800 p-4 rounded-lg shadow-inner-sharp">
                           NO BALANCE TO REDEEM

@@ -126,6 +126,7 @@ export interface PositionCardProps {
     parentCollectionId: string
   ) => void;
   canRedeem: boolean;
+  isRedeeming?: boolean;
 }
 
 // Utility Interfaces

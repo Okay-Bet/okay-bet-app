@@ -34,7 +34,8 @@ export class PositionService {
             : undefined;
 
         const position_result =
-          marketData.status.toUpperCase() === "RESOLVED"
+          marketData.status.toUpperCase() === "RESOLVED" &&
+          winning_outcome !== undefined
             ? outcome === winning_outcome
               ? "won"
               : "lost"
