@@ -24,7 +24,9 @@
         "@mui/icons-material": "^5.16.1",
         "@mui/material": "^5.16.1",
         "@next/bundle-analyzer": "^14.2.5",
+        "@prisma/client": "^6.3.1",
         "@tanstack/react-query": "^5.51.15",
+        "@types/big.js": "^6.2.2",
         "@types/lodash": "^4.17.7",
         "@types/node": "^20",
         "@types/react": "^18",
@@ -69,7 +71,9 @@
         "web-push": "^3.6.7",
         "web3modal": "^1.9.12",
         "webpack-bundle-analyzer": "^4.10.2",
-        "workbox-webpack-plugin": "^7.1.0",
-        "@types/big.js": "^6.2.2"
+        "workbox-webpack-plugin": "^7.1.0"
+    },
+    "devDependencies": {
+        "prisma": "^6.3.1"
     }
 }

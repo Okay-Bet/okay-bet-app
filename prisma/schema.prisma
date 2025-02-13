@@ -1,0 +1,24 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model GroupedMarket {
+  id            String   @id @default(cuid())
+  title         String
+  description   String?
+  limitlessId   String?
+  polymarketId  String?
+  similarity    Float
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  endDate       DateTime?
+
+  @@index([limitlessId])
+  @@index([polymarketId])
+}
