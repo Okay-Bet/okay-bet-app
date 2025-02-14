@@ -62,6 +62,7 @@
         "slick-carousel": "^1.8.1",
         "socket.io": "^4.7.5",
         "socket.io-client": "^4.7.5",
+        "string-similarity": "^4.0.4",
         "tailwindcss": "^3.3.0",
         "tailwindcss-bg-patterns": "^0.3.0",
         "thirdweb": "^5.45.1",
@@ -74,6 +75,7 @@
         "workbox-webpack-plugin": "^7.1.0"
     },
     "devDependencies": {
+        "@types/string-similarity": "^4.0.2",
         "prisma": "^6.3.1"
     }
 }
