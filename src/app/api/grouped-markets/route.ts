@@ -1,12 +1,31 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import {
-  GroupedMarketsResponse,
-  GroupedMarketIds,
-} from "@/components/types/market";
+import type { LimitlessMarket } from "@/components/types";
+import { fetchMarketsByIds } from "@/app/api/limitless/markets/utils";
+
+interface GroupedMarketCard {
+  id: string; // GroupedMarket id
+  limitlessMarket: LimitlessMarket; // Full limitless market data
+  polymarketMatches: {
+    id: string; // Polymarket id (just id for now)
+    similarity: number; // Similarity score from matching
+  }[];
+  metrics: {
+    totalVolume: number; // Just limitless volume for now
+    highestLiquidity: number; // Limitless liquidity
+    averageSimilarity: number; // Average similarity score
+  };
+}
+
+interface GroupedMarketsResponse {
+  success: boolean;
+  data: GroupedMarketCard[];
+  error?: string;
+}
 
 export async function GET() {
   try {
+    // First get the grouped market IDs from prisma
     const rawGroupedMarkets = await prisma.groupedMarket.findMany({
       select: {
         id: true,
@@ -39,17 +58,48 @@ export async function GET() {
         };
       }
 
-      acc[market.limitlessId].polymarketMatches.push({
-        id: market.polymarketId!,
-        similarity: market.similarity,
-      });
+      if (market.polymarketId) {
+        acc[market.limitlessId].polymarketMatches.push({
+          id: market.polymarketId,
+          similarity: market.similarity,
+        });
+      }
 
       return acc;
-    }, {} as Record<string, GroupedMarketIds>);
+    }, {} as Record<string, any>);
+
+    // Get all unique limitless IDs
+    const limitlessIds = Object.keys(groupedByLimitless);
+
+    // Fetch limitless markets
+    const limitlessMarkets = await fetchMarketsByIds(limitlessIds);
+
+    // Create final grouped market cards
+    const groupedMarketCards: GroupedMarketCard[] = limitlessMarkets.map(
+      (limitlessMarket) => {
+        const group = groupedByLimitless[limitlessMarket.id];
+        const similarities = group.polymarketMatches.map(
+          (match) => match.similarity
+        );
+        const avgSimilarity =
+          similarities.reduce((a, b) => a + b, 0) / similarities.length;
+
+        return {
+          id: group.id,
+          limitlessMarket,
+          polymarketMatches: group.polymarketMatches,
+          metrics: {
+            totalVolume: parseFloat(limitlessMarket.metrics.volumeRaw),
+            highestLiquidity: parseFloat(limitlessMarket.metrics.liquidityRaw),
+            averageSimilarity: avgSimilarity,
+          },
+        };
+      }
+    );
 
     const response: GroupedMarketsResponse = {
       success: true,
-      data: Object.values(groupedByLimitless),
+      data: groupedMarketCards,
     };
 
     return NextResponse.json(response);
@@ -60,7 +110,10 @@ export async function GET() {
       {
         success: false,
         data: [],
-        error: "Failed to fetch grouped markets",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch grouped markets",
       },
       { status: 500 }
     );

@@ -10,90 +10,74 @@ import type {
   Event,
 } from "../../../../components/types";
 import { SUPPORTED_TOKENS } from "../../../../services/across/client";
-
+import { LimitlessAPIMarket, transformMarket, fetchMarketsByIds } from "./utils";
 const LIMITLESS_API_URL = "https://api.limitless.exchange";
 const MAX_RESULTS = 20;
 
 
-interface LimitlessAPIMarket {
-  address: string;
-  conditionId: string;
-  title: string;
-  description: string;
-  collateralToken: {
-    address: string;
-    decimals: number;
-    symbol: string;
-  };
-  expirationDate: string;
-  expirationTimestamp: number;
-  createdAt: string;
-  category: string;
-  status: string;
-  creator: {
-    name: string;
-    imageURI: string;
-    link: string;
-  };
-  tags: string[];
-  openInterest: string;
-  openInterestFormatted: string;
-  volume: string;
-  volumeFormatted: string;
-  liquidity: string;
-  liquidityFormatted: string;
-}
 
 interface LimitlessAPIResponse {
   data: LimitlessAPIMarket[];
   totalMarketsCount: number;
 }
 
-const mapStatus = (status: string): MarketStatus => {
-  switch (status.toUpperCase()) {
-    case "FUNDED":
-      return "ACTIVE";
-    case "RESOLVED":
-      return "RESOLVED";
-    default:
-      return "CANCELLED";
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+
+    // Handle fetching specific markets by IDs
+    if (body.marketIds && Array.isArray(body.marketIds)) {
+      const markets = await fetchMarketsByIds(body.marketIds);
+      return NextResponse.json({
+        success: true,
+        markets,
+        total: markets.length,
+      });
+    }
+
+    // Handle search case
+    if (body.searchParams) {
+      const response = await fetch(`${LIMITLESS_API_URL}/markets/active`);
+      if (!response.ok) {
+        throw new Error(
+          `Limitless API error: ${response.status} ${response.statusText}`
+        );
+      }
+
+      const apiResponse: LimitlessAPIResponse = await response.json();
+      const filteredMarkets = filterMarkets(
+        apiResponse.data,
+        body.searchParams
+      );
+      const transformedMarkets = filteredMarkets.map(transformMarket);
+      const events = transformedMarkets.map(transformToEvent);
+
+      return NextResponse.json({
+        events,
+        total: events.length,
+        hasMore:
+          filteredMarkets.length >= (body.searchParams?.limit || MAX_RESULTS),
+      });
+    }
+
+    return NextResponse.json(
+      { error: "Invalid request: must provide searchParams or marketIds" },
+      { status: 400 }
+    );
+  } catch (error) {
+    console.error("API Error:", error);
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "Internal server error",
+        timestamp: new Date().toISOString(),
+      },
+      { status: 500 }
+    );
   }
-};
+}
 
-const transformMarket = (market: LimitlessAPIMarket): LimitlessMarket => {
-  return {
-    id: market.address,
-    provider: "LIMITLESS" as const,
-    question: market.title,
-    description: market.description,
-    status: mapStatus(market.status),
-    expirationDate: market.expirationDate,
-    timestamps: {
-      created: market.createdAt,
-    },
-    collateral: {
-      address: market.collateralToken.address,
-      symbol: market.collateralToken.symbol,
-      decimals: market.collateralToken.decimals,
-    },
-    metrics: {
-      volume: market.volumeFormatted,
-      volumeRaw: market.volume,
-      liquidity: market.liquidityFormatted,
-      liquidityRaw: market.liquidity,
-    },
-    prices: {
-      yes: {},
-      no: {},
-    },
-    contract: {
-      address: market.address,
-      network: "arbitrum",
-    },
-    conditionId: market.conditionId,
-  };
-};
-
+// Helper functions from original code
 const transformToEvent = (market: LimitlessMarket): Event => {
   return {
     id: market.id,
@@ -161,38 +145,3 @@ const filterMarkets = (
 
   return filteredMarkets.slice(0, searchParams.limit || MAX_RESULTS);
 };
-
-export async function POST(request: Request) {
-  try {
-    const { searchParams } = await request.json();
-
-    const response = await fetch(`${LIMITLESS_API_URL}/markets/active`);
-    if (!response.ok) {
-      throw new Error(
-        `Limitless API error: ${response.status} ${response.statusText}`
-      );
-    }
-
-    const apiResponse: LimitlessAPIResponse = await response.json();
-    const filteredMarkets = filterMarkets(apiResponse.data, searchParams);
-
-    // Transform the markets and create events
-    const transformedMarkets = filteredMarkets.map(transformMarket);
-    const events = transformedMarkets.map(transformToEvent);
-
-    return NextResponse.json({
-      events,
-      total: events.length,
-      hasMore: filteredMarkets.length >= (searchParams?.limit || MAX_RESULTS),
-    });
-  } catch (error) {
-    console.error("API Error:", error);
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Internal server error",
-        timestamp: new Date().toISOString(),
-      },
-      { status: 500 }
-    );
-  }
-}

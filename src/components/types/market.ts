@@ -135,3 +135,23 @@ export interface GroupedMarketsResponse {
   data: GroupedMarketIds[];
   error?: string;
 }
+
+export interface GroupedMarketCard {
+  id: string;                          // GroupedMarket id
+  limitlessMarket: LimitlessMarket;    // Full limitless market data
+  polymarketMatches: {
+    market: PolymarketMarket;          // Full polymarket data
+    similarity: number;                 // Similarity score from matching
+  }[];
+  metrics: {
+    totalVolume: number;               // Combined volume across all markets
+    highestLiquidity: number;          // Highest liquidity among all markets
+    averageSimilarity: number;         // Average similarity score
+  };
+}
+
+export interface GroupedMarketsCardResponse {
+  success: boolean;
+  data: GroupedMarketCard[];
+  error?: string;
+}
