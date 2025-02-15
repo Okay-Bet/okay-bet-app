@@ -1,19 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import type { LimitlessMarket } from "@/components/types";
+import type { LimitlessMarket, PolymarketMarket } from "@/components/types";
 import { fetchMarketsByIds } from "@/app/api/limitless/markets/utils";
 
 interface GroupedMarketCard {
-  id: string; // GroupedMarket id
-  limitlessMarket: LimitlessMarket; // Full limitless market data
+  id: string;
+  limitlessMarket: LimitlessMarket;
   polymarketMatches: {
-    id: string; // Polymarket id (just id for now)
-    similarity: number; // Similarity score from matching
+    market: PolymarketMarket;
+    similarity: number;
   }[];
   metrics: {
-    totalVolume: number; // Just limitless volume for now
-    highestLiquidity: number; // Limitless liquidity
-    averageSimilarity: number; // Average similarity score
+    totalVolume: number;
+    highestLiquidity: number;
+    averageSimilarity: number;
   };
 }
 
@@ -23,8 +23,39 @@ interface GroupedMarketsResponse {
   error?: string;
 }
 
-export async function GET() {
+// New function to fetch Polymarket data using our working endpoint
+const fetchPolymarketData = async (conditionIds: string[], baseUrl: string): Promise<PolymarketMarket[]> => {
   try {
+    const response = await fetch(`${baseUrl}/api/markets`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        type: 'polymarketByIds',
+        conditionIds,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch Polymarket data: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.markets;
+  } catch (error) {
+    console.error('Error fetching Polymarket data:', error);
+    return [];
+  }
+};
+
+export async function GET(request: Request) {
+  try {
+    // Get the base URL from the request for making internal API calls
+    const protocol = request.headers.get("x-forwarded-proto") || "http";
+    const host = request.headers.get("host") || "localhost:3000";
+    const baseUrl = `${protocol}://${host}`;
+
     // First get the grouped market IDs from prisma
     const rawGroupedMarkets = await prisma.groupedMarket.findMany({
       select: {
@@ -45,6 +76,7 @@ export async function GET() {
         createdAt: "desc",
       },
     });
+
 
     // Group by limitlessId
     const groupedByLimitless = rawGroupedMarkets.reduce((acc, market) => {
@@ -68,29 +100,81 @@ export async function GET() {
       return acc;
     }, {} as Record<string, any>);
 
-    // Get all unique limitless IDs
+    // Get all unique limitless IDs and Polymarket IDs
     const limitlessIds = Object.keys(groupedByLimitless);
+    const polymarketIds = rawGroupedMarkets
+      .map(market => market.polymarketId)
+      .filter((id): id is string => id !== null);
 
-    // Fetch limitless markets
-    const limitlessMarkets = await fetchMarketsByIds(limitlessIds);
+
+    // Fetch both Limitless and Polymarket data concurrently
+    const [limitlessMarkets, polymarketMarkets] = await Promise.all([
+      fetchMarketsByIds(limitlessIds),
+      fetchPolymarketData(polymarketIds, baseUrl),
+    ]);
+
+
+    // Create a map of Polymarket markets by ID for easy lookup
+    const polymarketMap = new Map(
+      polymarketMarkets.map((market) => [market.id, market])
+    );
 
     // Create final grouped market cards
     const groupedMarketCards: GroupedMarketCard[] = limitlessMarkets.map(
       (limitlessMarket) => {
         const group = groupedByLimitless[limitlessMarket.id];
-        const similarities = group.polymarketMatches.map(
-          (match) => match.similarity
-        );
+
+        // Map polymarket matches to include full market data
+        const polymarketMatches = group.polymarketMatches
+          .map((match) => {
+            const market = polymarketMap.get(match.id);
+            if (!market) {
+              return null;
+            }
+            return {
+              market,
+              similarity: match.similarity,
+            };
+          })
+          .filter(
+            (
+              match
+            ): match is { market: PolymarketMarket; similarity: number } =>
+              match !== null
+          );
+
+        const similarities = polymarketMatches.map((match) => match.similarity);
         const avgSimilarity =
-          similarities.reduce((a, b) => a + b, 0) / similarities.length;
+          similarities.length > 0
+            ? similarities.reduce((a, b) => a + b, 0) / similarities.length
+            : 0;
+
+        // Calculate combined metrics
+        const limitlessVolume = parseFloat(limitlessMarket.metrics.volumeRaw);
+        const polymarketVolumes = polymarketMatches.map((match) =>
+          parseFloat(match.market.metrics.volumeRaw)
+        );
+        const totalVolume =
+          limitlessVolume + polymarketVolumes.reduce((a, b) => a + b, 0);
+
+        const limitlessLiquidity = parseFloat(
+          limitlessMarket.metrics.liquidityRaw
+        );
+        const polymarketLiquidities = polymarketMatches.map((match) =>
+          parseFloat(match.market.metrics.liquidityRaw)
+        );
+        const highestLiquidity = Math.max(
+          limitlessLiquidity,
+          ...polymarketLiquidities
+        );
 
         return {
           id: group.id,
           limitlessMarket,
-          polymarketMatches: group.polymarketMatches,
+          polymarketMatches,
           metrics: {
-            totalVolume: parseFloat(limitlessMarket.metrics.volumeRaw),
-            highestLiquidity: parseFloat(limitlessMarket.metrics.liquidityRaw),
+            totalVolume,
+            highestLiquidity,
             averageSimilarity: avgSimilarity,
           },
         };
@@ -105,7 +189,6 @@ export async function GET() {
     return NextResponse.json(response);
   } catch (error) {
     console.error("Error fetching grouped markets:", error);
-
     return NextResponse.json(
       {
         success: false,
