@@ -9,15 +9,18 @@ datasource db {
 }
 
 model GroupedMarket {
-  id            String   @id @default(cuid())
-  title         String
-  description   String?
-  limitlessId   String?
-  polymarketId  String?
-  similarity    Float
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  endDate       DateTime?
+  id                String    @id @default(cuid())
+  limitlessTitle    String    // Original Limitless question
+  limitlessDesc     String?   // Limitless description
+  polymarketTitle   String    // Original Polymarket question
+  polymarketDesc    String?   // Polymarket description
+  description       String?   // Optional common description
+  limitlessId       String?
+  polymarketId      String?
+  similarity        Float
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  endDate           DateTime?
 
   @@index([limitlessId])
   @@index([polymarketId])

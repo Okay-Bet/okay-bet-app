@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { PrismaClient } from "@prisma/client";
 import { ProgressTracker } from "./utils/progressTracker";
 import { fetchQualifyingLimitlessMarkets } from "./services/limitless";
 import { fetchPolymarketMarkets } from "./services/polymarket";
-import { matchMarkets, extractKeywords } from "./services/matching";
+import * as MatchingService from "./services/matching";
 
 const SIMILARITY_THRESHOLD = 0.8;
+const prisma = new PrismaClient();
 
 export async function POST(request: Request) {
   const progress = new ProgressTracker();
@@ -20,13 +22,32 @@ export async function POST(request: Request) {
       `Starting market matching process with threshold ${threshold}`
     );
 
-    // Fetch markets from both sources
+    // Verify database connection and active markets
+    const activeMarketsCount = await prisma.polymarketMarket.count({
+      where: { isActive: true },
+    });
+
+    if (activeMarketsCount === 0) {
+      progress.addUpdate(
+        "warning",
+        "No active Polymarket markets found in database. Please run the population script first."
+      );
+      return handleNoPolymarkets(progress, []);
+    }
+
+    progress.addUpdate(
+      "database",
+      `Found ${activeMarketsCount} active Polymarket markets in database`
+    );
+
+    // Fetch Limitless markets
     const limitlessMarkets = await fetchQualifyingLimitlessMarkets(progress);
 
     if (limitlessMarkets.length === 0) {
       return handleNoLimitlessMarkets(progress);
     }
 
+    // Fetch relevant Polymarket markets from database
     const polymarketMarkets = await fetchPolymarketMarkets(
       limitlessMarkets,
       progress
@@ -36,13 +57,30 @@ export async function POST(request: Request) {
       return handleNoPolymarkets(progress, limitlessMarkets);
     }
 
+    // Clear existing matches for these Limitless markets
+    await prisma.groupedMarket.deleteMany({
+      where: {
+        limitlessId: {
+          in: limitlessMarkets.map((m) => m.address),
+        },
+      },
+    });
+
+    progress.addUpdate(
+      "matching",
+      `Starting matching process with ${limitlessMarkets.length} Limitless markets and ${polymarketMarkets.length} Polymarket markets`
+    );
+
     // Perform matching
-    const { matches, topSimilarities } = await matchMarkets(
+    const { matches, topSimilarities } = await MatchingService.matchMarkets(
       limitlessMarkets,
       polymarketMarkets,
       progress,
       threshold
     );
+
+    // Get detailed stats for response
+    const matchStats = await getMatchingStats(matches);
 
     return NextResponse.json({
       success: true,
@@ -53,17 +91,45 @@ export async function POST(request: Request) {
         limitlessMarkets: limitlessMarkets.length,
         polymarketMarkets: polymarketMarkets.length,
         similarityThreshold: threshold,
+        ...matchStats,
       },
       qualifyingLimitlessMarkets: limitlessMarkets.map((m) => ({
         title: m.title,
         volume: m.volumeFormatted,
-        keywords: extractKeywords(`${m.title} ${m.description}`),
+        keywords: MatchingService.extractKeywords(
+          `${m.title} ${m.description}`
+        ),
       })),
       topSimilarities,
     });
   } catch (error) {
     return handleError(error, progress);
+  } finally {
+    await prisma.$disconnect();
   }
+}
+
+async function getMatchingStats(matches: any[]) {
+  const now = new Date();
+
+  const activeMatches = matches.filter(
+    (m) => m.endDate && new Date(m.endDate) > now
+  );
+
+  const avgSimilarity =
+    matches.length > 0
+      ? matches.reduce((sum, m) => sum + m.similarity, 0) / matches.length
+      : 0;
+
+  return {
+    activeMatches: activeMatches.length,
+    averageSimilarity: avgSimilarity.toFixed(3),
+    matchesWithinWeek: matches.filter(
+      (m) =>
+        m.endDate &&
+        new Date(m.endDate).getTime() - now.getTime() < 7 * 24 * 60 * 60 * 1000
+    ).length,
+  };
 }
 
 function handleNoLimitlessMarkets(progress: ProgressTracker) {
@@ -101,7 +167,7 @@ function handleNoPolymarkets(
     qualifyingLimitlessMarkets: limitlessMarkets.map((m) => ({
       title: m.title,
       volume: m.volumeFormatted,
-      keywords: extractKeywords(`${m.title} ${m.description}`),
+      keywords: MatchingService.extractKeywords(`${m.title} ${m.description}`),
     })),
   });
 }
@@ -109,9 +175,10 @@ function handleNoPolymarkets(
 function handleError(error: any, progress: ProgressTracker) {
   const errorMessage =
     error instanceof Error ? error.message : "Internal server error";
-  progress.addUpdate("error", errorMessage);
 
+  progress.addUpdate("error", errorMessage);
   console.error("Market matching error:", error);
+
   return NextResponse.json(
     {
       error: errorMessage,
