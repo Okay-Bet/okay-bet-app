@@ -2,71 +2,43 @@ import { ProgressTracker } from "../utils/progressTracker";
 import { LimitlessMarket, PolymarketMarket } from "../types";
 import { extractKeywords } from "./matching";
 
-const POSITIONS_SUBGRAPH_URL =
-  "https://api.goldsky.com/api/public/project_cl6mb8i9h0003e201j6li0diw/subgraphs/positions-subgraph/0.0.7/gn";
-const GAMMA_API_URL = "https://gamma-api.polymarket.com"; // Added missing constant
+const GAMMA_API_URL = "https://gamma-api.polymarket.com";
 
-interface MarketData {
+interface GammaMarket {
   id: string;
-  condition: string;
-  outcomeIndex: string;
+  question: string;
+  conditionId: string;
+  description: string;
+  volume: string;
+  endDate: string;
+  active: boolean;
+  outcomes: string;
 }
 
-interface SubgraphResponse {
-  marketData: MarketData[];
-}
-
-async function queryPolymarketSubgraph(): Promise<SubgraphResponse | null> {
-  const query = `{
-        marketData(
-            first: 1000
-            orderBy: id
-            orderDirection: desc
-        ) {
-            id
-            condition
-            outcomeIndex
-        }
-    }`;
-
+async function fetchAllActiveMarkets(): Promise<GammaMarket[]> {
   try {
-    const response = await fetch(POSITIONS_SUBGRAPH_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ query }),
-    });
+    // Simple request first to test the API
+    const response = await fetch(`${GAMMA_API_URL}/markets`);
 
     if (!response.ok) {
-      throw new Error(`Subgraph request failed: ${response.status}`);
+      console.error(`API Error: ${response.status} - ${response.statusText}`);
+      // Log the response body for debugging
+      const errorText = await response.text();
+      console.error("Response body:", errorText);
+      throw new Error(`Failed to fetch markets: ${response.status}`);
     }
 
-    const json = await response.json();
-    if (json.errors) {
-      throw new Error(`GraphQL errors: ${JSON.stringify(json.errors)}`);
-    }
+    const markets = await response.json();
+    console.log("Sample of first market:", JSON.stringify(markets[0], null, 2));
 
-    return json.data;
+    return markets.filter((market: any) => market.active === true);
   } catch (error) {
-    console.error("Error querying subgraph:", error);
-    return null;
-  }
-}
-
-async function fetchMarketDetails(conditionId: string): Promise<any> {
-  try {
-    const response = await fetch(`${GAMMA_API_URL}/markets/${conditionId}`);
-    if (!response.ok) {
-      console.error(
-        `Failed to fetch market details for condition ${conditionId}`
-      );
-      return null;
+    console.error("Detailed error fetching from Gamma API:", error);
+    if (error instanceof Error) {
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
     }
-    return await response.json();
-  } catch (error) {
-    console.error(`Error fetching market details: ${error}`);
-    return null;
+    return [];
   }
 }
 
@@ -76,63 +48,36 @@ export async function fetchPolymarketMarkets(
 ) {
   progress.addUpdate(
     "polymarket",
-    "Starting Polymarket market fetch from subgraph..."
+    "Starting Polymarket market fetch from Gamma API..."
   );
 
-  // First get all market data from subgraph
-  const result = await queryPolymarketSubgraph();
-  if (!result?.marketData) {
-    progress.addUpdate("error", "Failed to fetch market data from subgraph");
+  // Fetch all active markets
+  const markets = await fetchAllActiveMarkets();
+
+  if (!markets || markets.length === 0) {
+    progress.addUpdate("error", "Failed to fetch markets from Gamma API");
     return [];
   }
 
   progress.addUpdate(
     "polymarket",
-    `Retrieved ${result.marketData.length} markets from subgraph`
+    `Retrieved ${markets.length} markets from Gamma API. First market sample:`,
+    { sampleMarket: markets[0] }
   );
 
-  // Get unique condition IDs
-  const uniqueConditions = new Set<string>(
-    result.marketData.map((m: MarketData) => m.condition)
-  );
+  // Format markets to match our expected structure
+  const formattedMarkets = markets.map((market) => ({
+    condition_id: market.conditionId,
+    question: market.question,
+    description: market.description || "",
+    volume: market.volume || "0",
+    end_date_iso: market.endDate,
+  }));
 
   progress.addUpdate(
     "polymarket",
-    `Found ${uniqueConditions.size} unique conditions`
+    `Formatted ${formattedMarkets.length} markets`
   );
 
-  const allMarkets = new Set<string>();
-
-  // Fetch market details for each condition
-  for (const conditionId of uniqueConditions) {
-    const marketDetails = await fetchMarketDetails(conditionId);
-    if (marketDetails) {
-      const formattedMarket = {
-        condition_id: conditionId,
-        question: marketDetails.question || "",
-        description: marketDetails.description || "",
-        volume: marketDetails.volume || "0",
-        end_date_iso: marketDetails.end_date_iso || new Date().toISOString(),
-      };
-      allMarkets.add(JSON.stringify(formattedMarket));
-    }
-
-    // Add delay between API calls
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-
-  // Convert Set back to array and parse JSON
-  const uniqueMarkets = Array.from(allMarkets).map((m) =>
-    JSON.parse(m as string)
-  );
-
-  progress.addUpdate("polymarket", "Markets retrieved", {
-    totalMarketsFound: uniqueMarkets.length,
-    sampleMarkets: uniqueMarkets.slice(0, 5).map((m) => ({
-      question: m.question,
-      condition_id: m.condition_id,
-    })),
-  });
-
-  return uniqueMarkets;
+  return formattedMarkets;
 }
