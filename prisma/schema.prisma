@@ -22,3 +22,18 @@ model GroupedMarket {
   @@index([limitlessId])
   @@index([polymarketId])
 }
+
+model PolymarketMarket {
+  id              String    @id
+  question        String
+  description     String?
+  endDate         DateTime?
+  volume          Float?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  isActive        Boolean   @default(true)
+  lastChecked     DateTime  @default(now())
+
+  @@index([isActive])
+  @@index([endDate])
+}

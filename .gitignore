@@ -46,3 +46,8 @@ worker-*.js
 /prisma/*.db
 /prisma/*.db-journal
 .env
+
+# Python
+.venv/
+__pycache__/
+*.pyc

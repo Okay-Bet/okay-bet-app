@@ -13,8 +13,10 @@
         "start": "NODE_ENV=production ts-node --project tsconfig.server.json src/server.ts",
         "prestart": "npm install",
         "lint": "next lint",
-        "analyze": "ANALYZE=true npm run build"
-    },
+        "analyze": "ANALYZE=true npm run build",
+        "setup-python": "python3 -m venv .venv && .venv/bin/pip install -r scripts/polymarket/requirements.txt",
+        "populate-polymarket": ".venv/bin/python scripts/polymarket/populate_markets.py"
+      },
     "dependencies": {
         "@0x/utils": "^7.0.0",
         "@across-protocol/app-sdk": "^0.0.4",
@@ -75,6 +77,7 @@
         "workbox-webpack-plugin": "^7.1.0"
     },
     "devDependencies": {
+        "@types/axios": "^0.14.4",
         "@types/string-similarity": "^4.0.2",
         "prisma": "^6.3.1"
     }
