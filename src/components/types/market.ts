@@ -120,3 +120,18 @@ export const MARKET_CONSTANTS = {
   MIN_ACTIVE_PRICE: 0.01,
   MAX_DEAD_PRICE: 0.99
 } as const;
+
+export interface GroupedMarketIds {
+  id: string;              // GroupedMarket id
+  limitlessId: string;
+  polymarketMatches: {
+    id: string;           // Polymarket id
+    similarity: number;
+  }[];
+}
+
+export interface GroupedMarketsResponse {
+  success: boolean;
+  data: GroupedMarketIds[];
+  error?: string;
+}
