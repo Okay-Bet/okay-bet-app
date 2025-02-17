@@ -31,10 +31,10 @@ export const transformMarket = (market: GammaAPIMarket): PolymarketMarket => {
     status: "Open" as MarketStatus,
     expirationDate: market.end_date_iso,
     timestamps: {
-      created: new Date().toISOString(), // You might want to get this from the market data
+      created: new Date().toISOString(), 
     },
     collateral: {
-      address: "", // Fill in with actual data if available
+      address: "", 
       symbol: "USDC",
       decimals: 6,
     },

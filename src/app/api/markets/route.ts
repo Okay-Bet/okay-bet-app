@@ -3,7 +3,6 @@ import type { PolymarketMarket, MarketStatus } from "@/components/types";
 
 const GAMMA_API_URL = "https://gamma-api.polymarket.com";
 
-
 interface GammaAPIMarket {
   id: string;
   conditionId: string;
@@ -15,7 +14,7 @@ interface GammaAPIMarket {
   endDate: string;
   volumeNum: number;
   liquidityNum: number;
-  clobTokenIds: string; 
+  clobTokenIds: string;
   outcomePrices: string;
   bestBid?: string;
   bestAsk?: string;
@@ -24,6 +23,14 @@ interface GammaAPIMarket {
 const transformMarket = (market: GammaAPIMarket): PolymarketMarket => {
   const tokenIds = JSON.parse(market.clobTokenIds);
   const prices = JSON.parse(market.outcomePrices || "[0, 0]");
+
+  // Parse YES prices
+  const yesBid = market.bestBid ? parseFloat(market.bestBid) : undefined;
+  const yesAsk = market.bestAsk ? parseFloat(market.bestAsk) : undefined;
+
+  // Calculate NO prices as complement of YES prices
+  const noBid = yesAsk !== undefined ? 1 - yesAsk : undefined;
+  const noAsk = yesBid !== undefined ? 1 - yesBid : undefined;
 
   return {
     id: market.conditionId,
@@ -48,12 +55,12 @@ const transformMarket = (market: GammaAPIMarket): PolymarketMarket => {
     },
     prices: {
       yes: {
-        bid: market.bestBid ? parseFloat(market.bestBid) : undefined,
-        ask: market.bestAsk ? parseFloat(market.bestAsk) : undefined,
+        bid: yesBid,
+        ask: yesAsk,
       },
       no: {
-        bid: undefined,
-        ask: undefined,
+        bid: noBid,
+        ask: noAsk,
       },
     },
     contract: {
@@ -76,32 +83,26 @@ async function fetchPolymarketsByConditionIds(
       .join("&");
     const url = `${GAMMA_API_URL}/markets?${conditionIdsParam}`;
 
-    console.log("Fetching Polymarket markets from URL:", url);
-
     const response = await fetch(url);
-    console.log("Response status:", response.status);
 
     if (!response.ok) {
       throw new Error(`Failed to fetch Polymarket markets: ${response.status}`);
     }
 
     const markets = await response.json();
-    console.log(
-      "Raw Polymarket API response:",
-      JSON.stringify(markets, null, 2)
-    );
+    // console.log(
+    //   "Raw Polymarket API response:",
+    //   JSON.stringify(markets, null, 2)
+    // );
 
     if (!Array.isArray(markets)) {
       console.error("Unexpected API response structure:", markets);
       return [];
     }
 
-    console.log(`Found ${markets.length} markets in response`);
-
     const transformedMarkets = markets
       .map((market) => {
         try {
-          console.log("Transforming market:", market.conditionId);
           return transformMarket(market);
         } catch (error) {
           console.error(
@@ -129,9 +130,7 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     if (body.type === "polymarketByIds" && Array.isArray(body.conditionIds)) {
-      console.log("Fetching markets for condition IDs:", body.conditionIds);
       const markets = await fetchPolymarketsByConditionIds(body.conditionIds);
-      console.log(`Returning ${markets.length} transformed markets`);
 
       return NextResponse.json({
         success: true,

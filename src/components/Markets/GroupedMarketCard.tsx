@@ -213,7 +213,7 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                 <span className="text-accent-gray-400">Volume:</span>
                 <span className="text-electric-cyan ml-2">
                   $
-                  {metrics.totalVolume.toLocaleString(undefined, {
+                  {(metrics?.totalVolume ?? 0).toLocaleString(undefined, {
                     maximumFractionDigits: 2,
                   })}
                 </span>
@@ -222,7 +222,7 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                 <span className="text-accent-gray-400">Liquidity:</span>
                 <span className="text-electric-cyan ml-2">
                   $
-                  {metrics.highestLiquidity.toLocaleString(undefined, {
+                  {(metrics?.highestLiquidity ?? 0).toLocaleString(undefined, {
                     maximumFractionDigits: 2,
                   })}
                 </span>
@@ -230,7 +230,7 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
               <div>
                 <span className="text-accent-gray-400">Match:</span>
                 <span className="text-electric-cyan ml-2">
-                  {(metrics.averageSimilarity * 100).toFixed(1)}%
+                  {((metrics?.averageSimilarity ?? 0) * 100).toFixed(1)}%
                 </span>
               </div>
             </div>
