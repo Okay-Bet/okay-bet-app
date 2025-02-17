@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import type { PolymarketMarket } from "@/components/types";
+import type { PolymarketMarket, MarketStatus } from "@/components/types";
 
 const GAMMA_API_URL = "https://gamma-api.polymarket.com";
+
 
 interface GammaAPIMarket {
   id: string;
@@ -14,14 +15,13 @@ interface GammaAPIMarket {
   endDate: string;
   volumeNum: number;
   liquidityNum: number;
-  clobTokenIds: string; // This is a JSON string containing token IDs
-  outcomePrices: string; // This is a JSON string containing prices
+  clobTokenIds: string; 
+  outcomePrices: string;
   bestBid?: string;
   bestAsk?: string;
 }
 
 const transformMarket = (market: GammaAPIMarket): PolymarketMarket => {
-  // Parse the token IDs from the JSON string
   const tokenIds = JSON.parse(market.clobTokenIds);
   const prices = JSON.parse(market.outcomePrices || "[0, 0]");
 
@@ -30,7 +30,7 @@ const transformMarket = (market: GammaAPIMarket): PolymarketMarket => {
     provider: "POLYMARKET",
     question: market.question,
     description: market.description || "",
-    status: "OPEN",
+    status: "Open" as MarketStatus,
     expirationDate: market.endDate,
     timestamps: {
       created: new Date().toISOString(),

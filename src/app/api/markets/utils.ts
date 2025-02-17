@@ -1,4 +1,4 @@
-import type { PolymarketMarket } from "@/components/types";
+import type { PolymarketMarket, MarketStatus } from "@/components/types";
 
 const GAMMA_API_URL = "https://gamma-api.polymarket.com";
 
@@ -28,7 +28,7 @@ export const transformMarket = (market: GammaAPIMarket): PolymarketMarket => {
     provider: "POLYMARKET",
     question: market.question,
     description: market.description || "",
-    status: "OPEN", // You might want to determine this based on market data
+    status: "Open" as MarketStatus,
     expirationDate: market.end_date_iso,
     timestamps: {
       created: new Date().toISOString(), // You might want to get this from the market data

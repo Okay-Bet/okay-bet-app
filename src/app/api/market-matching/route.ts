@@ -5,6 +5,27 @@ import { fetchQualifyingLimitlessMarkets } from "./services/limitless";
 import { fetchPolymarketMarkets } from "./services/polymarket";
 import * as MatchingService from "./services/matching";
 
+interface PolymarketMarket {
+  condition_id: string;
+  question: string;
+  description: string;
+  volume: string;
+  end_date_iso: string;
+}
+
+interface Match {
+  limitlessId: string;
+  polymarketId: string;
+  similarity: number;
+  endDate: string;
+}
+
+interface MatchingStats {
+  activeMatches: number;
+  averageSimilarity: string;
+  matchesWithinWeek: number;
+}
+
 const SIMILARITY_THRESHOLD = 0.8;
 const prisma = new PrismaClient();
 
@@ -57,6 +78,16 @@ export async function POST(request: Request) {
       return handleNoPolymarkets(progress, limitlessMarkets);
     }
 
+    // Filter out any markets with undefined end_date_iso
+    const validPolymarketMarkets = polymarketMarkets.filter(
+      (market): market is PolymarketMarket =>
+        typeof market.end_date_iso === "string" &&
+        typeof market.condition_id === "string" &&
+        typeof market.question === "string" &&
+        typeof market.description === "string" &&
+        typeof market.volume === "string"
+    );
+
     // Clear existing matches for these Limitless markets
     await prisma.groupedMarket.deleteMany({
       where: {
@@ -68,13 +99,13 @@ export async function POST(request: Request) {
 
     progress.addUpdate(
       "matching",
-      `Starting matching process with ${limitlessMarkets.length} Limitless markets and ${polymarketMarkets.length} Polymarket markets`
+      `Starting matching process with ${limitlessMarkets.length} Limitless markets and ${validPolymarketMarkets.length} Polymarket markets`
     );
 
-    // Perform matching
+    // Perform matching with validated markets
     const { matches, topSimilarities } = await MatchingService.matchMarkets(
       limitlessMarkets,
-      polymarketMarkets,
+      validPolymarketMarkets,
       progress,
       threshold
     );
@@ -109,7 +140,7 @@ export async function POST(request: Request) {
   }
 }
 
-async function getMatchingStats(matches: any[]) {
+async function getMatchingStats(matches: Match[]): Promise<MatchingStats> {
   const now = new Date();
 
   const activeMatches = matches.filter(
@@ -150,7 +181,7 @@ function handleNoLimitlessMarkets(progress: ProgressTracker) {
 
 function handleNoPolymarkets(
   progress: ProgressTracker,
-  limitlessMarkets: any[]
+  limitlessMarkets: Array<any>
 ) {
   progress.addUpdate("warning", "No matching Polymarket markets found");
   return NextResponse.json({
@@ -172,7 +203,7 @@ function handleNoPolymarkets(
   });
 }
 
-function handleError(error: any, progress: ProgressTracker) {
+function handleError(error: unknown, progress: ProgressTracker) {
   const errorMessage =
     error instanceof Error ? error.message : "Internal server error";
 

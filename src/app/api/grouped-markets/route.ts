@@ -23,16 +23,24 @@ interface GroupedMarketsResponse {
   error?: string;
 }
 
+interface PolymarketMatch {
+  id: string;
+  similarity: number;
+}
+
 // New function to fetch Polymarket data using our working endpoint
-const fetchPolymarketData = async (conditionIds: string[], baseUrl: string): Promise<PolymarketMarket[]> => {
+const fetchPolymarketData = async (
+  conditionIds: string[],
+  baseUrl: string
+): Promise<PolymarketMarket[]> => {
   try {
     const response = await fetch(`${baseUrl}/api/markets`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        type: 'polymarketByIds',
+        type: "polymarketByIds",
         conditionIds,
       }),
     });
@@ -44,7 +52,7 @@ const fetchPolymarketData = async (conditionIds: string[], baseUrl: string): Pro
     const data = await response.json();
     return data.markets;
   } catch (error) {
-    console.error('Error fetching Polymarket data:', error);
+    console.error("Error fetching Polymarket data:", error);
     return [];
   }
 };
@@ -77,7 +85,6 @@ export async function GET(request: Request) {
       },
     });
 
-
     // Group by limitlessId
     const groupedByLimitless = rawGroupedMarkets.reduce((acc, market) => {
       if (!market.limitlessId) return acc;
@@ -103,16 +110,14 @@ export async function GET(request: Request) {
     // Get all unique limitless IDs and Polymarket IDs
     const limitlessIds = Object.keys(groupedByLimitless);
     const polymarketIds = rawGroupedMarkets
-      .map(market => market.polymarketId)
+      .map((market) => market.polymarketId)
       .filter((id): id is string => id !== null);
-
 
     // Fetch both Limitless and Polymarket data concurrently
     const [limitlessMarkets, polymarketMarkets] = await Promise.all([
       fetchMarketsByIds(limitlessIds),
       fetchPolymarketData(polymarketIds, baseUrl),
     ]);
-
 
     // Create a map of Polymarket markets by ID for easy lookup
     const polymarketMap = new Map(
@@ -126,7 +131,7 @@ export async function GET(request: Request) {
 
         // Map polymarket matches to include full market data
         const polymarketMatches = group.polymarketMatches
-          .map((match) => {
+          .map((match: PolymarketMatch) => {
             const market = polymarketMap.get(match.id);
             if (!market) {
               return null;
@@ -138,30 +143,37 @@ export async function GET(request: Request) {
           })
           .filter(
             (
-              match
+              match: { market: PolymarketMarket; similarity: number } | null
             ): match is { market: PolymarketMarket; similarity: number } =>
               match !== null
           );
 
-        const similarities = polymarketMatches.map((match) => match.similarity);
+        const similarities = polymarketMatches.map(
+          (match: { market: PolymarketMarket; similarity: number }) =>
+            match.similarity
+        );
         const avgSimilarity =
           similarities.length > 0
-            ? similarities.reduce((a, b) => a + b, 0) / similarities.length
+            ? similarities.reduce((a: number, b: number) => a + b, 0) /
+              similarities.length
             : 0;
 
         // Calculate combined metrics
         const limitlessVolume = parseFloat(limitlessMarket.metrics.volumeRaw);
-        const polymarketVolumes = polymarketMatches.map((match) =>
-          parseFloat(match.market.metrics.volumeRaw)
+        const polymarketVolumes = polymarketMatches.map(
+          (match: { market: PolymarketMarket; similarity: number }) =>
+            parseFloat(match.market.metrics.volumeRaw)
         );
         const totalVolume =
-          limitlessVolume + polymarketVolumes.reduce((a, b) => a + b, 0);
+          limitlessVolume +
+          polymarketVolumes.reduce((a: number, b: number) => a + b, 0);
 
         const limitlessLiquidity = parseFloat(
           limitlessMarket.metrics.liquidityRaw
         );
-        const polymarketLiquidities = polymarketMatches.map((match) =>
-          parseFloat(match.market.metrics.liquidityRaw)
+        const polymarketLiquidities = polymarketMatches.map(
+          (match: { market: PolymarketMarket; similarity: number }) =>
+            parseFloat(match.market.metrics.liquidityRaw)
         );
         const highestLiquidity = Math.max(
           limitlessLiquidity,
