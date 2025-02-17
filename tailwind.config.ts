@@ -38,7 +38,7 @@ const config: Config = {
           200: "#E6E6E6",
           300: "#D4D4D4",
           400: "#A3A3A3",
-          500: "#737373",
+          500: "#DC2626",
           600: "#525252",
           700: "#404040",
           800: "#262626",
@@ -58,6 +58,7 @@ const config: Config = {
           "radial-gradient(circle at top right, var(--tw-gradient-stops))",
         "gradient-harsh": "linear-gradient(90deg, var(--tw-gradient-stops))",
         'gradient-radial': 'radial-gradient(circle, var(--tw-gradient-stops))',
+        'subtle-white': 'linear-gradient(to bottom right, white, rgb(249 250 251))',
         "gradient-angular":
           "conic-gradient(from 0deg, var(--tw-gradient-stops))",
       },

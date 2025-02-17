@@ -61,24 +61,21 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
 
   return (
     <div
-      className="bg-gradient-harsh from-accent-red-500 to-tertiary p-[2px] rounded-lg shadow-aggressive 
-                    transform transition-all duration-300 hover:scale-[1.02] hover:shadow-neon hover:z-10"
+      className="bg-gradient-to-br from-white to-gray-100 rounded-lg shadow-md hover:shadow-lg 
+                    transition-all duration-300 border border-gray-200/80"
     >
-      <div className="bg-black rounded-lg overflow-hidden h-full">
-        {/* Limitless Market Header */}
-        <div className="border-b-2 border-accent-red-500">
-          <div className="px-4 py-3 bg-gradient-aggressive from-accent-red-500/20 to-transparent">
+      <div className="h-full">
+        {/* Market Header */}
+        <div className="border-b border-gray-200 bg-gradient-to-r from-gray-100 to-white">
+          <div className="px-4 py-3">
             <div className="flex justify-between items-start">
-              <h2
-                className="text-2xl font-header text-white tracking-wider text-shadow-aggressive 
-                           leading-tight group-hover:text-electric-cyan transition-colors line-clamp-3"
-              >
+              <h2 className="text-2xl font-header text-gray-800 leading-tight line-clamp-3">
                 {limitlessMarket.question}
               </h2>
               <button
                 onClick={() => setShowMoneyline(!showMoneyline)}
-                className="px-2 py-1 bg-black text-electric-cyan text-sm font-header rounded 
-                         border border-accent-red-500 hover:bg-accent-red-500 hover:text-white 
+                className="px-2 py-1 bg-white text-gray-600 text-sm font-header rounded 
+                         border border-gray-300 hover:bg-gray-50 hover:border-accent-red-500 
                          transition-all duration-300"
               >
                 {showMoneyline ? "SHOW %" : "SHOW ML"}
@@ -87,27 +84,22 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
           </div>
         </div>
 
-        {/* Limitless Market Content */}
+        {/* Market Content */}
         <div className="p-4 space-y-3">
-          {/* Limitless Price Display */}
+          {/* Price Display */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="relative overflow-hidden group/price">
+            <div className="group/price">
               <div
-                className="absolute inset-0 bg-gradient-aggressive from-accent-red-500 to-tertiary opacity-0 
-                            group-hover/price:opacity-100 transition-opacity duration-300 blur-sm"
-              ></div>
-              <div
-                className="relative bg-accent-gray-900 p-3 rounded border border-accent-red-500/30 
-                            group-hover/price:border-accent-red-500 transition-colors"
+                className="bg-gradient-to-br from-white to-gray-100 p-3 rounded border border-gray-200 
+                            group-hover/price:border-accent-red-500 group-hover/price:from-gray-100 
+                            group-hover/price:to-white transition-all duration-300"
               >
-                <div className="text-xs font-header text-accent-gray-400 mb-1">
+                <div className="text-xs font-header text-gray-500 mb-1">
                   LIMITLESS YES
                 </div>
-                <div className="text-2xl font-header text-electric-cyan group-hover/price:text-white transition-colors">
+                <div className="text-2xl font-header text-gray-800">
                   {pricesLoading ? (
-                    <span className="text-accent-gray-600 animate-pulse">
-                      ...
-                    </span>
+                    <span className="text-gray-400 animate-pulse">...</span>
                   ) : (
                     formatPrice(yesPrice, showMoneyline)
                   )}
@@ -115,23 +107,18 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
               </div>
             </div>
 
-            <div className="relative overflow-hidden group/price">
+            <div className="group/price">
               <div
-                className="absolute inset-0 bg-gradient-aggressive from-accent-red-500 to-tertiary opacity-0 
-                            group-hover/price:opacity-100 transition-opacity duration-300 blur-sm"
-              ></div>
-              <div
-                className="relative bg-accent-gray-900 p-3 rounded border border-accent-red-500/30 
-                            group-hover/price:border-accent-red-500 transition-colors"
+                className="bg-gradient-to-br from-white to-gray-100 p-3 rounded border border-gray-200 
+                            group-hover/price:border-accent-red-500 group-hover/price:from-gray-100 
+                            group-hover/price:to-white transition-all duration-300"
               >
-                <div className="text-xs font-header text-accent-gray-400 mb-1">
+                <div className="text-xs font-header text-gray-500 mb-1">
                   LIMITLESS NO
                 </div>
-                <div className="text-2xl font-header text-electric-cyan group-hover/price:text-white transition-colors">
+                <div className="text-2xl font-header text-gray-800">
                   {pricesLoading ? (
-                    <span className="text-accent-gray-600 animate-pulse">
-                      ...
-                    </span>
+                    <span className="text-gray-400 animate-pulse">...</span>
                   ) : (
                     formatPrice(noPrice, showMoneyline)
                   )}
@@ -144,58 +131,56 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => handleBetClick("YES")}
-              className="py-2 px-4 bg-black text-green-500 rounded font-header text-lg border border-green-500
-                       hover:bg-green-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed 
-                       transition-all duration-300 transform hover:-translate-y-0.5"
+              className="py-2 px-4 bg-white text-green-600 rounded font-header text-lg 
+                       border border-green-600 hover:bg-green-600 hover:text-white 
+                       disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
               disabled={!isMarketActive || !yesPrice || pricesLoading}
             >
               {pricesLoading ? "..." : "BUY YES"}
             </button>
             <button
               onClick={() => handleBetClick("NO")}
-              className="py-2 px-4 bg-black text-accent-red-500 rounded font-header text-lg border border-accent-red-500
-                       hover:bg-accent-red-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed 
-                       transition-all duration-300 transform hover:-translate-y-0.5"
+              className="py-2 px-4 bg-white text-accent-red-500 rounded font-header text-lg 
+                       border border-accent-red-500 hover:bg-accent-red-500 hover:text-white 
+                       disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
               disabled={!isMarketActive || !noPrice || pricesLoading}
             >
               {pricesLoading ? "..." : "BUY NO"}
             </button>
           </div>
 
-          {/* Polymarket Matches Section */}
+          {/* Similar Markets Section */}
           <div className="mt-6">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-header text-electric-cyan">
+              <h3 className="text-lg font-header text-gray-800">
                 Similar Markets
               </h3>
-              <span className="text-sm text-accent-gray-400">
+              <span className="text-sm text-gray-500">
                 {polymarketMatches.length} matches found
               </span>
             </div>
             <div className="space-y-3">
-              {polymarketMatches.map(({ market, similarity }) => (
+              {polymarketMatches.map(({ market }) => (
                 <div
                   key={market.id}
-                  className="bg-accent-gray-900 p-3 rounded border border-accent-red-500/30
-                           hover:border-accent-red-500 transition-all duration-300"
+                  className="bg-gradient-to-br from-white to-gray-100 p-3 rounded border border-gray-200
+                           hover:border-accent-red-500 hover:from-gray-100 hover:to-white 
+                           transition-all duration-300"
                 >
                   <div className="flex justify-between items-start mb-2">
-                    <span className="text-white text-sm">
+                    <span className="text-gray-700 text-sm">
                       {market.question}
-                    </span>
-                    <span className="text-accent-gray-400 text-xs">
-                      {(similarity * 100).toFixed(1)}% Match
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     <div className="text-sm">
-                      <span className="text-accent-gray-400">YES: </span>
-                      <span className="text-green-500">
+                      <span className="text-gray-500">YES: </span>
+                      <span className="text-green-600">
                         {formatPrice(market.prices.yes.ask || 0, showMoneyline)}
                       </span>
                     </div>
                     <div className="text-sm">
-                      <span className="text-accent-gray-400">NO: </span>
+                      <span className="text-gray-500">NO: </span>
                       <span className="text-accent-red-500">
                         {formatPrice(market.prices.no.ask || 0, showMoneyline)}
                       </span>
@@ -207,11 +192,11 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
           </div>
 
           {/* Market Stats */}
-          <div className="mt-4 bg-accent-gray-900 p-3 rounded border border-accent-gray-800">
+          <div className="mt-4 bg-gradient-to-br from-white to-gray-100 p-3 rounded border border-gray-200">
             <div className="grid grid-cols-3 gap-4 text-sm">
               <div>
-                <span className="text-accent-gray-400">Volume:</span>
-                <span className="text-electric-cyan ml-2">
+                <span className="text-gray-500">Volume:</span>
+                <span className="text-gray-800 ml-2">
                   $
                   {(metrics?.totalVolume ?? 0).toLocaleString(undefined, {
                     maximumFractionDigits: 2,
@@ -219,18 +204,12 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                 </span>
               </div>
               <div>
-                <span className="text-accent-gray-400">Liquidity:</span>
-                <span className="text-electric-cyan ml-2">
+                <span className="text-gray-500">Liquidity:</span>
+                <span className="text-gray-800 ml-2">
                   $
                   {(metrics?.highestLiquidity ?? 0).toLocaleString(undefined, {
                     maximumFractionDigits: 2,
                   })}
-                </span>
-              </div>
-              <div>
-                <span className="text-accent-gray-400">Match:</span>
-                <span className="text-electric-cyan ml-2">
-                  {((metrics?.averageSimilarity ?? 0) * 100).toFixed(1)}%
                 </span>
               </div>
             </div>
@@ -239,8 +218,8 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
           {/* Details Toggle */}
           <button
             onClick={() => setShowDetails(!showDetails)}
-            className="w-full flex items-center justify-center gap-1 text-accent-gray-400 
-                     hover:text-electric-cyan font-header text-sm transition-colors duration-300 mt-2"
+            className="w-full flex items-center justify-center gap-1 text-gray-500 
+                     hover:text-accent-red-500 font-header text-sm transition-colors duration-300 mt-2"
           >
             {showDetails ? "HIDE" : "SHOW"} DETAILS
             <svg
@@ -261,14 +240,14 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
           {/* Details Section */}
           {showDetails && (
             <div className="space-y-3 mt-3">
-              <div className="rounded overflow-hidden">
-                <div className="bg-accent-red-500 py-1 px-2">
-                  <h3 className="text-sm font-header text-white">
+              <div className="rounded overflow-hidden border border-gray-200">
+                <div className="bg-gradient-to-r from-gray-100 to-white py-1 px-2">
+                  <h3 className="text-sm font-header text-gray-700">
                     MARKET DETAILS
                   </h3>
                 </div>
-                <div className="bg-black p-2 border-x border-b border-accent-red-500/30">
-                  <div className="space-y-1 text-sm text-accent-gray-300">
+                <div className="bg-gradient-to-br from-white to-gray-100 p-2">
+                  <div className="space-y-1 text-sm text-gray-600">
                     <p>Status: {limitlessMarket.status}</p>
                     <p>
                       Expiration:{" "}
