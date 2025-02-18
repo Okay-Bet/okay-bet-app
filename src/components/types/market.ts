@@ -42,6 +42,7 @@ export interface LimitlessMarket extends BaseMarket {
 
 export interface PolymarketMarket extends BaseMarket {
   provider: "POLYMARKET";
+  slug: string;
   outcomeTokens: {
     yes: string;
     no: string;

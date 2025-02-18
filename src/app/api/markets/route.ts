@@ -8,6 +8,11 @@ interface GammaAPIMarket {
   conditionId: string;
   question: string;
   description?: string;
+  events: {
+    id: string;
+    slug: string;
+    title: string;
+  }[];
   resolutionSource?: string;
   liquidity: string;
   volume: string;
@@ -42,6 +47,7 @@ const transformMarket = (market: GammaAPIMarket): PolymarketMarket => {
     question: market.question,
     description: market.description || "",
     status: "Open" as MarketStatus,
+    slug: market.events[0]?.slug || "",
     expirationDate: market.endDate,
     timestamps: {
       created: new Date().toISOString(),

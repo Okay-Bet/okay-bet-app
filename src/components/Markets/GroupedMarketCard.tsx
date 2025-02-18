@@ -151,24 +151,23 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                     <span className="text-gray-500 w-20">Volume:</span>
                     <span className="text-gray-800">
                       $
-                      {(parseFloat(limitlessMarket.metrics.volumeRaw) / 1e6).toLocaleString(
-                        undefined,
-                        {
-                          maximumFractionDigits: 2,
-                        }
-                      )}
+                      {(
+                        parseFloat(limitlessMarket.metrics.volumeRaw) / 1e6
+                      ).toLocaleString(undefined, {
+                        maximumFractionDigits: 2,
+                      })}
                     </span>
                   </div>
                   <div className="flex items-center">
                     <span className="text-gray-500 w-20">Open Interest:</span>
                     <span className="text-gray-800">
                       $
-                      {(parseFloat(limitlessMarket.metrics.openInterestRaw) / 1e6).toLocaleString(
-                        undefined,
-                        {
-                          maximumFractionDigits: 2,
-                        }
-                      )}
+                      {(
+                        parseFloat(limitlessMarket.metrics.openInterestRaw) /
+                        1e6
+                      ).toLocaleString(undefined, {
+                        maximumFractionDigits: 2,
+                      })}
                     </span>
                   </div>
                 </div>
@@ -224,14 +223,14 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                   <button
                     onClick={() =>
                       window.open(
-                        `https://polymarket.com/event/${market.id}`,
+                        `https://polymarket.com/event/${market.slug}`,
                         "_blank"
                       )
                     }
                     className="col-span-3 py-2 px-3 text-green-600 font-header text-center
-                             transition-all duration-300 border-l border-gray-200 
-                             hover:bg-green-600 hover:text-white active:bg-green-700 
-                             transform hover:scale-105"
+           transition-all duration-300 border-l border-gray-200 
+           hover:bg-green-600 hover:text-white active:bg-green-700 
+           transform hover:scale-105"
                   >
                     {formatPrice(market.prices.yes.ask || 0, showMoneyline)}
                   </button>
@@ -239,14 +238,14 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                   <button
                     onClick={() =>
                       window.open(
-                        `https://polymarket.com/event/${market.id}`,
+                        `https://polymarket.com/event/${market.slug}`,
                         "_blank"
                       )
                     }
                     className="col-span-3 py-2 px-3 text-accent-red-500 font-header text-center
-                             transition-all duration-300 border-l border-gray-200 
-                             hover:bg-accent-red-500 hover:text-white active:bg-accent-red-600 
-                             transform hover:scale-105"
+           transition-all duration-300 border-l border-gray-200 
+           hover:bg-accent-red-500 hover:text-white active:bg-accent-red-600 
+           transform hover:scale-105"
                   >
                     {formatPrice(market.prices.no.ask || 0, showMoneyline)}
                   </button>
