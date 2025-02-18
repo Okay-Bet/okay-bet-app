@@ -14,6 +14,19 @@ interface GroupedMarketCard {
     totalVolume: number;
     highestLiquidity: number;
     averageSimilarity: number;
+    platforms: {
+      limitless: {
+        volume: number;
+        liquidity: number;
+      };
+      polymarket: {
+        matches: Array<{
+          id: string;
+          volume: number;
+          liquidity: number;
+        }>;
+      };
+    };
   };
 }
 
@@ -136,51 +149,53 @@ export async function GET(request: Request) {
             if (!market) {
               return null;
             }
+
+            const volume = parseFloat(market.metrics.volumeRaw);
+            const liquidity = parseFloat(market.metrics.liquidityRaw);
+
             return {
               market,
               similarity: match.similarity,
+              metrics: {
+                volume: isNaN(volume) ? 0 : volume,
+                liquidity: isNaN(liquidity) ? 0 : liquidity,
+              },
             };
           })
           .filter(
-            (
-              match: { market: PolymarketMarket; similarity: number } | null
-            ): match is { market: PolymarketMarket; similarity: number } =>
+            (match): match is typeof match & { market: PolymarketMarket } =>
               match !== null
           );
 
-        const similarities = polymarketMatches.map(
-          (match: { market: PolymarketMarket; similarity: number }) =>
-            match.similarity
-        );
+        // Calculate similarities
+        const similarities = polymarketMatches.map((match) => match.similarity);
         const avgSimilarity =
           similarities.length > 0
-            ? similarities.reduce((a: number, b: number) => a + b, 0) /
-              similarities.length
+            ? similarities.reduce((a, b) => a + b, 0) / similarities.length
             : 0;
 
-        // Calculate combined metrics
+        // Calculate platform metrics
         const limitlessVolume = parseFloat(limitlessMarket.metrics.volumeRaw);
-        const polymarketVolumes = polymarketMatches.map(
-          (match: { market: PolymarketMarket; similarity: number }) =>
-            parseFloat(match.market.metrics.volumeRaw)
-        );
-        const totalVolume =
-          limitlessVolume +
-          polymarketVolumes.reduce((a: number, b: number) => a + b, 0);
-
         const limitlessLiquidity = parseFloat(
           limitlessMarket.metrics.liquidityRaw
         );
-        const polymarketLiquidities = polymarketMatches.map(
-          (match: { market: PolymarketMarket; similarity: number }) =>
-            parseFloat(match.market.metrics.liquidityRaw)
-        );
+
+        const polymarketMetrics = polymarketMatches.map((match) => ({
+          id: match.market.id,
+          volume: match.metrics.volume,
+          liquidity: match.metrics.liquidity,
+        }));
+
+        const totalVolume =
+          limitlessVolume +
+          polymarketMetrics.reduce((sum, m) => sum + m.volume, 0);
+
         const highestLiquidity = Math.max(
           limitlessLiquidity,
-          ...polymarketLiquidities
+          ...polymarketMetrics.map((m) => m.liquidity)
         );
 
-        return {
+        const card: GroupedMarketCard = {
           id: group.id,
           limitlessMarket,
           polymarketMatches,
@@ -188,8 +203,19 @@ export async function GET(request: Request) {
             totalVolume,
             highestLiquidity,
             averageSimilarity: avgSimilarity,
+            platforms: {
+              limitless: {
+                volume: limitlessVolume,
+                liquidity: limitlessLiquidity,
+              },
+              polymarket: {
+                matches: polymarketMetrics,
+              },
+            },
           },
         };
+
+        return card;
       }
     );
 

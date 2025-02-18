@@ -22,7 +22,7 @@ interface GammaAPIMarket {
 
 const transformMarket = (market: GammaAPIMarket): PolymarketMarket => {
   const tokenIds = JSON.parse(market.clobTokenIds);
-  const prices = JSON.parse(market.outcomePrices || "[0, 0]");
+  // const prices = JSON.parse(market.outcomePrices || "[0, 0]");
 
   // Parse YES prices
   const yesBid = market.bestBid ? parseFloat(market.bestBid) : undefined;
@@ -31,6 +31,10 @@ const transformMarket = (market: GammaAPIMarket): PolymarketMarket => {
   // Calculate NO prices as complement of YES prices
   const noBid = yesAsk !== undefined ? 1 - yesAsk : undefined;
   const noAsk = yesBid !== undefined ? 1 - yesBid : undefined;
+
+  // Safely handle undefined or null values for volume and liquidity
+  const volume = market.volumeNum ?? parseFloat(market.volume ?? "0");
+  const liquidity = market.liquidityNum ?? parseFloat(market.liquidity ?? "0");
 
   return {
     id: market.conditionId,
@@ -48,10 +52,10 @@ const transformMarket = (market: GammaAPIMarket): PolymarketMarket => {
       decimals: 6,
     },
     metrics: {
-      volume: market.volume,
-      volumeRaw: market.volume,
-      liquidity: market.liquidity,
-      liquidityRaw: market.liquidity,
+      volume: volume.toString(),
+      volumeRaw: volume.toString(),
+      liquidity: liquidity.toString(),
+      liquidityRaw: liquidity.toString(),
     },
     prices: {
       yes: {

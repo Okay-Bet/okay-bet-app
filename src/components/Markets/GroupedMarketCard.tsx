@@ -151,16 +151,19 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                     <span className="text-gray-500 w-20">Volume:</span>
                     <span className="text-gray-800">
                       $
-                      {(metrics?.totalVolume ?? 0).toLocaleString(undefined, {
-                        maximumFractionDigits: 2,
-                      })}
+                      {metrics.platforms.limitless.volume.toLocaleString(
+                        undefined,
+                        {
+                          maximumFractionDigits: 2,
+                        }
+                      )}
                     </span>
                   </div>
                   <div className="flex items-center">
                     <span className="text-gray-500 w-20">Liquidity:</span>
                     <span className="text-gray-800">
                       $
-                      {(metrics?.highestLiquidity ?? 0).toLocaleString(
+                      {metrics.platforms.limitless.liquidity.toLocaleString(
                         undefined,
                         {
                           maximumFractionDigits: 2,
@@ -187,6 +190,10 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
           {/* Polymarket Matches */}
           {polymarketMatches.map(({ market }) => {
             const [isExpanded, setIsExpanded] = useState(false);
+            // Find the matching metrics for this market
+            const marketMetrics = metrics.platforms.polymarket.matches.find(
+              (m) => m.id === market.id
+            );
             return (
               <div
                 key={market.id}
@@ -253,16 +260,19 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                         <span className="text-gray-500 w-20">Volume:</span>
                         <span className="text-gray-800">
                           $
-                          {(market.volume_num || 0).toLocaleString(undefined, {
-                            maximumFractionDigits: 2,
-                          })}
+                          {(marketMetrics?.volume || 0).toLocaleString(
+                            undefined,
+                            {
+                              maximumFractionDigits: 2,
+                            }
+                          )}
                         </span>
                       </div>
                       <div className="flex items-center">
                         <span className="text-gray-500 w-20">Liquidity:</span>
                         <span className="text-gray-800">
                           $
-                          {(market.liquidity_num || 0).toLocaleString(
+                          {(marketMetrics?.liquidity || 0).toLocaleString(
                             undefined,
                             {
                               maximumFractionDigits: 2,

@@ -147,6 +147,19 @@ export interface GroupedMarketCard {
     totalVolume: number;               // Combined volume across all markets
     highestLiquidity: number;          // Highest liquidity among all markets
     averageSimilarity: number;         // Average similarity score
+    platforms: {
+      limitless: {
+        volume: number;
+        liquidity: number;
+      };
+      polymarket: {
+        matches: Array<{
+          id: string;
+          volume: number;
+          liquidity: number;
+        }>;
+      };
+    };
   };
 }
 
