@@ -2,7 +2,6 @@ import type { LimitlessMarket, MarketStatus } from "@/components/types";
 
 const LIMITLESS_API_URL = "https://api.limitless.exchange";
 
-
 export interface LimitlessAPIMarket {
   address: string;
   conditionId: string;
@@ -33,57 +32,74 @@ export interface LimitlessAPIMarket {
 }
 
 const mapStatus = (status: string): MarketStatus => {
-    switch (status.toUpperCase()) {
-      case "FUNDED":
-        return "ACTIVE";
-      case "RESOLVED":
-        return "RESOLVED";
-      default:
-        return "CANCELLED";
-    }
-  };
+  switch (status.toUpperCase()) {
+    case "FUNDED":
+      return "ACTIVE";
+    case "RESOLVED":
+      return "RESOLVED";
+    default:
+      return "CANCELLED";
+  }
+};
 
-export const transformMarket = (market: LimitlessAPIMarket): LimitlessMarket => {
-    return {
-      id: market.address,
-      provider: "LIMITLESS" as const,
-      question: market.title,
-      description: market.description,
-      status: mapStatus(market.status),
-      expirationDate: market.expirationDate,
-      timestamps: {
-        created: market.createdAt,
-      },
-      collateral: {
-        address: market.collateralToken.address,
-        symbol: market.collateralToken.symbol,
-        decimals: market.collateralToken.decimals,
-      },
-      metrics: {
-        volume: market.volumeFormatted,
-        volumeRaw: market.volume,
-        liquidity: market.liquidityFormatted,
-        liquidityRaw: market.liquidity,
-      },
-      prices: {
-        yes: {},
-        no: {},
-      },
-      contract: {
-        address: market.address,
-        network: "base",
-      },
-      conditionId: market.conditionId,
-    };
+const cleanMarkdownText = (text: string): string => {
+  if (!text) return "";
+
+  // Remove HTML tags
+  const withoutTags = text.replace(/<[^>]*>/g, "");
+
+  // Replace HTML entities
+  const withoutEntities = withoutTags
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+
+  // Clean up multiple spaces and trim
+  return withoutEntities.replace(/\s+/g, " ").trim();
+};
+
+export const transformMarket = (
+  market: LimitlessAPIMarket
+): LimitlessMarket => {
+  return {
+    id: market.address,
+    provider: "LIMITLESS" as const,
+    question: market.title,
+    description: cleanMarkdownText(market.description),
+    status: mapStatus(market.status),
+    expirationDate: market.expirationDate,
+    timestamps: {
+      created: market.createdAt,
+    },
+    collateral: {
+      address: market.collateralToken.address,
+      symbol: market.collateralToken.symbol,
+      decimals: market.collateralToken.decimals,
+    },
+    metrics: {
+      volume: market.volumeFormatted,
+      volumeRaw: market.volume,
+      liquidity: market.liquidityFormatted,
+      liquidityRaw: market.liquidity,
+    },
+    prices: {
+      yes: {},
+      no: {},
+    },
+    contract: {
+      address: market.address,
+      network: "base",
+    },
+    conditionId: market.conditionId,
   };
+};
 
 export async function fetchMarketById(
   address: string
 ): Promise<LimitlessMarket | null> {
   try {
-    const response = await fetch(
-      `${LIMITLESS_API_URL}/markets/${address}`
-    );
+    const response = await fetch(`${LIMITLESS_API_URL}/markets/${address}`);
 
     if (!response.ok) {
       if (response.status === 404) {
@@ -103,11 +119,11 @@ export async function fetchMarketById(
 }
 
 export async function fetchMarketsByIds(
-    addresses: string[]
-  ): Promise<LimitlessMarket[]> {
-    const markets = await Promise.all(
-      addresses.map((address) => fetchMarketById(address))
-    );
-  
-    return markets.filter((market): market is LimitlessMarket => market !== null);
-  }
+  addresses: string[]
+): Promise<LimitlessMarket[]> {
+  const markets = await Promise.all(
+    addresses.map((address) => fetchMarketById(address))
+  );
+
+  return markets.filter((market): market is LimitlessMarket => market !== null);
+}
