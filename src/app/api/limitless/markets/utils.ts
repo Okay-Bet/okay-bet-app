@@ -62,6 +62,14 @@ const cleanMarkdownText = (text: string): string => {
 export const transformMarket = (
   market: LimitlessAPIMarket
 ): LimitlessMarket => {
+  // Parse the raw values and convert from string
+  const volumeRaw = market.volume ? parseFloat(market.volume) : 0;
+  const openInterestRaw = market.openInterest ? parseFloat(market.openInterest) : 0;
+
+  // Format with proper scaling (values are in USDC with 6 decimals)
+  const volumeFormatted = (volumeRaw / 1e6).toString();
+  const openInterestFormatted = (openInterestRaw / 1e6).toString();
+
   return {
     id: market.address,
     provider: "LIMITLESS" as const,
@@ -78,10 +86,10 @@ export const transformMarket = (
       decimals: market.collateralToken.decimals,
     },
     metrics: {
-      volume: market.volumeFormatted,
-      volumeRaw: market.volume,
-      liquidity: market.liquidityFormatted,
-      liquidityRaw: market.liquidity,
+      volume: volumeFormatted,
+      volumeRaw: volumeRaw.toString(),
+      openInterest: openInterestFormatted,
+      openInterestRaw: openInterestRaw.toString(),
     },
     prices: {
       yes: {},

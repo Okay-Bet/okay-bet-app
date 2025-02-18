@@ -151,7 +151,7 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                     <span className="text-gray-500 w-20">Volume:</span>
                     <span className="text-gray-800">
                       $
-                      {metrics.platforms.limitless.volume.toLocaleString(
+                      {(parseFloat(limitlessMarket.metrics.volumeRaw) / 1e6).toLocaleString(
                         undefined,
                         {
                           maximumFractionDigits: 2,
@@ -160,10 +160,10 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                     </span>
                   </div>
                   <div className="flex items-center">
-                    <span className="text-gray-500 w-20">Liquidity:</span>
+                    <span className="text-gray-500 w-20">Open Interest:</span>
                     <span className="text-gray-800">
                       $
-                      {metrics.platforms.limitless.liquidity.toLocaleString(
+                      {(parseFloat(limitlessMarket.metrics.openInterestRaw) / 1e6).toLocaleString(
                         undefined,
                         {
                           maximumFractionDigits: 2,

@@ -13,11 +13,10 @@ interface GroupedMarketCard {
   metrics: {
     totalVolume: number;
     highestLiquidity: number;
-    averageSimilarity: number;
     platforms: {
       limitless: {
         volume: number;
-        liquidity: number;
+        openInterest: number;
       };
       polymarket: {
         matches: Array<{
@@ -41,7 +40,6 @@ interface PolymarketMatch {
   similarity: number;
 }
 
-// New function to fetch Polymarket data using our working endpoint
 const fetchPolymarketData = async (
   conditionIds: string[],
   baseUrl: string
@@ -142,7 +140,7 @@ export async function GET(request: Request) {
       (limitlessMarket) => {
         const group = groupedByLimitless[limitlessMarket.id];
 
-        // Map polymarket matches to include full market data
+        // Keep Polymarket matches handling the same
         const polymarketMatches = group.polymarketMatches
           .map((match: PolymarketMatch) => {
             const market = polymarketMap.get(match.id);
@@ -167,31 +165,25 @@ export async function GET(request: Request) {
               match !== null
           );
 
-        // Calculate similarities
-        const similarities = polymarketMatches.map((match) => match.similarity);
-        const avgSimilarity =
-          similarities.length > 0
-            ? similarities.reduce((a, b) => a + b, 0) / similarities.length
-            : 0;
-
         // Calculate platform metrics
         const limitlessVolume = parseFloat(limitlessMarket.metrics.volumeRaw);
-        const limitlessLiquidity = parseFloat(
-          limitlessMarket.metrics.liquidityRaw
+        const limitlessOpenInterest = parseFloat(
+          limitlessMarket.metrics.openInterestRaw
         );
 
         const polymarketMetrics = polymarketMatches.map((match) => ({
           id: match.market.id,
           volume: match.metrics.volume,
-          liquidity: match.metrics.liquidity,
+          liquidity: match.metrics.liquidity, // Keep for Polymarket
         }));
 
         const totalVolume =
           limitlessVolume +
           polymarketMetrics.reduce((sum, m) => sum + m.volume, 0);
 
+        // For highest liquidity, compare Polymarket liquidity with Limitless open interest
         const highestLiquidity = Math.max(
-          limitlessLiquidity,
+          limitlessOpenInterest,
           ...polymarketMetrics.map((m) => m.liquidity)
         );
 
@@ -202,11 +194,10 @@ export async function GET(request: Request) {
           metrics: {
             totalVolume,
             highestLiquidity,
-            averageSimilarity: avgSimilarity,
             platforms: {
               limitless: {
                 volume: limitlessVolume,
-                liquidity: limitlessLiquidity,
+                openInterest: limitlessOpenInterest,
               },
               polymarket: {
                 matches: polymarketMetrics,
