@@ -88,32 +88,35 @@ const PositionCard: React.FC<PositionCardProps> = ({
   };
 
   return (
-    <div className="card-aggressive">
-      <div className="bg-accent-gray-900 rounded-xl overflow-hidden">
-        <div
-          className="p-6 cursor-pointer bg-gradient-sharp from-accent-gray-800 to-accent-gray-900 hover:from-accent-gray-900 hover:to-accent-gray-800 transition-all duration-300"
-          onClick={() => setIsExpanded(!isExpanded)}
-        >
+    <div
+      className="bg-gradient-to-br from-white to-gray-200 rounded-lg shadow-md hover:shadow-lg 
+                    transition-all duration-300 border border-gray-200/80 w-full"
+    >
+      <div
+        className="cursor-pointer"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-gray-100 to-white">
           <div className="flex justify-between items-start gap-4">
             <div className="flex-1">
-              <div className="flex items-start justify-between mb-3">
-                <h3 className="text-xl font-header text-white leading-tight flex-1 pr-4">
+              <div className="flex items-start justify-between mb-2">
+                <h3 className="text-xl font-header text-gray-800 leading-tight flex-1 pr-4">
                   {position.market_data.question}
                 </h3>
                 {!isResolved ? (
-                  <span className="px-3 py-1 text-sm font-header bg-electric-cyan text-black rounded-lg shadow-sharp">
+                  <span className="px-3 py-1 text-sm font-header bg-blue-500 text-white rounded-lg">
                     ACTIVE
                   </span>
                 ) : position.isRedeemed ? (
-                  <span className="px-3 py-1 text-sm font-header bg-accent-gray-600 text-white rounded-lg shadow-sharp">
+                  <span className="px-3 py-1 text-sm font-header bg-gray-500 text-white rounded-lg">
                     REDEEMED
                   </span>
                 ) : position.position_result === "won" ? (
-                  <span className="px-3 py-1 text-sm font-header bg-green-500 text-white rounded-lg shadow-sharp">
+                  <span className="px-3 py-1 text-sm font-header bg-green-500 text-white rounded-lg">
                     WON
                   </span>
                 ) : (
-                  <span className="px-3 py-1 text-sm font-header bg-accent-red-500 text-white rounded-lg shadow-sharp">
+                  <span className="px-3 py-1 text-sm font-header bg-accent-red-500 text-white rounded-lg">
                     LOST
                   </span>
                 )}
@@ -121,18 +124,16 @@ const PositionCard: React.FC<PositionCardProps> = ({
 
               <div className="flex flex-wrap gap-x-6 gap-y-2">
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm text-accent-gray-400">
-                    Position:
-                  </span>
-                  <span className="text-sm font-medium text-white">
+                  <span className="text-sm text-gray-500">Position:</span>
+                  <span className="text-sm font-medium text-gray-800">
                     {getPositionDetails()}
                   </span>
                 </div>
 
                 {!isResolved && (
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm text-accent-gray-400">Value:</span>
-                    <span className="text-sm font-header text-electric-cyan">
+                    <span className="text-sm text-gray-500">Value:</span>
+                    <span className="text-sm font-header text-accent-red-500">
                       ${value.toFixed(2)}
                     </span>
                   </div>
@@ -140,9 +141,7 @@ const PositionCard: React.FC<PositionCardProps> = ({
 
                 {isResolved && position.current_balance > 0 && (
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm text-accent-gray-400">
-                      To Win:
-                    </span>
+                    <span className="text-sm text-gray-500">To Win:</span>
                     <span className="text-sm font-header text-accent-red-500">
                       {formatBalance(
                         position.current_balance,
@@ -166,21 +165,19 @@ const PositionCard: React.FC<PositionCardProps> = ({
         </div>
 
         {isExpanded && (
-          <div className="border-t border-accent-gray-800">
-            <div className="p-6 space-y-4">
+          <div className="p-4">
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gradient-sharp from-accent-gray-800 to-accent-gray-900 p-4 rounded-lg border border-accent-gray-700">
-                  <div className="text-sm text-accent-gray-400 mb-1">
+                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                  <div className="text-sm text-gray-500 mb-1">
                     Market Volume
                   </div>
                   <div className="font-header text-xl text-accent-red-500">
                     ${position.market_data.volume}
                   </div>
                 </div>
-                <div className="bg-gradient-sharp from-accent-gray-800 to-accent-gray-900 p-4 rounded-lg border border-accent-gray-700">
-                  <div className="text-sm text-accent-gray-400 mb-1">
-                    Expiration
-                  </div>
+                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                  <div className="text-sm text-gray-500 mb-1">Expiration</div>
                   <div className="font-header text-xl text-accent-red-500">
                     {new Date(
                       position.expiration_timestamp
@@ -189,21 +186,21 @@ const PositionCard: React.FC<PositionCardProps> = ({
                 </div>
               </div>
 
-              <div className="bg-gradient-sharp from-accent-gray-800 to-accent-gray-900 p-4 rounded-lg border border-accent-gray-700">
-                <div className="text-sm text-accent-gray-300">
+              <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                <div className="text-sm text-gray-600">
                   {position.market_data.description}
                 </div>
               </div>
 
               <div className="pt-2">
                 {!isResolved ? (
-                  <div className="text-center font-header text-electric-cyan bg-accent-gray-800 p-4 rounded-lg shadow-inner-sharp">
+                  <div className="text-center font-header text-blue-500 bg-blue-50 p-4 rounded-lg border border-blue-200">
                     MARKET IS STILL ACTIVE
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {position.isRedeemed ? (
-                      <div className="text-center font-header text-green-500 bg-accent-gray-800 p-4 rounded-lg shadow-inner-sharp">
+                      <div className="text-center font-header text-gray-500 bg-gray-50 p-4 rounded-lg border border-gray-200">
                         POSITION HAS BEEN REDEEMED
                       </div>
                     ) : position.position_result === "won" ? (
@@ -211,7 +208,7 @@ const PositionCard: React.FC<PositionCardProps> = ({
                         isRedeeming ? (
                           <button
                             disabled
-                            className="w-full bg-gradient-aggressive from-accent-red-500 to-tertiary text-white py-4 px-6 rounded-lg font-header text-lg shadow-sharp opacity-75"
+                            className="w-full bg-accent-red-500 text-white py-4 px-6 rounded-lg font-header text-lg opacity-75"
                           >
                             <div className="flex items-center justify-center space-x-3">
                               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
@@ -221,18 +218,18 @@ const PositionCard: React.FC<PositionCardProps> = ({
                         ) : (
                           <button
                             onClick={handleRedeemClick}
-                            className="w-full bg-gradient-aggressive from-accent-red-500 to-tertiary text-white py-4 px-6 rounded-lg font-header text-lg hover:shadow-aggressive transition-all duration-300 shadow-sharp"
+                            className="w-full bg-accent-red-500 hover:bg-accent-red-600 text-white py-4 px-6 rounded-lg font-header text-lg transition-colors duration-300"
                           >
                             REDEEM WINNINGS
                           </button>
                         )
                       ) : (
-                        <div className="text-center font-header text-accent-gray-400 bg-accent-gray-800 p-4 rounded-lg shadow-inner-sharp">
+                        <div className="text-center font-header text-gray-500 bg-gray-50 p-4 rounded-lg border border-gray-200">
                           NO BALANCE TO REDEEM
                         </div>
                       )
                     ) : (
-                      <div className="text-center font-header text-accent-red-500 bg-accent-gray-800 p-4 rounded-lg shadow-inner-sharp">
+                      <div className="text-center font-header text-accent-red-500 bg-red-50 p-4 rounded-lg border border-red-200">
                         POSITION LOST
                       </div>
                     )}
