@@ -1,5 +1,6 @@
 // components/Markets/GroupedMarketCard.tsx
 import React, { useState } from "react";
+import Image from "next/image";
 import type { GroupedMarketCard as GroupedMarketCardType } from "@/components/types";
 import { formatPrice } from "@/utils/marketUtils";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
@@ -89,16 +90,23 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
         <div className="space-y-2">
           {/* Limitless Market Row */}
           <div className="border border-gray-200 rounded-lg hover:border-accent-red-500 transition-all duration-300">
-            <div className="grid grid-cols-12 gap-4">
+            <div className="grid grid-cols-12 gap-2">
               <button
                 onClick={() => setShowDetails(!showDetails)}
-                className="col-span-6 p-4 text-left hover:bg-gray-50 transition-all duration-300"
+                className="col-span-6 py-2 px-3 text-left hover:bg-gray-50 transition-all duration-300"
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-accent-red-500">
-                    LIMITLESS
-                  </span>
-                  <span className="text-gray-800">
+                <div className="flex items-center gap-3">
+                  <div className="relative w-24 h-7 flex-shrink-0">
+                    <Image
+                      src="/icons/limitless-logo.png"
+                      alt="Limitless Logo"
+                      className="object-contain"
+                      fill
+                      sizes="96px"
+                      priority
+                    />
+                  </div>
+                  <span className="text-gray-800 line-clamp-2">
                     {limitlessMarket.question}
                   </span>
                 </div>
@@ -107,7 +115,7 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
               <button
                 onClick={() => handleBetClick("YES")}
                 disabled={!isMarketActive || !yesPrice || pricesLoading}
-                className="col-span-3 p-4 text-green-600 font-header
+                className="col-span-3 py-2 px-3 text-green-600 font-header text-center
                          disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 
                          border-l border-gray-200 hover:bg-green-600 hover:text-white 
                          active:bg-green-700 transform hover:scale-105"
@@ -122,7 +130,7 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
               <button
                 onClick={() => handleBetClick("NO")}
                 disabled={!isMarketActive || !noPrice || pricesLoading}
-                className="col-span-3 p-4 text-accent-red-500 font-header
+                className="col-span-3 py-2 px-3 text-accent-red-500 font-header text-center
                          disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300
                          border-l border-gray-200 hover:bg-accent-red-500 hover:text-white 
                          active:bg-accent-red-600 transform hover:scale-105"
@@ -137,42 +145,41 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
 
             {/* Expanded Details */}
             {showDetails && (
-              <div className="px-4 pb-4 border-t border-gray-200 bg-gray-50">
-                <div className="mt-4 text-sm text-gray-600 space-y-2">
-                <div className="grid grid-cols-2 gap-4 mt-2">
-                    <div>
-                      <span className="text-gray-500">Volume:</span>
-                      <span className="text-gray-800 ml-2">
-                        $
-                        {(metrics?.totalVolume ?? 0).toLocaleString(undefined, {
-                          maximumFractionDigits: 2,
-                        })}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Liquidity:</span>
-                      <span className="text-gray-800 ml-2">
-                        $
-                        {(metrics?.highestLiquidity ?? 0).toLocaleString(
-                          undefined,
-                          {
-                            maximumFractionDigits: 2,
-                          }
-                        )}
-                      </span>
-                    </div>
+              <div className="px-3 py-2 border-t border-gray-200 bg-gray-50">
+                <div className="grid grid-cols-2 gap-4 mb-2">
+                  <div className="flex items-center">
+                    <span className="text-gray-500 w-20">Volume:</span>
+                    <span className="text-gray-800">
+                      $
+                      {(metrics?.totalVolume ?? 0).toLocaleString(undefined, {
+                        maximumFractionDigits: 2,
+                      })}
+                    </span>
                   </div>
-                  <p>
-                    Expiration:{" "}
+                  <div className="flex items-center">
+                    <span className="text-gray-500 w-20">Liquidity:</span>
+                    <span className="text-gray-800">
+                      $
+                      {(metrics?.highestLiquidity ?? 0).toLocaleString(
+                        undefined,
+                        {
+                          maximumFractionDigits: 2,
+                        }
+                      )}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center mb-2">
+                  <span className="text-gray-500 w-20">Expiration:</span>
+                  <span className="text-gray-800">
                     {new Date(
                       limitlessMarket.expirationDate
                     ).toLocaleDateString()}
-                  </p>
-                  <p>
-                    {limitlessMarket.description || "No description available"}
-                  </p>
-
+                  </span>
                 </div>
+                <p className="text-sm text-gray-600">
+                  {limitlessMarket.description || "No description available"}
+                </p>
               </div>
             )}
           </div>
@@ -185,81 +192,94 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                 key={market.id}
                 className="border border-gray-200 rounded-lg hover:border-accent-red-500 transition-all duration-300"
               >
-                <div className="grid grid-cols-12 gap-4">
+                <div className="grid grid-cols-12 gap-2">
                   <button
                     onClick={() => setIsExpanded(!isExpanded)}
-                    className="col-span-6 p-4 text-left hover:bg-gray-50 transition-all duration-300"
+                    className="col-span-6 py-2 px-3 text-left hover:bg-gray-50 transition-all duration-300"
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-blue-500">
-                        POLY
+                    <div className="flex items-center gap-3">
+                      <div className="relative w-24 h-7 flex-shrink-0">
+                        <Image
+                          src="/icons/polymarket-logo.jpg"
+                          alt="Polymarket Logo"
+                          className="object-contain"
+                          fill
+                          sizes="96px"
+                          priority
+                        />
+                      </div>
+                      <span className="text-gray-800 line-clamp-2">
+                        {market.question}
                       </span>
-                      <span className="text-gray-800">{market.question}</span>
                     </div>
                   </button>
 
-                  <a
-                    href={`https://polymarket.com/event/${market.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="col-span-3 p-4 text-green-600 font-header
+                  <button
+                    onClick={() =>
+                      window.open(
+                        `https://polymarket.com/event/${market.id}`,
+                        "_blank"
+                      )
+                    }
+                    className="col-span-3 py-2 px-3 text-green-600 font-header text-center
                              transition-all duration-300 border-l border-gray-200 
                              hover:bg-green-600 hover:text-white active:bg-green-700 
                              transform hover:scale-105"
                   >
                     {formatPrice(market.prices.yes.ask || 0, showMoneyline)}
-                  </a>
+                  </button>
 
-                  <a
-                    href={`https://polymarket.com/event/${market.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="col-span-3 p-4 text-accent-red-500 font-header
+                  <button
+                    onClick={() =>
+                      window.open(
+                        `https://polymarket.com/event/${market.id}`,
+                        "_blank"
+                      )
+                    }
+                    className="col-span-3 py-2 px-3 text-accent-red-500 font-header text-center
                              transition-all duration-300 border-l border-gray-200 
                              hover:bg-accent-red-500 hover:text-white active:bg-accent-red-600 
                              transform hover:scale-105"
                   >
                     {formatPrice(market.prices.no.ask || 0, showMoneyline)}
-                  </a>
+                  </button>
                 </div>
 
                 {/* Expanded Polymarket Details */}
                 {isExpanded && (
-                  <div className="px-4 pb-4 border-t border-gray-200 bg-gray-50">
-                    <div className="mt-4 text-sm text-gray-600 space-y-2">
-                      <div className="grid grid-cols-2 gap-4 mt-2">
-                        <div>
-                          <span className="text-gray-500">Volume:</span>
-                          <span className="text-gray-800 ml-2">
-                            $
-                            {(market.volume_num || 0).toLocaleString(
-                              undefined,
-                              {
-                                maximumFractionDigits: 2,
-                              }
-                            )}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Liquidity:</span>
-                          <span className="text-gray-800 ml-2">
-                            {" "}
-                            $
-                            {(market.liquidity_num || 0).toLocaleString(
-                              undefined,
-                              {
-                                maximumFractionDigits: 2,
-                              }
-                            )}
-                          </span>
-                        </div>
+                  <div className="px-3 py-2 border-t border-gray-200 bg-gray-50">
+                    <div className="grid grid-cols-2 gap-4 mb-2">
+                      <div className="flex items-center">
+                        <span className="text-gray-500 w-20">Volume:</span>
+                        <span className="text-gray-800">
+                          $
+                          {(market.volume_num || 0).toLocaleString(undefined, {
+                            maximumFractionDigits: 2,
+                          })}
+                        </span>
                       </div>
-                      <p>
-                        Expiration:{" "}
-                        {new Date(market.expirationDate).toLocaleDateString()}
-                      </p>
-                      <p>{market.description || "No description available"}</p>
+                      <div className="flex items-center">
+                        <span className="text-gray-500 w-20">Liquidity:</span>
+                        <span className="text-gray-800">
+                          $
+                          {(market.liquidity_num || 0).toLocaleString(
+                            undefined,
+                            {
+                              maximumFractionDigits: 2,
+                            }
+                          )}
+                        </span>
+                      </div>
                     </div>
+                    <div className="flex items-center mb-2">
+                      <span className="text-gray-500 w-20">Expiration:</span>
+                      <span className="text-gray-800">
+                        {new Date(market.expirationDate).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      {market.description || "No description available"}
+                    </p>
                   </div>
                 )}
               </div>
