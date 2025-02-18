@@ -139,8 +139,19 @@ export const BetSlip: React.FC = () => {
   };
 
   const handlePlaceOrder = async () => {
-    if (!bet || !amount || !quote) {
-      console.error("Missing required data:", { bet, amount, quote });
+    if (!bet || !amount) return;
+
+    if (bet.provider === "POLYMARKET") {
+      // Open Polymarket in new tab
+      window.open(`https://polymarket.com/event/${bet.slug}`, "_blank");
+      // Clear the bet slip
+      clearBets();
+      return;
+    }
+
+    // Existing Limitless order logic
+    if (!quote) {
+      console.error("Missing quote data");
       return;
     }
 
@@ -165,26 +176,30 @@ export const BetSlip: React.FC = () => {
 
   const getButtonClasses = () => {
     const baseClasses =
-      "px-6 py-3 text-white font-medium rounded-lg transition-all duration-300";
+      "text-white font-medium rounded-lg transition-all duration-300";
+
+    if (bet?.provider === "POLYMARKET") {
+      return `${baseClasses} px-6 py-3 w-full bg-accent-red-500 hover:bg-accent-red-600 transform hover:scale-105 shadow-lg`;
+    }
 
     if (status.state === "complete") {
-      return `${baseClasses} bg-green-500 hover:bg-green-600 transform scale-105 shadow-lg`;
+      return `${baseClasses} px-6 py-3 bg-green-500 hover:bg-green-600 transform scale-105 shadow-lg`;
     }
 
     if (status.state === "error") {
-      return `${baseClasses} bg-red-600 hover:bg-red-700`;
+      return `${baseClasses} px-6 py-3 bg-red-600 hover:bg-red-700`;
     }
 
     const disabledState =
       !amount || parseFloat(amount) < MIN_TOKENS || isLoading || !quote;
 
-    return `${baseClasses} bg-accent-red-500 hover:bg-accent-red-600 
+    return `${baseClasses} px-6 py-3 bg-accent-red-500 hover:bg-accent-red-600 
       ${disabledState ? "opacity-50 cursor-not-allowed" : ""}`;
   };
 
   const getButtonText = () => {
     if (!amount || parseFloat(amount) < MIN_TOKENS) return "Enter Amount";
-    if (!quote) return "Loading Quote...";
+    if (!quote && bet?.provider === "LIMITLESS") return "Loading Quote...";
     if (isLoading) {
       if (approvalStep.status === "approving") return "Approving USDC...";
       if (approvalStep.status === "pending") return "Confirming...";
@@ -193,6 +208,7 @@ export const BetSlip: React.FC = () => {
     }
     if (status.state === "complete") return "COMPLETE ✓";
     if (status.state === "error") return "Failed - Try Again";
+    if (bet?.provider === "POLYMARKET") return "Trade on Polymarket →";
     return "Place Order";
   };
 
@@ -225,6 +241,16 @@ export const BetSlip: React.FC = () => {
               Clear
             </button>
           </div>
+
+          {/* Polymarket Warning Message */}
+          {bet.provider === "POLYMARKET" && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-2">
+              <p className="text-blue-700 text-sm">
+                Polymarket order execution is not yet available on Okay Bet. Clicking the button will redirect
+                you to Polymarket.com to complete your order.
+              </p>
+            </div>
+          )}
 
           {/* Bet Details */}
           <div className="bg-white border border-accent-gray-200 rounded-lg p-4">
@@ -261,7 +287,7 @@ export const BetSlip: React.FC = () => {
           </div>
 
           {/* Quote Section */}
-          {quote && !isQuoting && (
+          {bet?.provider === "LIMITLESS" && quote && !isQuoting && (
             <div className="bg-white border border-accent-gray-200 rounded-lg p-4">
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
@@ -293,32 +319,42 @@ export const BetSlip: React.FC = () => {
           )}
 
           {/* Input and Action Section */}
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={amount}
-                  onChange={handleAmountChange}
-                  placeholder="0.00"
-                  className="w-full px-4 py-3 border border-accent-gray-300 rounded-lg pr-16 
+          <div
+            className={`flex items-center gap-4 ${
+              bet?.provider === "POLYMARKET" ? "block" : ""
+            }`}
+          >
+            {/* Only show amount input for Limitless */}
+            {bet?.provider === "LIMITLESS" && (
+              <div className="flex-1">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={amount}
+                    onChange={handleAmountChange}
+                    placeholder="0.00"
+                    className="w-full px-4 py-3 border border-accent-gray-300 rounded-lg pr-16 
                            text-black placeholder-accent-gray-400
                            focus:border-accent-red-500 focus:ring-1 focus:ring-accent-red-500"
-                  disabled={isLoading || status.state === "complete"}
-                />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-accent-gray-500">
-                  USDC
-                </span>
+                    disabled={isLoading || status.state === "complete"}
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-accent-gray-500">
+                    USDC
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
+
             <button
               className={getButtonClasses()}
               disabled={
-                !amount ||
-                parseFloat(amount) < MIN_TOKENS ||
-                isLoading ||
-                !quote ||
-                status.state === "complete"
+                bet?.provider === "LIMITLESS"
+                  ? !amount ||
+                    parseFloat(amount) < MIN_TOKENS ||
+                    isLoading ||
+                    !quote ||
+                    status.state === "complete"
+                  : false
               }
               onClick={handlePlaceOrder}
             >

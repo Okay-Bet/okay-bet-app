@@ -50,6 +50,19 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
     addBet(bet);
   };
 
+  const handlePolymarketBetClick = (market: any, position: "YES" | "NO") => {
+    const bet: PolymarketBet = {
+      marketId: market.id,
+      eventTitle: market.question,
+      marketQuestion: market.question,
+      position,
+      price: position === "YES" ? market.prices.yes.ask : market.prices.no.ask,
+      provider: "POLYMARKET",
+      slug: market.slug,
+    };
+    addBet(bet);
+  };
+
   // Get the latest prices with proper fallback handling
   const yesPrice = pricesLoading
     ? limitlessMarket.prices.yes.ask
@@ -221,31 +234,20 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                   </button>
 
                   <button
-                    onClick={() =>
-                      window.open(
-                        `https://polymarket.com/event/${market.slug}`,
-                        "_blank"
-                      )
-                    }
+                    onClick={() => handlePolymarketBetClick(market, "YES")}
                     className="col-span-3 py-2 px-3 text-green-600 font-header text-center
-           transition-all duration-300 border-l border-gray-200 
-           hover:bg-green-600 hover:text-white active:bg-green-700 
-           transform hover:scale-105"
+    transition-all duration-300 border-l border-gray-200 
+    hover:bg-green-600 hover:text-white active:bg-green-700 
+    transform hover:scale-105"
                   >
                     {formatPrice(market.prices.yes.ask || 0, showMoneyline)}
                   </button>
-
                   <button
-                    onClick={() =>
-                      window.open(
-                        `https://polymarket.com/event/${market.slug}`,
-                        "_blank"
-                      )
-                    }
+                    onClick={() => handlePolymarketBetClick(market, "NO")}
                     className="col-span-3 py-2 px-3 text-accent-red-500 font-header text-center
-           transition-all duration-300 border-l border-gray-200 
-           hover:bg-accent-red-500 hover:text-white active:bg-accent-red-600 
-           transform hover:scale-105"
+    transition-all duration-300 border-l border-gray-200 
+    hover:bg-accent-red-500 hover:text-white active:bg-accent-red-600 
+    transform hover:scale-105"
                   >
                     {formatPrice(market.prices.no.ask || 0, showMoneyline)}
                   </button>

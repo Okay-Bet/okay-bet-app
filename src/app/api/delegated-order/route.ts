@@ -7,7 +7,6 @@ const AGENT_WALLET_ADDRESS = process.env.NEXT_PUBLIC_AGENT_WALLET_ADDRESS;
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    console.log("Received order body:", body);
 
     // Validate required fields
     const requiredFields = [
