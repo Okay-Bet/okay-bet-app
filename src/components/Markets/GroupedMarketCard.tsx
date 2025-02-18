@@ -1,13 +1,28 @@
 // components/Markets/GroupedMarketCard.tsx
 import React, { useState } from "react";
 import Image from "next/image";
-import type { GroupedMarketCard as GroupedMarketCardType } from "@/components/types";
+import type {
+  GroupedMarketCard as GroupedMarketCardType,
+  LimitlessMarket,
+  PolymarketMarket,
+} from "@/components/types";
 import { formatPrice } from "@/utils/marketUtils";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { useBetSlip } from "@/app/context/BetSlipContext";
 
 interface GroupedMarketCardProps {
   groupedMarket: GroupedMarketCardType;
+}
+
+interface MarketDetailsProps {
+  isPolymarket?: boolean;
+  market: LimitlessMarket | PolymarketMarket;
+  metrics?: {
+    volume?: number;
+    liquidity?: number;
+    id?: string;
+  };
+  className?: string;
 }
 
 export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
@@ -73,6 +88,81 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
 
   const isMarketActive = limitlessMarket.status === "ACTIVE";
 
+  const MarketDetailsSection: React.FC<MarketDetailsProps> = ({
+    isPolymarket = false,
+    market,
+    metrics,
+    className = "",
+  }) => {
+    const getVolumeDisplay = () => {
+      if (isPolymarket) {
+        return `$${(metrics?.volume || 0).toLocaleString()}`;
+      }
+      const limitlessMarket = market as LimitlessMarket;
+      return `$${(
+        parseFloat(limitlessMarket.metrics.volumeRaw) / 1e6
+      ).toLocaleString()}`;
+    };
+
+    const getLiquidityDisplay = () => {
+      if (isPolymarket) {
+        return `$${(metrics?.liquidity || 0).toLocaleString()}`;
+      }
+      const limitlessMarket = market as LimitlessMarket;
+      return `$${(
+        parseFloat(limitlessMarket.metrics.openInterestRaw) / 1e6
+      ).toLocaleString()}`;
+    };
+
+    return (
+      <div
+        className={`px-3 py-2 border-t border-gray-200 bg-gray-50 ${className}`}
+      >
+        <h3 className="md:hidden text-gray-800 font-medium mb-3">
+          {market.question}
+        </h3>
+
+        <div className="flex flex-col space-y-2">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            <div className="flex items-center">
+              <span className="text-gray-500 min-w-[90px]">Volume:</span>
+              <span className="text-gray-800 font-medium">
+                {getVolumeDisplay()}
+              </span>
+            </div>
+
+            <div className="flex items-center">
+              <span className="text-gray-500 min-w-[90px]">
+                {isPolymarket ? "Liquidity:" : "Open Interest:"}
+              </span>
+              <span className="text-gray-800 font-medium">
+                {getLiquidityDisplay()}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center">
+            <span className="text-gray-500 min-w-[90px]">Ends:</span>
+            <span className="text-gray-800 font-medium">
+              {new Date(market.expirationDate).toLocaleDateString(undefined, {
+                weekday: "short",
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </span>
+          </div>
+
+          <p className="text-sm text-gray-600 mt-2">
+            {market.description || "No description available"}
+          </p>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       className="bg-gradient-to-br from-white to-gray-200 rounded-lg shadow-md hover:shadow-lg 
@@ -108,18 +198,18 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                 onClick={() => setShowDetails(!showDetails)}
                 className="col-span-6 py-2 px-3 text-left hover:bg-gray-50 transition-all duration-300"
               >
-                <div className="flex items-center gap-3">
-                  <div className="relative w-24 h-7 flex-shrink-0">
+                <div className="flex items-center gap-1 sm:gap-3">
+                  <div className="relative w-16 sm:w-24 h-7 flex-shrink-0">
                     <Image
                       src="/icons/limitless-logo.png"
                       alt="Limitless Logo"
                       className="object-contain"
                       fill
-                      sizes="96px"
+                      sizes="(max-width: 640px) 64px, 96px"
                       priority
                     />
                   </div>
-                  <span className="text-gray-800 line-clamp-2">
+                  <span className="text-gray-800 line-clamp-2 text-sm sm:text-base">
                     {limitlessMarket.question}
                   </span>
                 </div>
@@ -158,44 +248,10 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
 
             {/* Expanded Details */}
             {showDetails && (
-              <div className="px-3 py-2 border-t border-gray-200 bg-gray-50">
-                <div className="grid grid-cols-2 gap-4 mb-2">
-                  <div className="flex items-center">
-                    <span className="text-gray-500 w-20">Volume:</span>
-                    <span className="text-gray-800">
-                      $
-                      {(
-                        parseFloat(limitlessMarket.metrics.volumeRaw) / 1e6
-                      ).toLocaleString(undefined, {
-                        maximumFractionDigits: 2,
-                      })}
-                    </span>
-                  </div>
-                  <div className="flex items-center">
-                    <span className="text-gray-500 w-20">Open Interest:</span>
-                    <span className="text-gray-800">
-                      $
-                      {(
-                        parseFloat(limitlessMarket.metrics.openInterestRaw) /
-                        1e6
-                      ).toLocaleString(undefined, {
-                        maximumFractionDigits: 2,
-                      })}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center mb-2">
-                  <span className="text-gray-500 w-20">Expiration:</span>
-                  <span className="text-gray-800">
-                    {new Date(
-                      limitlessMarket.expirationDate
-                    ).toLocaleDateString()}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600">
-                  {limitlessMarket.description || "No description available"}
-                </p>
-              </div>
+              <MarketDetailsSection
+                market={limitlessMarket}
+                className="sm:text-base text-sm"
+              />
             )}
           </div>
 
@@ -216,18 +272,18 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                     onClick={() => setIsExpanded(!isExpanded)}
                     className="col-span-6 py-2 px-3 text-left hover:bg-gray-50 transition-all duration-300"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="relative w-24 h-7 flex-shrink-0">
+                    <div className="flex items-center gap-1 sm:gap-3">
+                      <div className="relative w-16 sm:w-24 h-7 flex-shrink-0">
                         <Image
                           src="/icons/polymarket-logo.jpg"
                           alt="Polymarket Logo"
                           className="object-contain"
                           fill
-                          sizes="96px"
+                          sizes="(max-width: 640px) 64px, 96px"
                           priority
                         />
                       </div>
-                      <span className="text-gray-800 line-clamp-2">
+                      <span className="text-gray-800 line-clamp-2 text-sm sm:text-base">
                         {market.question}
                       </span>
                     </div>
@@ -255,43 +311,12 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
 
                 {/* Expanded Polymarket Details */}
                 {isExpanded && (
-                  <div className="px-3 py-2 border-t border-gray-200 bg-gray-50">
-                    <div className="grid grid-cols-2 gap-4 mb-2">
-                      <div className="flex items-center">
-                        <span className="text-gray-500 w-20">Volume:</span>
-                        <span className="text-gray-800">
-                          $
-                          {(marketMetrics?.volume || 0).toLocaleString(
-                            undefined,
-                            {
-                              maximumFractionDigits: 2,
-                            }
-                          )}
-                        </span>
-                      </div>
-                      <div className="flex items-center">
-                        <span className="text-gray-500 w-20">Liquidity:</span>
-                        <span className="text-gray-800">
-                          $
-                          {(marketMetrics?.liquidity || 0).toLocaleString(
-                            undefined,
-                            {
-                              maximumFractionDigits: 2,
-                            }
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center mb-2">
-                      <span className="text-gray-500 w-20">Expiration:</span>
-                      <span className="text-gray-800">
-                        {new Date(market.expirationDate).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      {market.description || "No description available"}
-                    </p>
-                  </div>
+                  <MarketDetailsSection
+                    isPolymarket
+                    market={market}
+                    metrics={marketMetrics}
+                    className="sm:text-base text-sm"
+                  />
                 )}
               </div>
             );

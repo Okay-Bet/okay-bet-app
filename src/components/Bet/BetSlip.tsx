@@ -139,12 +139,13 @@ export const BetSlip: React.FC = () => {
   };
 
   const handlePlaceOrder = async () => {
-    if (!bet || !amount) return;
+    if (!bet) return;
 
     if (bet.provider === "POLYMARKET") {
-      // Open Polymarket in new tab
-      window.open(`https://polymarket.com/event/${bet.slug}`, "_blank");
-      // Clear the bet slip
+      // Construct the proper Polymarket URL with the market slug
+      const polymarketUrl = `https://polymarket.com/event/${bet.slug}`;
+      window.open(polymarketUrl, "_blank");
+      // Clear the bet slip after opening Polymarket
       clearBets();
       return;
     }
@@ -198,8 +199,12 @@ export const BetSlip: React.FC = () => {
   };
 
   const getButtonText = () => {
+    if (bet?.provider === "POLYMARKET") {
+      return "Go To Polymarket";
+    }
+
     if (!amount || parseFloat(amount) < MIN_TOKENS) return "Enter Amount";
-    if (!quote && bet?.provider === "LIMITLESS") return "Loading Quote...";
+    if (!quote) return "Loading Quote...";
     if (isLoading) {
       if (approvalStep.status === "approving") return "Approving USDC...";
       if (approvalStep.status === "pending") return "Confirming...";
@@ -208,7 +213,6 @@ export const BetSlip: React.FC = () => {
     }
     if (status.state === "complete") return "COMPLETE ✓";
     if (status.state === "error") return "Failed - Try Again";
-    if (bet?.provider === "POLYMARKET") return "Trade on Polymarket →";
     return "Place Order";
   };
 
@@ -246,8 +250,9 @@ export const BetSlip: React.FC = () => {
           {bet.provider === "POLYMARKET" && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-2">
               <p className="text-blue-700 text-sm">
-                Polymarket order execution is not yet available on Okay Bet. Clicking the button will redirect
-                you to Polymarket.com to complete your order.
+                Polymarket order execution is not yet available on Okay Bet.
+                Clicking the button will redirect you to Polymarket.com to
+                complete your order.
               </p>
             </div>
           )}
