@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { LimitlessMarket, PolymarketMarket } from "@/components/types";
 import { fetchMarketsByIds } from "@/app/api/limitless/markets/utils";
+import { fetchPolymarketData } from "@/app/api/markets/utils"; // Update this import
 
 interface GroupedMarketCard {
   id: string;
@@ -40,60 +41,8 @@ interface PolymarketMatch {
   similarity: number;
 }
 
-const fetchPolymarketData = async (
-  conditionIds: string[],
-  baseUrl: string
-): Promise<PolymarketMarket[]> => {
-  try {
-    const body = JSON.stringify({
-      type: "polymarketByIds",
-      conditionIds,
-    });
-
-    const response = await fetch(`${baseUrl}/api/markets`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Content-Length": Buffer.byteLength(body).toString(),
-      },
-      body,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Polymarket API Error:", {
-        status: response.status,
-        statusText: response.statusText,
-        body: errorText,
-        url: `${baseUrl}/api/markets`,
-        conditionIds,
-      });
-      throw new Error(
-        `Failed to fetch Polymarket data: ${response.status} - ${errorText}`
-      );
-    }
-
-    const data = await response.json();
-
-    if (!data.markets) {
-      console.error("Unexpected Polymarket API response:", data);
-      throw new Error("Invalid response format from Polymarket API");
-    }
-
-    return data.markets;
-  } catch (error) {
-    console.error("Error fetching Polymarket data:", error);
-    return [];
-  }
-};
-
 export async function GET(request: Request) {
   try {
-    // Get the base URL from the request for making internal API calls
-    const protocol = request.headers.get("x-forwarded-proto") || "http";
-    const host = request.headers.get("host") || "localhost:3000";
-    const baseUrl = `${protocol}://${host}`;
-
     // First get the grouped market IDs from prisma
     const rawGroupedMarkets = await prisma.groupedMarket.findMany({
       select: {
@@ -114,6 +63,9 @@ export async function GET(request: Request) {
         createdAt: "desc",
       },
     });
+    // const protocol = request.headers.get("x-forwarded-proto") || "http";
+    // const host = request.headers.get("host") || "localhost:3000";
+    // const baseUrl = `${protocol}://${host}`;
 
     // Group by limitlessId
     const groupedByLimitless = rawGroupedMarkets.reduce((acc, market) => {
@@ -146,7 +98,7 @@ export async function GET(request: Request) {
     // Fetch both Limitless and Polymarket data concurrently
     const [limitlessMarkets, polymarketMarkets] = await Promise.all([
       fetchMarketsByIds(limitlessIds),
-      fetchPolymarketData(polymarketIds, baseUrl),
+      fetchPolymarketData(polymarketIds), // No need to pass baseUrl
     ]);
 
     // Create a map of Polymarket markets by ID for easy lookup
