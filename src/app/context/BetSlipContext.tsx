@@ -1,14 +1,28 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
 
-export interface Bet {
+// Base bet interface with common properties
+export interface BaseBet {
   marketId: string;
   eventTitle: string;
   marketQuestion: string;
   position: "YES" | "NO";
   price: number;
-  tokenId: string;
-  provider?: "LIMITLESS";
 }
+
+// Limitless specific bet interface
+export interface LimitlessBet extends BaseBet {
+  provider: "LIMITLESS";
+  tokenId: string;
+}
+
+// Polymarket specific bet interface
+export interface PolymarketBet extends BaseBet {
+  provider: "POLYMARKET";
+  slug: string;
+}
+
+// Union type for all possible bet types
+export type Bet = LimitlessBet | PolymarketBet;
 
 interface BetSlipContextType {
   bet: Bet | null;
@@ -25,24 +39,42 @@ export const BetSlipProvider: React.FC<{ children: React.ReactNode }> = ({
   const [bet, setBet] = useState<Bet | null>(null);
 
   const addBet = useCallback((newBet: Bet) => {
-    if (!newBet.tokenId || !newBet.tokenId.startsWith('0x')) {
-      console.error('Invalid tokenId (FPMM address):', newBet.tokenId);
-      return;
+    // Provider-specific validation
+    if (newBet.provider === "LIMITLESS") {
+      if (!newBet.tokenId || !newBet.tokenId.startsWith("0x")) {
+        console.error("Invalid tokenId (FPMM address):", newBet.tokenId);
+        return;
+      }
+    } else if (newBet.provider === "POLYMARKET") {
+      if (!newBet.slug) {
+        console.error("Invalid Polymarket slug:", newBet.slug);
+        return;
+      }
     }
-    // Validate the price format before setting
+
+    // Common validation
     const validatedBet = {
       ...newBet,
       price: Number(newBet.price),
     };
 
-    // Validate required fields
-    const requiredFields: (keyof Bet)[] = [
+    // Validate price
+    if (
+      isNaN(validatedBet.price) ||
+      validatedBet.price <= 0 ||
+      validatedBet.price > 1
+    ) {
+      console.error("Invalid price value:", validatedBet.price);
+      return;
+    }
+
+    // Validate required base fields
+    const requiredFields: (keyof BaseBet)[] = [
       "marketId",
       "eventTitle",
       "marketQuestion",
       "position",
       "price",
-      "tokenId",
     ];
 
     const missingFields = requiredFields.filter(
@@ -51,16 +83,6 @@ export const BetSlipProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (missingFields.length > 0) {
       console.error("Missing required fields:", missingFields);
-      return;
-    }
-
-    // Validate price is a number and within valid range
-    if (
-      isNaN(validatedBet.price) ||
-      validatedBet.price <= 0 ||
-      validatedBet.price > 1
-    ) {
-      console.error("Invalid price value:", validatedBet.price);
       return;
     }
 

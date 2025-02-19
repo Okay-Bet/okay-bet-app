@@ -10,7 +10,7 @@ import Pitch from "../components/Landing/Pitch";
 import ConnectWallet from "../components/User/ConnectWallet";
 import { BetSlipProvider } from "./context/BetSlipContext";
 import { BetSlip } from "../components/Bet/BetSlip";
-import PredictionMarkets from "../components/Polymarket/PredictionMarkets";
+import PredictionMarkets from "../components/Markets/PredictionMarkets";
 import Testimonials from "../components/Landing/Testimonials";
 import UserPositions from "../components/User/UserPositions";
 

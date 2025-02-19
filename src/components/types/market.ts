@@ -21,9 +21,11 @@ export interface BaseMarket {
   };
   metrics: {
     volume: string;
-    volumeRaw: string;  
+    volumeRaw: string;
     liquidity: string;
-    liquidityRaw: string; 
+    liquidityRaw: string;
+    openInterest: string;
+    openInterestRaw: string;
   };
   prices: {
     yes: { bid?: number; ask?: number };
@@ -36,12 +38,13 @@ export interface BaseMarket {
 }
 
 export interface LimitlessMarket extends BaseMarket {
-  provider: 'LIMITLESS';
+  provider: "LIMITLESS";
   conditionId: string;
 }
 
 export interface PolymarketMarket extends BaseMarket {
-  provider: 'POLYMARKET';
+  provider: "POLYMARKET";
+  slug: string;
   outcomeTokens: {
     yes: string;
     no: string;
@@ -118,5 +121,54 @@ export interface SearchParams {
 export const MARKET_CONSTANTS = {
   MIN_LIQUIDITY: 100,
   MIN_ACTIVE_PRICE: 0.01,
-  MAX_DEAD_PRICE: 0.99
+  MAX_DEAD_PRICE: 0.99,
 } as const;
+
+export interface GroupedMarketIds {
+  id: string; // GroupedMarket id
+  limitlessId: string;
+  polymarketMatches: {
+    id: string; // Polymarket id
+    similarity: number;
+  }[];
+}
+
+export interface GroupedMarketsResponse {
+  success: boolean;
+  data: GroupedMarketIds[];
+  error?: string;
+}
+
+export interface GroupedMarketCard {
+  id: string; // GroupedMarket id
+  limitlessMarket: LimitlessMarket; // Full limitless market data
+  polymarketMatches: {
+    market: PolymarketMarket; // Full polymarket data
+    similarity: number; // Similarity score from matching
+  }[];
+  metrics: {
+    totalVolume: number; // Combined volume across all markets
+    highestLiquidity: number; // Highest liquidity among all markets
+    averageSimilarity: number; // Average similarity score
+    platforms: {
+      limitless: {
+        volume: number;
+        liquidity: number;
+        openInterest: number;
+      };
+      polymarket: {
+        matches: Array<{
+          id: string;
+          volume: number;
+          liquidity: number;
+        }>;
+      };
+    };
+  };
+}
+
+export interface GroupedMarketsCardResponse {
+  success: boolean;
+  data: GroupedMarketCard[];
+  error?: string;
+}

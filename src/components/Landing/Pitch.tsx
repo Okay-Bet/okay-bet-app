@@ -39,23 +39,24 @@ const FeatureCard = ({ Icon, title, description }: FeatureCardProps) => (
 );
 
 const Pitch = () => {
-  const features: FeatureCardProps[] = [
-    {
-      Icon: Hub,
-      title: "Aggregation",
-      description:
-        "Compare prices, rules, and liquidity between similar prediction markets on any chain.",
-    },
+  const liveFeature: FeatureCardProps = {
+    Icon: Hub,
+    title: "Aggregation",
+    description: "Find arbitrage opportunities between prices and rules.",
+  };
+
+  const comingFeatures: FeatureCardProps[] = [
     {
       Icon: PersonAddAlt1,
       title: "Reputation",
-      description: "Connect your socials and build your credibility.",
+      description:
+        "Connect your socials and build your credibility as we expand to more prediction markets.",
     },
     {
       Icon: Casino,
       title: "Leverage",
       description:
-        "Parlay any unrelated markets together for much higher payouts.",
+        "Parlay any uncorrelated markets together for much higher payouts.",
     },
   ];
 
@@ -99,32 +100,36 @@ const Pitch = () => {
               BET BETTER
             </h1>
 
-            <p className="text-2xl text-white/90 mb-12 max-w-3xl mx-auto leading-relaxed">
-              Manage positions on any prediction market and any chain from Okay
-              Bet.
+            <p className="text-2xl text-white/90 mb-12 max-w-3xl mx-auto leading-relaxed font-bold">
+              Okay Bet is the application layer of prediction markets
             </p>
 
-            <div className="mb-16">
-              <p className="text-xl text-white/90">
-                Start placing prediction market positions with Okay Bet on
-                Limitless Markets right now.
-              </p>
-            </div>
-
-            <div className="inline-block mb-5">
-              <div className="bg-white/10 px-8 py-4 rounded-lg border border-white/20">
-                <h2 className="text-3xl md:text-4xl font-heading text-white tracking-tighter italic">
-                  COMING SOON
+            {/* Live Feature Section */}
+            <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-20">
+              <div className="md:w-1/2 text-left">
+                <h2 className="text-4xl font-heading text-white mb-6">
+                  Aggregation is <span className="italic font-bold">Live</span>
                 </h2>
+                <p className="text-xl text-white/90 leading-relaxed">
+                  Compare prices, rules, and liquidity between prediction
+                  markets on Limitless and Polymarket. Open trades directly
+                  through our app.
+                </p>
+              </div>
+              <div className="md:w-1/2">
+                <FeatureCard {...liveFeature} />
               </div>
             </div>
-          </div>
 
-          {/* Features Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {features.map((feature, index) => (
-              <FeatureCard key={index} {...feature} />
-            ))}
+            {/* Coming Soon Section */}
+            <h2 className="text-4xl font-heading text-white mb-8">
+              Coming Soon
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+              {comingFeatures.map((feature, index) => (
+                <FeatureCard key={index} {...feature} />
+              ))}
+            </div>
           </div>
         </div>
       </section>

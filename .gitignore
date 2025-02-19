@@ -40,3 +40,14 @@ next-env.d.ts
 sw.js
 workbox-*.js
 worker-*.js
+
+# Prisma
+/prisma/migrations/
+/prisma/*.db
+/prisma/*.db-journal
+.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
