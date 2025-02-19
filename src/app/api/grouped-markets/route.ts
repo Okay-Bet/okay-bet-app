@@ -45,22 +45,41 @@ const fetchPolymarketData = async (
   baseUrl: string
 ): Promise<PolymarketMarket[]> => {
   try {
+    const body = JSON.stringify({
+      type: "polymarketByIds",
+      conditionIds,
+    });
+
     const response = await fetch(`${baseUrl}/api/markets`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(body).toString(),
       },
-      body: JSON.stringify({
-        type: "polymarketByIds",
-        conditionIds,
-      }),
+      body,
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch Polymarket data: ${response.status}`);
+      const errorText = await response.text();
+      console.error("Polymarket API Error:", {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText,
+        url: `${baseUrl}/api/markets`,
+        conditionIds,
+      });
+      throw new Error(
+        `Failed to fetch Polymarket data: ${response.status} - ${errorText}`
+      );
     }
 
     const data = await response.json();
+
+    if (!data.markets) {
+      console.error("Unexpected Polymarket API response:", data);
+      throw new Error("Invalid response format from Polymarket API");
+    }
+
     return data.markets;
   } catch (error) {
     console.error("Error fetching Polymarket data:", error);
@@ -161,7 +180,9 @@ export async function GET(request: Request) {
             };
           })
           .filter(
-            (match: PolymarketMatch | null): match is PolymarketMatch & { market: PolymarketMarket } =>
+            (
+              match: PolymarketMatch | null
+            ): match is PolymarketMatch & { market: PolymarketMarket } =>
               match !== null
           );
 
@@ -171,15 +192,24 @@ export async function GET(request: Request) {
           limitlessMarket.metrics.openInterestRaw
         );
 
-        const polymarketMetrics = polymarketMatches.map((match: { market: PolymarketMarket; similarity: number; metrics: { volume: number; liquidity: number; } }) => ({
-          id: match.market.id,
-          volume: match.metrics.volume,
-          liquidity: match.metrics.liquidity, // Keep for Polymarket
-        }));
+        const polymarketMetrics = polymarketMatches.map(
+          (match: {
+            market: PolymarketMarket;
+            similarity: number;
+            metrics: { volume: number; liquidity: number };
+          }) => ({
+            id: match.market.id,
+            volume: match.metrics.volume,
+            liquidity: match.metrics.liquidity, // Keep for Polymarket
+          })
+        );
 
         const totalVolume =
           limitlessVolume +
-          polymarketMetrics.reduce((sum: number, m: { volume: number }) => sum + m.volume, 0);
+          polymarketMetrics.reduce(
+            (sum: number, m: { volume: number }) => sum + m.volume,
+            0
+          );
 
         // For highest liquidity, compare Polymarket liquidity with Limitless open interest
         const highestLiquidity = Math.max(
