@@ -62,6 +62,8 @@ const transformMarket = (market: GammaAPIMarket): PolymarketMarket => {
       volumeRaw: volume.toString(),
       liquidity: liquidity.toString(),
       liquidityRaw: liquidity.toString(),
+      openInterest: "0", // Polymarket doesn't provide open interest
+      openInterestRaw: "0", // Polymarket doesn't provide open interest
     },
     prices: {
       yes: {

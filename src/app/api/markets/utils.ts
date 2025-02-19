@@ -6,6 +6,11 @@ export interface GammaAPIMarket {
   conditionId: string;
   question: string;
   description?: string;
+  events: {
+    id: string;
+    slug: string;
+    title: string;
+  }[];
   resolution_source?: string;
   volume: string;
   liquidity: string;
@@ -28,13 +33,14 @@ export const transformMarket = (market: GammaAPIMarket): PolymarketMarket => {
     provider: "POLYMARKET",
     question: market.question,
     description: market.description || "",
+    slug: market.events[0]?.slug || "",
     status: "Open" as MarketStatus,
     expirationDate: market.end_date_iso,
     timestamps: {
-      created: new Date().toISOString(), 
+      created: new Date().toISOString(),
     },
     collateral: {
-      address: "", 
+      address: "",
       symbol: "USDC",
       decimals: 6,
     },
@@ -43,6 +49,8 @@ export const transformMarket = (market: GammaAPIMarket): PolymarketMarket => {
       volumeRaw: market.volume,
       liquidity: market.liquidity,
       liquidityRaw: market.liquidity,
+      openInterest: "", // Polymarket doesn't provide open interest
+      openInterestRaw: "",
     },
     prices: {
       yes: { bid: undefined, ask: undefined },
@@ -59,11 +67,15 @@ export const transformMarket = (market: GammaAPIMarket): PolymarketMarket => {
   };
 };
 
-export async function fetchMarketsByConditionIds(conditionIds: string[]): Promise<PolymarketMarket[]> {
+export async function fetchMarketsByConditionIds(
+  conditionIds: string[]
+): Promise<PolymarketMarket[]> {
   try {
-    const conditionIdsParam = conditionIds.map(id => `condition_ids=${id}`).join('&');
+    const conditionIdsParam = conditionIds
+      .map((id) => `condition_ids=${id}`)
+      .join("&");
     const url = `${GAMMA_API_URL}/markets?${conditionIdsParam}`;
-    
+
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to fetch Polymarket markets: ${response.status}`);
@@ -71,15 +83,17 @@ export async function fetchMarketsByConditionIds(conditionIds: string[]): Promis
 
     const data = await response.json();
     const markets = data.markets || [];
-    
+
     return markets.map(transformMarket);
   } catch (error) {
-    console.error('Error fetching Polymarket markets:', error);
+    console.error("Error fetching Polymarket markets:", error);
     return [];
   }
 }
 
-export async function fetchMarketByConditionId(conditionId: string): Promise<PolymarketMarket | null> {
+export async function fetchMarketByConditionId(
+  conditionId: string
+): Promise<PolymarketMarket | null> {
   try {
     const markets = await fetchMarketsByConditionIds([conditionId]);
     return markets[0] || null;

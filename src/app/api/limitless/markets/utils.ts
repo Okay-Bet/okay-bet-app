@@ -64,7 +64,9 @@ export const transformMarket = (
 ): LimitlessMarket => {
   // Parse the raw values and convert from string
   const volumeRaw = market.volume ? parseFloat(market.volume) : 0;
-  const openInterestRaw = market.openInterest ? parseFloat(market.openInterest) : 0;
+  const openInterestRaw = market.openInterest
+    ? parseFloat(market.openInterest)
+    : 0;
 
   // Format with proper scaling (values are in USDC with 6 decimals)
   const volumeFormatted = (volumeRaw / 1e6).toString();
@@ -88,6 +90,8 @@ export const transformMarket = (
     metrics: {
       volume: volumeFormatted,
       volumeRaw: volumeRaw.toString(),
+      liquidity: openInterestFormatted, 
+      liquidityRaw: openInterestRaw.toString(),
       openInterest: openInterestFormatted,
       openInterestRaw: openInterestRaw.toString(),
     },

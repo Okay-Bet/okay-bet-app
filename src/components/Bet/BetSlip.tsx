@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useBetSlip } from "../../app/context/BetSlipContext";
 import { useOrder } from "../../hooks/order/useOrder";
 import { createPublicClient, http, parseAbi } from "viem";
+import { Bet, LimitlessBet, PolymarketBet } from "../../components/types";
 import { base } from "viem/chains";
 
 // Define types for order requests and validation
@@ -26,6 +27,10 @@ const FPMM_ABI = parseAbi([
   "function calcBuyAmount(uint256 investmentAmount, uint256 outcomeIndex) view returns (uint256)",
   "function calcSellAmount(uint256 returnAmount, uint256 outcomeIndex) view returns (uint256)",
 ]);
+
+const isLimitlessBet = (bet: Bet): bet is LimitlessBet => {
+  return bet.provider === "LIMITLESS";
+};
 
 // Initialize the public client for blockchain interactions
 const publicClient = createPublicClient({
@@ -75,31 +80,37 @@ export const BetSlip: React.FC = () => {
   // Effect for quote calculation
   useEffect(() => {
     const getQuote = async () => {
-      if (!bet || !amount || isNaN(parseFloat(amount))) {
+      // Early return if no bet, no amount, or if it's a Polymarket bet
+      if (
+        !bet ||
+        !amount ||
+        isNaN(parseFloat(amount)) ||
+        bet.provider === "POLYMARKET"
+      ) {
         setQuote(null);
         return;
       }
 
+      // Now we know it's a Limitless bet
+      const limitlessBet = bet as LimitlessBet;
+
       setIsQuoting(true);
       try {
-        // Convert USDC amount to proper decimals (6 decimals for USDC)
         const investmentAmount = BigInt(
           Math.floor(parseFloat(amount) * 1_000_000)
         );
-        const outcomeIndex = bet.position === "YES" ? 0n : 1n;
+        const outcomeIndex = limitlessBet.position === "YES" ? 0n : 1n;
 
-        // Calculate token amount for the investment
         const tokenAmount = await publicClient.readContract({
-          address: bet.tokenId as `0x${string}`,
+          address: limitlessBet.tokenId as `0x${string}`,
           abi: FPMM_ABI,
           functionName: "calcBuyAmount",
           args: [investmentAmount, outcomeIndex],
         });
 
-        // Get base amount for price impact calculation
         const baseAmount = BigInt(1_000_000); // 1 USDC
         const baseTokens = await publicClient.readContract({
-          address: bet.tokenId as `0x${string}`,
+          address: limitlessBet.tokenId as `0x${string}`,
           abi: FPMM_ABI,
           functionName: "calcBuyAmount",
           args: [baseAmount, outcomeIndex],
@@ -125,7 +136,6 @@ export const BetSlip: React.FC = () => {
       }
     };
 
-    // Debounce quote requests to prevent spam
     const timeoutId = setTimeout(getQuote, 500);
     return () => clearTimeout(timeoutId);
   }, [amount, bet]);
@@ -142,15 +152,15 @@ export const BetSlip: React.FC = () => {
     if (!bet) return;
 
     if (bet.provider === "POLYMARKET") {
-      // Construct the proper Polymarket URL with the market slug
       const polymarketUrl = `https://polymarket.com/event/${bet.slug}`;
       window.open(polymarketUrl, "_blank");
-      // Clear the bet slip after opening Polymarket
       clearBets();
       return;
     }
 
-    // Existing Limitless order logic
+    // At this point, we know it's a Limitless bet
+    const limitlessBet = bet as LimitlessBet;
+
     if (!quote) {
       console.error("Missing quote data");
       return;
@@ -159,11 +169,11 @@ export const BetSlip: React.FC = () => {
     try {
       const amountInUSDC = parseFloat(amount) * 1_000_000;
       const orderRequest: OrderRequest = {
-        tokenId: bet.tokenId,
-        price: bet.price,
+        tokenId: limitlessBet.tokenId,
+        price: limitlessBet.price,
         amount: amountInUSDC,
         side: "BUY",
-        isYesToken: bet.position === "YES",
+        isYesToken: limitlessBet.position === "YES",
         estimatedTokens: quote.tokenAmount,
         priceImpact: quote.priceImpact,
       };

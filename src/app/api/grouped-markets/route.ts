@@ -161,7 +161,7 @@ export async function GET(request: Request) {
             };
           })
           .filter(
-            (match): match is typeof match & { market: PolymarketMarket } =>
+            (match: PolymarketMatch | null): match is PolymarketMatch & { market: PolymarketMarket } =>
               match !== null
           );
 
@@ -171,7 +171,7 @@ export async function GET(request: Request) {
           limitlessMarket.metrics.openInterestRaw
         );
 
-        const polymarketMetrics = polymarketMatches.map((match) => ({
+        const polymarketMetrics = polymarketMatches.map((match: { market: PolymarketMarket; similarity: number; metrics: { volume: number; liquidity: number; } }) => ({
           id: match.market.id,
           volume: match.metrics.volume,
           liquidity: match.metrics.liquidity, // Keep for Polymarket
@@ -179,12 +179,12 @@ export async function GET(request: Request) {
 
         const totalVolume =
           limitlessVolume +
-          polymarketMetrics.reduce((sum, m) => sum + m.volume, 0);
+          polymarketMetrics.reduce((sum: number, m: { volume: number }) => sum + m.volume, 0);
 
         // For highest liquidity, compare Polymarket liquidity with Limitless open interest
         const highestLiquidity = Math.max(
           limitlessOpenInterest,
-          ...polymarketMetrics.map((m) => m.liquidity)
+          ...polymarketMetrics.map((m: { liquidity: number }) => m.liquidity)
         );
 
         const card: GroupedMarketCard = {

@@ -24,6 +24,8 @@ export interface BaseMarket {
     volumeRaw: string;
     liquidity: string;
     liquidityRaw: string;
+    openInterest: string;
+    openInterestRaw: string;
   };
   prices: {
     yes: { bid?: number; ask?: number };

@@ -5,6 +5,7 @@ import type {
   GroupedMarketCard as GroupedMarketCardType,
   LimitlessMarket,
   PolymarketMarket,
+  PolymarketBet,
 } from "@/components/types";
 import { formatPrice } from "@/utils/marketUtils";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
@@ -31,6 +32,9 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
   const { limitlessMarket, polymarketMatches, metrics } = groupedMarket;
   const [showDetails, setShowDetails] = useState(false);
   const [showMoneyline, setShowMoneyline] = useState(false);
+  const [expandedPolymarkets, setExpandedPolymarkets] = useState<Set<string>>(
+    new Set()
+  );
   const { addBet } = useBetSlip();
 
   // Get real-time Limitless prices
@@ -76,6 +80,18 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
       slug: market.slug,
     };
     addBet(bet);
+  };
+
+  const togglePolymarketExpanded = (marketId: string) => {
+    setExpandedPolymarkets((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(marketId)) {
+        newSet.delete(marketId);
+      } else {
+        newSet.add(marketId);
+      }
+      return newSet;
+    });
   };
 
   // Get the latest prices with proper fallback handling
@@ -257,11 +273,11 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
 
           {/* Polymarket Matches */}
           {polymarketMatches.map(({ market }) => {
-            const [isExpanded, setIsExpanded] = useState(false);
-            // Find the matching metrics for this market
             const marketMetrics = metrics.platforms.polymarket.matches.find(
               (m) => m.id === market.id
             );
+            const isExpanded = expandedPolymarkets.has(market.id);
+
             return (
               <div
                 key={market.id}
@@ -269,7 +285,7 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
               >
                 <div className="grid grid-cols-12 gap-2">
                   <button
-                    onClick={() => setIsExpanded(!isExpanded)}
+                    onClick={() => togglePolymarketExpanded(market.id)}
                     className="col-span-6 py-2 px-3 text-left hover:bg-gray-50 transition-all duration-300"
                   >
                     <div className="flex items-center gap-1 sm:gap-3">
