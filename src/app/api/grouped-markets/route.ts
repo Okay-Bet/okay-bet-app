@@ -63,9 +63,6 @@ export async function GET(request: Request) {
         createdAt: "desc",
       },
     });
-    // const protocol = request.headers.get("x-forwarded-proto") || "http";
-    // const host = request.headers.get("host") || "localhost:3000";
-    // const baseUrl = `${protocol}://${host}`;
 
     // Group by limitlessId
     const groupedByLimitless = rawGroupedMarkets.reduce((acc, market) => {

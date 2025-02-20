@@ -212,20 +212,20 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
             <div className="grid grid-cols-12 gap-2">
               <button
                 onClick={() => setShowDetails(!showDetails)}
-                className="col-span-6 py-2 px-3 text-left hover:bg-gray-50 transition-all duration-300"
+                className="col-span-6 py-2 px-2 text-left hover:bg-gray-50 transition-all duration-300" // reduced px from 3 to 2
               >
-                <div className="flex items-center gap-1 sm:gap-3">
-                  <div className="relative w-16 sm:w-24 h-7 flex-shrink-0">
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <div className="relative w-12 sm:w-16 h-6 flex-shrink-0">
                     <Image
                       src="/icons/limitless-logo.png"
                       alt="Limitless Logo"
                       className="object-contain"
                       fill
-                      sizes="(max-width: 640px) 64px, 96px"
+                      sizes="(max-width: 640px) 48px, 64px" // adjusted sizes to match new dimensions
                       priority
                     />
                   </div>
-                  <span className="text-gray-800 line-clamp-2 text-sm sm:text-base">
+                  <span className="text-gray-800 line-clamp-2 text-sm sm:text-base flex-grow">
                     {limitlessMarket.question}
                   </span>
                 </div>
@@ -286,20 +286,20 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                 <div className="grid grid-cols-12 gap-2">
                   <button
                     onClick={() => togglePolymarketExpanded(market.id)}
-                    className="col-span-6 py-2 px-3 text-left hover:bg-gray-50 transition-all duration-300"
+                    className="col-span-6 py-2 px-2 text-left hover:bg-gray-50 transition-all duration-300" // reduced px from 3 to 2
                   >
-                    <div className="flex items-center gap-1 sm:gap-3">
-                      <div className="relative w-16 sm:w-24 h-7 flex-shrink-0">
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <div className="relative w-12 sm:w-16 h-6 flex-shrink-0">
                         <Image
                           src="/icons/polymarket-logo.jpg"
                           alt="Polymarket Logo"
                           className="object-contain"
                           fill
-                          sizes="(max-width: 640px) 64px, 96px"
+                          sizes="(max-width: 640px) 48px, 64px" // adjusted sizes to match new dimensions
                           priority
                         />
                       </div>
-                      <span className="text-gray-800 line-clamp-2 text-sm sm:text-base">
+                      <span className="text-gray-800 line-clamp-2 text-sm sm:text-base flex-grow">
                         {market.question}
                       </span>
                     </div>

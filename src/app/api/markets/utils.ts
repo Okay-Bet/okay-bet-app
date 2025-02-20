@@ -14,7 +14,8 @@ export interface GammaAPIMarket {
   resolution_source?: string;
   volume: string;
   liquidity: string;
-  end_date_iso: string;
+  endDate: string;           
+  endDateIso: string;
   clobTokenIds: string; // This is now a JSON string
   outcomePrices: string; // This is now a JSON string
   tokens: {
@@ -34,6 +35,8 @@ export const transformMarket = (market: GammaAPIMarket): PolymarketMarket => {
     // Parse the JSON strings
     const tokenIds = JSON.parse(market.clobTokenIds || '[]');
     const prices = JSON.parse(market.outcomePrices || '["0", "0"]');
+    const expirationDate = market.endDate || market.endDateIso;
+
 
     return {
       id: market.conditionId,
@@ -42,7 +45,7 @@ export const transformMarket = (market: GammaAPIMarket): PolymarketMarket => {
       description: market.description || "",
       slug: market.events[0]?.slug || "",
       status: "Open" as MarketStatus,
-      expirationDate: market.end_date_iso, 
+      expirationDate: expirationDate, 
       timestamps: {
         created: new Date().toISOString(),
       },
