@@ -3,20 +3,18 @@
 
 "use client";
 import React from "react";
-import { useActiveAccount } from "thirdweb/react";
 import Image from "next/image";
 import logo from "../../public/okay_bet.png";
 import Pitch from "../components/Landing/Pitch";
-import ConnectWallet from "../components/User/ConnectWallet";
-import { BetSlipProvider } from "./context/BetSlipContext";
-import { BetSlip } from "../components/Bet/BetSlip";
+import ConnectButton from "../components/User/ConnectButton";
+// import { BetSlipProvider } from "./context/BetSlipContext";
+// import { BetSlip } from "../components/Bet/BetSlip";
 import PredictionMarkets from "../components/Markets/PredictionMarkets";
 import Testimonials from "../components/Landing/Testimonials";
-import UserPositions from "../components/User/UserPositions";
+// import UserPositions from "../components/User/UserPositions";
 
 
 export default function Home() {
-  const account = useActiveAccount();
 
   return (
     <main className=" width-full flex-col items-center justify-center">
@@ -32,21 +30,18 @@ export default function Home() {
             priority
           />
         </div>
-        <ConnectWallet />
-        {account ? (
+        <ConnectButton />
           <div className="w-full">
         <main className="mt-8 mb-4">
-          <BetSlipProvider>
-            <UserPositions />
-            <PredictionMarkets/>
-            <BetSlip />
-          </BetSlipProvider>
+          {/* <BetSlipProvider> */}
+            {/* <UserPositions /> */}
+            {/* <PredictionMarkets/> */}
+            {/* <BetSlip /> */}
+          {/* </BetSlipProvider> */}
         </main>
         <Testimonials />
         </div>
-        ) : (
-          <Pitch />
-        )}
+          {/* <Pitch /> */}
       </div>
     </main>
   );

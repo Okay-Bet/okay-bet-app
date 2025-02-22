@@ -4,10 +4,10 @@
 
 import type { Metadata } from "next";
 import "../styles/globals.css";
-import { ThirdwebProvider } from "thirdweb/react";
 import { Analytics } from "@vercel/analytics/react";
 import dynamic from "next/dynamic";
 import ServiceWorkerRegistration from "../components/ServiceWorkerRegistration";
+import  StarknetProvider  from "../components/starknet-provider";
 
 const PushNotificationSubscriber = dynamic(
   () => import("../components/Notifications/PushNotificationSubscriber"),
@@ -84,11 +84,11 @@ export default function RootLayout({
 
         {/* Content wrapper */}
         <div className="relative z-10">
-          <ThirdwebProvider>
+          <StarknetProvider>
             <ServiceWorkerRegistration />
             {children}
             <Analytics />
-          </ThirdwebProvider>
+          </StarknetProvider>
         </div>
       </body>
     </html>
