@@ -7,8 +7,8 @@ import Image from "next/image";
 import logo from "../../public/okay_bet.png";
 import Pitch from "../components/Landing/Pitch";
 import ConnectButton from "../components/User/ConnectButton";
-// import { BetSlipProvider } from "./context/BetSlipContext";
-// import { BetSlip } from "../components/Bet/BetSlip";
+import { BetSlipProvider } from "./context/BetSlipContext";
+import { BetSlip } from "../components/Bet/BetSlip";
 import PredictionMarkets from "../components/Markets/PredictionMarkets";
 import Testimonials from "../components/Landing/Testimonials";
 // import UserPositions from "../components/User/UserPositions";
@@ -33,11 +33,11 @@ export default function Home() {
         <ConnectButton />
           <div className="w-full">
         <main className="mt-8 mb-4">
-          {/* <BetSlipProvider> */}
+          <BetSlipProvider>
             {/* <UserPositions /> */}
-            {/* <PredictionMarkets/> */}
-            {/* <BetSlip /> */}
-          {/* </BetSlipProvider> */}
+            <PredictionMarkets/>
+            <BetSlip />
+          </BetSlipProvider>
         </main>
         <Testimonials />
         </div>

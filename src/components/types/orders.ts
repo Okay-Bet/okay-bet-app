@@ -67,7 +67,7 @@ export interface OrderHook {
 
 export interface BridgeStep {
   step: "approval" | "bridging";
-  status: "approving" | "pending" | "success" | "failed";
+  status: "approving" | "pending" | "success" | "failed" | "idle";
   txHash?: string;
   error?: string;
 }

@@ -1,23 +1,28 @@
 // useOrder.ts
 import { useState } from "react";
-import { useActiveAccount } from "thirdweb/react";
+import { useAccount } from "@starknet-react/core";
 import { OrderStatus, OrderRequest, BridgeStep } from "../../components/types";
-import { useLimitlessNativeOrder } from "./limitless/useLimitlessNativeOrder";
+// import { useLimitlessNativeOrder } from "./limitless/useLimitlessNativeOrder";
 
-type Provider = "LIMITLESS" | "POLYMARKET";
+type Provider = "LIMITLESS" | "POLYMARKET" | "STARKNET";
 
 export const useOrder = () => {
   const [status, setStatus] = useState<OrderStatus>({ state: "idle" });
-  const account = useActiveAccount();
+  const account = useAccount();
 
-  // Get both order handlers and approval status
-  const {
-    submitOrder: submitNativeOrder,
-    approvalStep,
-  } = useLimitlessNativeOrder();
+  const approvalStep: BridgeStep = {
+    type: "approval",
+    status: "idle",
+  };
 
-  // Default to native limitless implementation
-  const provider: Provider = "LIMITLESS";
+  // Will be replaced with Starknet order handling
+  // const {
+  //   submitOrder: submitNativeOrder,
+  //   approvalStep,
+  // } = useLimitlessNativeOrder();
+
+  // Default to Starknet implementation
+  const provider: Provider = "STARKNET";
 
   const submitOrder = async (orderRequest: OrderRequest) => {
     console.log("useOrder: Starting order submission");
@@ -29,11 +34,11 @@ export const useOrder = () => {
 
     try {
       switch (provider) {
-        case "LIMITLESS":
+        case "STARKNET":
           setStatus({ state: "preparing_transfer" });
-          const nativeResult = await submitNativeOrder(orderRequest);
-          setStatus({ state: "complete", result: nativeResult });
-          return nativeResult;
+          // TODO: Implement Starknet order submission
+          throw new Error("Starknet order submission not yet implemented");
+
 
         // case "POLYMARKET":
         //   throw new Error("Polymarket integration not implemented");
