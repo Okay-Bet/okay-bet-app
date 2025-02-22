@@ -21,7 +21,7 @@ export default function ConnectButton() {
           ))}
         </div>
       ) : (
-        <div className="text-font">
+        <div className="text-black">
           Connected: {address.slice(0, 6)}...{address.slice(-4)}
         </div>
       )}

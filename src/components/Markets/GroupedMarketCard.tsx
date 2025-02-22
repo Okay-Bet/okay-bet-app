@@ -64,6 +64,7 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
       price: priceToUse,
       tokenId: limitlessMarket.id,
       provider: "LIMITLESS" as const,
+      groupId: groupedMarket.limitlessMarket.id, // Use the limitless market ID as the group ID
     };
 
     addBet(bet);
@@ -78,6 +79,7 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
       price: position === "YES" ? market.prices.yes.ask : market.prices.no.ask,
       provider: "POLYMARKET",
       slug: market.slug,
+      groupId: groupedMarket.limitlessMarket.id, // Use the same group ID for correlated markets
     };
     addBet(bet);
   };

@@ -43,7 +43,14 @@ const MIN_TOKENS = 1.0;
 
 export const BetSlip: React.FC = () => {
   // Hook integrations
-  const { bet, removeBet, clearBets } = useBetSlip();
+  const {
+    bets,
+    removeBet,
+    clearBets,
+    isParlay,
+    parleyOdds,
+    getEstimatedPayout,
+  } = useBetSlip();
   const { submitOrder, status, approvalStep, isLoading } = useOrder();
 
   // Local state management
@@ -51,6 +58,9 @@ export const BetSlip: React.FC = () => {
   const [quote, setQuote] = useState<OrderQuote | null>(null);
   const [isQuoting, setIsQuoting] = useState(false);
   const [transactionStatus, setTransactionStatus] = useState<string>("");
+
+  // Calculate parlay information
+  const estimatedPayout = getEstimatedPayout(amount);
 
   // Effect to handle transaction status messages
   useEffect(() => {
@@ -80,19 +90,18 @@ export const BetSlip: React.FC = () => {
   // Effect for quote calculation
   useEffect(() => {
     const getQuote = async () => {
-      // Early return if no bet, no amount, or if it's a Polymarket bet
+      // Only get quote for single Limitless bets
       if (
-        !bet ||
+        bets.length !== 1 ||
         !amount ||
         isNaN(parseFloat(amount)) ||
-        bet.provider === "POLYMARKET"
+        bets[0].provider !== "LIMITLESS"
       ) {
         setQuote(null);
         return;
       }
 
-      // Now we know it's a Limitless bet
-      const limitlessBet = bet as LimitlessBet;
+      const limitlessBet = bets[0] as LimitlessBet;
 
       setIsQuoting(true);
       try {
@@ -138,7 +147,7 @@ export const BetSlip: React.FC = () => {
 
     const timeoutId = setTimeout(getQuote, 500);
     return () => clearTimeout(timeoutId);
-  }, [amount, bet]);
+  }, [amount, bets]);
 
   // Event handlers
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -149,47 +158,49 @@ export const BetSlip: React.FC = () => {
   };
 
   const handlePlaceOrder = async () => {
-    if (!bet) return;
+    if (bets.length === 0) return;
 
-    if (bet.provider === "POLYMARKET") {
-      const polymarketUrl = `https://polymarket.com/event/${bet.slug}`;
-      window.open(polymarketUrl, "_blank");
-      clearBets();
-      return;
+    // Handle Polymarket redirects
+    if (bets.some((bet) => bet.provider === "POLYMARKET")) {
+      const polymarketBet = bets.find((bet) => bet.provider === "POLYMARKET");
+      if (polymarketBet) {
+        const polymarketUrl = `https://polymarket.com/event/${polymarketBet.slug}`;
+        window.open(polymarketUrl, "_blank");
+        clearBets();
+        return;
+      }
     }
 
-    // At this point, we know it's a Limitless bet
-    const limitlessBet = bet as LimitlessBet;
+    // Handle single Limitless bet
+    if (bets.length === 1 && bets[0].provider === "LIMITLESS") {
+      const limitlessBet = bets[0] as LimitlessBet;
+      try {
+        const amountInUSDC = parseFloat(amount) * 1_000_000;
+        const orderRequest: OrderRequest = {
+          tokenId: limitlessBet.tokenId,
+          price: limitlessBet.price,
+          amount: amountInUSDC,
+          side: "BUY",
+          isYesToken: limitlessBet.position === "YES",
+          estimatedTokens: quote?.tokenAmount,
+          priceImpact: quote?.priceImpact,
+        };
 
-    if (!quote) {
-      console.error("Missing quote data");
-      return;
+        await submitOrder(orderRequest);
+      } catch (err) {
+        console.error("Order placement error:", err);
+        setTransactionStatus("Failed to place order. Please try again.");
+      }
     }
 
-    try {
-      const amountInUSDC = parseFloat(amount) * 1_000_000;
-      const orderRequest: OrderRequest = {
-        tokenId: limitlessBet.tokenId,
-        price: limitlessBet.price,
-        amount: amountInUSDC,
-        side: "BUY",
-        isYesToken: limitlessBet.position === "YES",
-        estimatedTokens: quote.tokenAmount,
-        priceImpact: quote.priceImpact,
-      };
-
-      await submitOrder(orderRequest);
-    } catch (err) {
-      console.error("Order placement error:", err);
-      setTransactionStatus("Failed to place order. Please try again.");
-    }
+    // TODO: Handle parlay order submission
   };
 
   const getButtonClasses = () => {
     const baseClasses =
       "text-white font-medium rounded-lg transition-all duration-300";
 
-    if (bet?.provider === "POLYMARKET") {
+    if (bets?.provider === "POLYMARKET") {
       return `${baseClasses} px-6 py-3 w-full bg-accent-red-500 hover:bg-accent-red-600 transform hover:scale-105 shadow-lg`;
     }
 
@@ -209,7 +220,7 @@ export const BetSlip: React.FC = () => {
   };
 
   const getButtonText = () => {
-    if (bet?.provider === "POLYMARKET") {
+    if (bets?.provider === "POLYMARKET") {
       return "Go To Polymarket";
     }
 
@@ -226,16 +237,23 @@ export const BetSlip: React.FC = () => {
     return "Place Order";
   };
 
-  if (!bet) return null;
+  if (bets.length === 0) return null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-accent-red-500 shadow-xl z-50">
       <div className="container mx-auto max-w-4xl">
         <div className="p-4 space-y-4">
-          {/* Header */}
+          {/* Header Section */}
           <div className="flex justify-between items-center">
             <div className="flex items-baseline gap-2">
-              <h3 className="text-xl font-bold text-black">Bet Slip</h3>
+              <h3 className="text-xl font-bold text-black">
+                {isParlay ? "Parlay Slip" : "Bet Slip"}
+              </h3>
+              {isParlay && (
+                <span className="text-sm text-accent-gray-500">
+                  {bets.length} selections
+                </span>
+              )}
               <span className="text-accent-gray-500 text-sm">
                 {isLoading &&
                   (approvalStep.status === "approving"
@@ -252,124 +270,157 @@ export const BetSlip: React.FC = () => {
               className="text-sm text-accent-red-500 hover:text-accent-red-600"
               disabled={isLoading}
             >
-              Clear
+              Clear All
             </button>
           </div>
 
-          {/* Polymarket Warning Message */}
-          {bet.provider === "POLYMARKET" && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-2">
+          {/* Mixed Provider Warning */}
+          {bets.some((bet) => bet.provider === "POLYMARKET") && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-blue-700 text-sm">
-                Polymarket order execution is not yet available on Okay Bet.
-                Clicking the button will redirect you to Polymarket.com to
-                complete your order.
+                Polymarket bets cannot be placed directly through Okay Bet. You
+                will be redirected to Polymarket.com to complete these
+                selections.
               </p>
             </div>
           )}
 
-          {/* Bet Details */}
-          <div className="bg-white border border-accent-gray-200 rounded-lg p-4">
-            <div className="flex justify-between items-start">
-              <div className="space-y-2">
-                <p className="font-medium text-black">{bet.eventTitle}</p>
-                <p className="text-sm text-accent-gray-600">
-                  {bet.marketQuestion}
-                </p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span
-                    className={`px-2 py-0.5 rounded text-sm font-medium
-                    ${
-                      bet.position === "YES"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-700"
-                    }`}
+          {/* Bets List */}
+          <div className="space-y-2 max-h-[40vh] overflow-y-auto">
+            {bets.map((bet) => (
+              <div
+                key={bet.marketId}
+                className="bg-white border border-accent-gray-200 rounded-lg p-4"
+              >
+                <div className="flex justify-between items-start">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs px-2 py-1 rounded bg-accent-gray-100 text-accent-gray-600">
+                        {bet.provider}
+                      </span>
+                    </div>
+                    <p className="font-medium text-black">{bet.eventTitle}</p>
+                    <p className="text-sm text-accent-gray-600">
+                      {bet.marketQuestion}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span
+                        className={`px-2 py-0.5 rounded text-sm font-medium
+                          ${
+                            bet.position === "YES"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-red-100 text-red-700"
+                          }`}
+                      >
+                        {bet.position}
+                      </span>
+                      <span className="font-medium text-black">
+                        @ ${bet.price.toFixed(3)}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => removeBet(bet.marketId)}
+                    className="text-accent-gray-400 hover:text-accent-gray-600"
+                    disabled={isLoading}
                   >
-                    {bet.position}
-                  </span>
-                  <span className="font-medium text-black">
-                    @ ${bet.price.toFixed(3)}
-                  </span>
+                    ×
+                  </button>
                 </div>
               </div>
-              <button
-                onClick={() => removeBet(bet.marketId)}
-                className="text-accent-gray-400 hover:text-accent-gray-600"
-                disabled={isLoading}
-              >
-                ×
-              </button>
-            </div>
+            ))}
           </div>
 
-          {/* Quote Section */}
-          {bet?.provider === "LIMITLESS" && quote && !isQuoting && (
+          {/* Parlay Information */}
+          {isParlay && (
             <div className="bg-white border border-accent-gray-200 rounded-lg p-4">
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-accent-gray-600 flex items-center gap-1">
-                    Potential Payout
-                  </span>
+                  <span className="text-accent-gray-600">Combined Odds</span>
                   <span className="font-medium text-black">
-                    {quote.tokenAmount.toFixed(2)} USDC
+                    {parleyOdds.toFixed(3)}x
                   </span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-accent-gray-600">Price Impact</span>
-                  <span
-                    className={`font-medium ${
-                      quote.priceImpact > 0.05 ? "text-red-600" : "text-black"
-                    }`}
-                  >
-                    {(quote.priceImpact * 100).toFixed(2)}%
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-accent-gray-600">You Pay</span>
-                  <span className="font-medium text-black">
-                    {quote.estimatedTotal.toFixed(2)} USDC
-                  </span>
+                {amount && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-accent-gray-600">
+                      Potential Payout
+                    </span>
+                    <span className="font-medium text-black">
+                      {estimatedPayout.toFixed(2)} USDC
+                    </span>
+                  </div>
+                )}
+                <div className="text-xs text-accent-gray-500 mt-2">
+                  Parlay odds include a 20% discount from true odds
                 </div>
               </div>
             </div>
           )}
 
-          {/* Input and Action Section */}
-          <div
-            className={`flex items-center gap-4 ${
-              bet?.provider === "POLYMARKET" ? "block" : ""
-            }`}
-          >
-            {/* Only show amount input for Limitless */}
-            {bet?.provider === "LIMITLESS" && (
-              <div className="flex-1">
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={amount}
-                    onChange={handleAmountChange}
-                    placeholder="0.00"
-                    className="w-full px-4 py-3 border border-accent-gray-300 rounded-lg pr-16 
-                           text-black placeholder-accent-gray-400
-                           focus:border-accent-red-500 focus:ring-1 focus:ring-accent-red-500"
-                    disabled={isLoading || status.state === "complete"}
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-accent-gray-500">
-                    USDC
-                  </span>
+          {/* Single Bet Quote Section */}
+          {!isParlay &&
+            bets[0]?.provider === "LIMITLESS" &&
+            quote &&
+            !isQuoting && (
+              <div className="bg-white border border-accent-gray-200 rounded-lg p-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-accent-gray-600">
+                      Potential Payout
+                    </span>
+                    <span className="font-medium text-black">
+                      {quote.tokenAmount.toFixed(2)} USDC
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-accent-gray-600">Price Impact</span>
+                    <span
+                      className={`font-medium ${
+                        quote.priceImpact > 0.05 ? "text-red-600" : "text-black"
+                      }`}
+                    >
+                      {(quote.priceImpact * 100).toFixed(2)}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-accent-gray-600">You Pay</span>
+                    <span className="font-medium text-black">
+                      {quote.estimatedTotal.toFixed(2)} USDC
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
 
+          {/* Input and Action Section */}
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={amount}
+                  onChange={handleAmountChange}
+                  placeholder="0.00"
+                  className="w-full px-4 py-3 border border-accent-gray-300 rounded-lg pr-16 
+                           text-black placeholder-accent-gray-400
+                           focus:border-accent-red-500 focus:ring-1 focus:ring-accent-red-500"
+                  disabled={isLoading || status.state === "complete"}
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-accent-gray-500">
+                  USDC
+                </span>
+              </div>
+            </div>
+
             <button
               className={getButtonClasses()}
               disabled={
-                bet?.provider === "LIMITLESS"
-                  ? !amount ||
-                    parseFloat(amount) < MIN_TOKENS ||
-                    isLoading ||
-                    !quote ||
-                    status.state === "complete"
-                  : false
+                !amount ||
+                parseFloat(amount) < MIN_TOKENS ||
+                isLoading ||
+                (!isParlay && !quote && bets[0]?.provider === "LIMITLESS") ||
+                status.state === "complete"
               }
               onClick={handlePlaceOrder}
             >
@@ -377,11 +428,14 @@ export const BetSlip: React.FC = () => {
             </button>
           </div>
 
-          {/* Error Message */}
+          {/* Status Messages */}
           {status.state === "error" && (
             <p className="text-sm text-red-600 mt-2">
               {status.error || "Transaction failed. Please try again."}
             </p>
+          )}
+          {transactionStatus && (
+            <p className="text-sm text-center mt-2">{transactionStatus}</p>
           )}
         </div>
       </div>

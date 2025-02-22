@@ -7,6 +7,7 @@ export interface BaseBet {
   marketQuestion: string;
   position: "YES" | "NO";
   price: number;
+  groupId: string;
 }
 
 // Limitless specific bet interface
@@ -25,10 +26,13 @@ export interface PolymarketBet extends BaseBet {
 export type Bet = LimitlessBet | PolymarketBet;
 
 interface BetSlipContextType {
-  bet: Bet | null;
+  bets: Bet[];
   addBet: (bet: Bet) => void;
   removeBet: (marketId: string) => void;
   clearBets: () => void;
+  isParlay: boolean;
+  parleyOdds: number;
+  getEstimatedPayout: (amount: string) => number;
 }
 
 const BetSlipContext = createContext<BetSlipContextType | undefined>(undefined);
@@ -36,75 +40,96 @@ const BetSlipContext = createContext<BetSlipContextType | undefined>(undefined);
 export const BetSlipProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [bet, setBet] = useState<Bet | null>(null);
+  const [bets, setBets] = useState<Bet[]>([]);
+
+  // Calculate parlay odds with 20% discount
+  const calculateParleyOdds = useCallback(() => {
+    if (bets.length === 0) return 0;
+    if (bets.length === 1) return bets[0].price;
+
+    // Multiply all probabilities together
+    const combinedProbability = bets.reduce((acc, bet) => acc * bet.price, 1);
+    const rawOdds = 1 / combinedProbability;
+    return rawOdds * 0.8; // 20% discount
+  }, [bets]);
+
+  // Calculate estimated payout based on amount
+  const getEstimatedPayout = useCallback(
+    (amount: string) => {
+      if (!amount || isNaN(parseFloat(amount))) return 0;
+      return parseFloat(amount) * calculateParleyOdds();
+    },
+    [calculateParleyOdds]
+  );
+
+  // Determine if it's a parlay
+  const isParlay = bets.length > 1;
+
+  // Calculate odds whenever bets change
+  const parleyOdds = calculateParleyOdds();
 
   const addBet = useCallback((newBet: Bet) => {
-    // Provider-specific validation
-    if (newBet.provider === "LIMITLESS") {
-      if (!newBet.tokenId || !newBet.tokenId.startsWith("0x")) {
-        console.error("Invalid tokenId (FPMM address):", newBet.tokenId);
-        return;
+    setBets((currentBets) => {
+      // Check for duplicate groupId
+      const hasCorrelatedMarket = currentBets.some(
+        (existingBet) => existingBet.groupId === newBet.groupId
+      );
+
+      if (hasCorrelatedMarket) {
+        console.error("Cannot add correlated markets to parlay");
+        return currentBets;
       }
-    } else if (newBet.provider === "POLYMARKET") {
-      if (!newBet.slug) {
-        console.error("Invalid Polymarket slug:", newBet.slug);
-        return;
+
+      // Validate other bet properties
+      if (newBet.provider === "LIMITLESS") {
+        if (!newBet.tokenId || !newBet.tokenId.startsWith("0x")) {
+          console.error("Invalid tokenId:", newBet.tokenId);
+          return currentBets;
+        }
+      } else if (newBet.provider === "POLYMARKET") {
+        if (!newBet.slug) {
+          console.error("Invalid Polymarket slug:", newBet.slug);
+          return currentBets;
+        }
       }
-    }
 
-    // Common validation
-    const validatedBet = {
-      ...newBet,
-      price: Number(newBet.price),
-    };
+      // Validate price
+      if (isNaN(newBet.price) || newBet.price <= 0 || newBet.price > 1) {
+        console.error("Invalid price value:", newBet.price);
+        return currentBets;
+      }
 
-    // Validate price
-    if (
-      isNaN(validatedBet.price) ||
-      validatedBet.price <= 0 ||
-      validatedBet.price > 1
-    ) {
-      console.error("Invalid price value:", validatedBet.price);
-      return;
-    }
+      // Cap the maximum number of bets in a parlay
+      if (currentBets.length >= 5) {
+        console.error("Maximum parlay size reached (5 bets)");
+        return currentBets;
+      }
 
-    // Validate required base fields
-    const requiredFields: (keyof BaseBet)[] = [
-      "marketId",
-      "eventTitle",
-      "marketQuestion",
-      "position",
-      "price",
-    ];
-
-    const missingFields = requiredFields.filter(
-      (field) => !validatedBet[field]
-    );
-
-    if (missingFields.length > 0) {
-      console.error("Missing required fields:", missingFields);
-      return;
-    }
-
-    setBet(validatedBet);
+      return [...currentBets, newBet];
+    });
   }, []);
 
   const removeBet = useCallback((marketId: string) => {
-    setBet(null);
+    setBets((currentBets) =>
+      currentBets.filter((bet) => bet.marketId !== marketId)
+    );
   }, []);
 
   const clearBets = useCallback(() => {
-    setBet(null);
+    setBets([]);
   }, []);
 
   const value = React.useMemo(
     () => ({
-      bet,
+      bets,
       addBet,
       removeBet,
       clearBets,
+      isParlay,
+      parleyOdds,
+      getEstimatedPayout,
     }),
-    [bet, addBet, removeBet, clearBets]
+    [bets, addBet, removeBet, clearBets, parleyOdds, getEstimatedPayout]
   );
 
   return (

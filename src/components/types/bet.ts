@@ -6,6 +6,7 @@ export interface BaseBet {
   marketQuestion: string;
   position: "YES" | "NO";
   price: number;
+  groupId: string;
 }
 
 export interface LimitlessBet extends BaseBet {
