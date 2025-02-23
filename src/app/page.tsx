@@ -7,6 +7,7 @@ import Image from "next/image";
 import logo from "../../public/okay_bet.png";
 import Pitch from "../components/Landing/Pitch";
 import ConnectButton from "../components/User/ConnectButton";
+import ContractButton from "../components/User/ContractButton";
 import { BetSlipProvider } from "./context/BetSlipContext";
 import { BetSlip } from "../components/Bet/BetSlip";
 import PredictionMarkets from "../components/Markets/PredictionMarkets";
@@ -31,6 +32,7 @@ export default function Home() {
           />
         </div>
         <ConnectButton />
+        <ContractButton />
           <div className="w-full">
         <main className="mt-8 mb-4">
           <BetSlipProvider>

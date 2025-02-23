@@ -1,44 +1,40 @@
 "use client";
-
-
 import React from "react";
- 
 import { InjectedConnector } from "starknetkit/injected";
-import { ArgentMobileConnector, isInArgentMobileAppBrowser } from "starknetkit/argentMobile";
+import { ArgentMobileConnector } from "starknetkit/argentMobile";
 import { WebWalletConnector } from "starknetkit/webwallet";
-import { mainnet, sepolia } from "@starknet-react/chains";
+import { sepolia } from "@starknet-react/chains";
 import { StarknetConfig, publicProvider } from "@starknet-react/core";
- 
+
 export default function StarknetProvider({ children }) {
-  const chains = [mainnet, sepolia]
- 
-  const connectors = isInArgentMobileAppBrowser() ? [
-    ArgentMobileConnector.init({
+  const chains = [sepolia]; // Since your contract is on Sepolia
+
+  const connectors = [
+    new InjectedConnector({
       options: {
-        dappName: "Example dapp",
-        projectId: "example-project-id",
+        id: "braavos",
+        name: "Braavos",
+        showModal: true,
       },
-      inAppBrowserOptions: {},
-    })
-  ] : [
-    new InjectedConnector({ options: { id: "braavos", name: "Braavos" }}),
-    new InjectedConnector({ options: { id: "argentX", name: "Argent X" }}),
-    new WebWalletConnector({ url: "https://web.argent.xyz" }),
-    ArgentMobileConnector.init({
+    }),
+    new InjectedConnector({
       options: {
-        dappName: "Example dapp",
-        projectId: "example-project-id",
-      }
-    })
-  ]
- 
-  return(
+        id: "argentX",
+        name: "Argent X",
+        showModal: true,
+      },
+    }),
+    new WebWalletConnector({ url: "https://web.argent.xyz" }),
+  ];
+
+  return (
     <StarknetConfig
       chains={chains}
       provider={publicProvider()}
       connectors={connectors}
+      autoConnect={true}
     >
       {children}
     </StarknetConfig>
-  )
+  );
 }
