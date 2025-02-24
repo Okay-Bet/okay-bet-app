@@ -12,6 +12,7 @@ import { BetSlipProvider } from "./context/BetSlipContext";
 import { BetSlip } from "../components/Bet/BetSlip";
 import PredictionMarkets from "../components/Markets/PredictionMarkets";
 import Testimonials from "../components/Landing/Testimonials";
+import InvestComponent from "@/components/starknet/InvestComponent";
 // import UserPositions from "../components/User/UserPositions";
 
 
@@ -32,7 +33,7 @@ export default function Home() {
           />
         </div>
         <ConnectButton />
-        <ContractButton />
+        <InvestComponent />
           <div className="w-full">
         <main className="mt-8 mb-4">
           <BetSlipProvider>

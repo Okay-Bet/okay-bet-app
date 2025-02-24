@@ -274,17 +274,6 @@ export const BetSlip: React.FC = () => {
             </button>
           </div>
 
-          {/* Mixed Provider Warning */}
-          {bets.some((bet) => bet.provider === "POLYMARKET") && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-blue-700 text-sm">
-                Polymarket bets cannot be placed directly through Okay Bet. You
-                will be redirected to Polymarket.com to complete these
-                selections.
-              </p>
-            </div>
-          )}
-
           {/* Bets List */}
           <div className="space-y-2 max-h-[40vh] overflow-y-auto">
             {bets.map((bet) => (
