@@ -12,6 +12,9 @@ export default function InvestComponent() {
     isExpanded,
     setIsExpanded,
     userInvestment,
+    usdcBalance,
+    balanceLoading,
+    balanceError,
   } = useInvestment();
 
   return (
@@ -42,7 +45,9 @@ export default function InvestComponent() {
                 generating investment token.
               </p>
               <ul className="list-disc pl-5 mt-4">
-                <li>Turn binary prediction markets into a passive investment</li>
+                <li>
+                  Turn binary prediction markets into a passive investment
+                </li>
                 <li>Redeem your funds at any time</li>
               </ul>
             </div>
@@ -52,6 +57,23 @@ export default function InvestComponent() {
           <div className="bg-gray-50 p-6 rounded-lg">
             {address ? (
               <div className="space-y-6">
+                {/* USDC Balance Box */}
+                <div className="text-center p-4 bg-white rounded-lg shadow-sm">
+                  <p className="text-sm text-gray-600">Your USDC Balance</p>
+                  {balanceLoading && (
+                    <p className="text-2xl font-bold text-black">Loading...</p>
+                  )}
+                  {balanceError && (
+                    <p className="text-red-500">Error loading balance</p>
+                  )}
+                  {usdcBalance && (
+                    <p className="text-2xl font-bold text-black">
+                      {usdcBalance.formatted} {usdcBalance.symbol}
+                    </p>
+                  )}
+                </div>
+
+                {/* Current Investment Box */}
                 <div className="text-center p-4 bg-white rounded-lg shadow-sm">
                   <p className="text-sm text-gray-600">
                     Your Current Investment
