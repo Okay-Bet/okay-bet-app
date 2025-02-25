@@ -11,7 +11,9 @@ export default function InvestComponent() {
     handleDeposit,
     isExpanded,
     setIsExpanded,
-    userInvestment,
+    parlayTokenBalance,
+    parlayTokenError,
+    parlayTokenLoading,
     usdcBalance,
     balanceLoading,
     balanceError,
@@ -84,27 +86,20 @@ export default function InvestComponent() {
 
                 {/* Current Investment Box */}
                 <div className="text-center p-4 bg-white rounded-lg shadow-sm">
-                  <p className="text-sm text-gray-600">
-                    Your Current Investment
-                  </p>
-                  <p className="text-2xl font-bold text-black">
-                    {userInvestment} USDC
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-black">
-                      Amount to Deposit (USDC)
-                    </label>
-                    <input
-                      type="text"
-                      value={amount}
-                      onChange={handleAmountChange}
-                      className="mt-1 block w-full border border-gray-300 text-black rounded-md shadow-sm p-2"
-                      placeholder="Enter amount in USDC"
-                    />
-                  </div>
+                  <p className="text-sm text-gray-600">Your Parlay Tokens</p>
+                  {parlayTokenLoading && (
+                    <p className="text-2xl font-bold text-black">Loading...</p>
+                  )}
+                  {parlayTokenError && (
+                    <p className="text-red-500">
+                      Error loading Parlay token balance
+                    </p>
+                  )}
+                  {parlayTokenBalance && (
+                    <p className="text-2xl font-bold text-black">
+                      {parlayTokenBalance.formatted} {parlayTokenBalance.symbol}
+                    </p>
+                  )}
 
                   {errorMessage && (
                     <div
