@@ -2,10 +2,11 @@ import {
   useBalance,
   useContract,
   useSendTransaction,
+  useNetwork,
 } from "@starknet-react/core";
 import { useState } from "react";
 import { useAccount } from "@starknet-react/core";
-import { Abi, cairo } from "starknet";
+import { Abi } from "starknet";
 
 const USDC_CONTRACT =
   "0x042838ee5b65fe9c5b24afd1f650f7e40564cc2d586a1d9ca8c4120456707d91";
@@ -15,37 +16,35 @@ const PARLAY_CONTRACT =
 
 const usdcAbi = [
   {
-    members: [
-      { name: "low", type: "felt" },
-      { name: "high", type: "felt" },
-    ],
-    name: "Uint256",
-    type: "struct",
-  },
-  {
-    inputs: [
-      { name: "spender", type: "felt" },
-      { name: "amount", type: "Uint256" },
-    ],
-    name: "approve",
-    outputs: [{ name: "success", type: "felt" }],
     type: "function",
+    name: "approve",
+    state_mutability: "external",
+    inputs: [
+      {
+        name: "spender",
+        type: "core::starknet::contract_address::ContractAddress",
+      },
+      {
+        name: "amount",
+        type: "core::integer::u256",
+      },
+    ],
+    outputs: [{ name: "success", type: "felt" }],
   },
 ] as const satisfies Abi;
 
 const parlayAbi = [
   {
-    members: [
-      { name: "low", type: "felt" },
-      { name: "high", type: "felt" },
-    ],
-    name: "Uint256",
-    type: "struct",
-  },
-  {
-    inputs: [{ name: "value", type: "Uint256" }],
-    name: "invest",
     type: "function",
+    name: "invest",
+    state_mutability: "external",
+    inputs: [
+      {
+        name: "value",
+        type: "core::integer::u256",
+      },
+    ],
+    outputs: [],
   },
 ] as const satisfies Abi;
 
@@ -57,6 +56,7 @@ export const useInvestment = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const { address } = useAccount();
+  const { chain } = useNetwork();
 
   const {
     data: usdcBalance,
@@ -78,8 +78,21 @@ export const useInvestment = () => {
     abi: parlayAbi,
   });
 
-  const { send: sendTransaction, error: transferError } = useSendTransaction({
-    calls: [],
+  const baseUnits = amount
+    ? BigInt(Math.floor(parseFloat(amount) * 1_000_000))
+    : 0n;
+
+  const { send, error: txError } = useSendTransaction({
+    calls:
+      usdcContract && parlayContract && address && amount
+        ? [
+            usdcContract.populate("approve", [
+              PARLAY_CONTRACT,
+              { low: baseUnits, high: 0n },
+            ]),
+            parlayContract.populate("invest", [{ low: baseUnits, high: 0n }]),
+          ]
+        : undefined,
   });
 
   const validateInputs = () => {
@@ -105,56 +118,38 @@ export const useInvestment = () => {
 
     try {
       if (!validateInputs()) return;
-      if (!usdcContract || !parlayContract) {
-        setErrorMessage("Contracts not initialized");
+      if (!usdcContract || !parlayContract || !address) {
+        setErrorMessage("Contracts not initialized or wallet not connected");
         return;
       }
 
       setLoading(true);
-
-      // Convert amount to base units (6 decimals for USDC)
-      const baseUnits = BigInt(Math.floor(parseFloat(amount) * 1_000_000));
       console.log("Amount in base units:", baseUnits.toString());
 
-      // Create the amount struct as expected by Cairo
-      const amountStruct = {
-        low: baseUnits,
-        high: 0n,
-      };
+      await send();
 
-      // Create calls using contract.populate()
-      const approveCall = usdcContract.populate("approve", [
-        PARLAY_CONTRACT,
-        amountStruct,
-      ]);
-
-      const investCall = parlayContract.populate("invest", [amountStruct]);
-
-      console.log("Sending transactions...", [approveCall, investCall]);
-
-      // Send the transaction
-      const response = await sendTransaction({
-        calls: [approveCall, investCall],
-      });
-
-      console.log("Transaction response:", response);
       setAmount("");
       setErrorMessage("Transaction submitted successfully!");
     } catch (error) {
       console.error("Investment failed:", error);
-      setErrorMessage("Investment failed. Please check console for details.");
+      setErrorMessage(
+        `Investment failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  // Add debug logging for contract states
+  // Debug logging for contract states
   console.log("Contract states:", {
     usdcContract: !!usdcContract,
     parlayContract: !!parlayContract,
     address,
     balance: usdcBalance?.formatted,
     hasError: !!errorMessage,
+    txError,
   });
 
   return {
@@ -169,7 +164,6 @@ export const useInvestment = () => {
     usdcBalance,
     balanceError,
     balanceLoading,
-    transferError,
     errorMessage,
   };
 };
