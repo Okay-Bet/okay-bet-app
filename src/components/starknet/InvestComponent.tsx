@@ -15,6 +15,8 @@ export default function InvestComponent() {
     usdcBalance,
     balanceLoading,
     balanceError,
+    errorMessage,
+    status,
   } = useInvestment();
 
   return (
@@ -96,6 +98,17 @@ export default function InvestComponent() {
                       placeholder="Enter amount in USDC"
                     />
                   </div>
+                  {errorMessage && (
+                    <div
+                      className={`p-3 rounded-md mb-4 ${
+                        errorMessage.includes("success")
+                          ? "bg-green-100 text-green-700"
+                          : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {errorMessage}
+                    </div>
+                  )}
 
                   <button
                     onClick={handleDeposit}
