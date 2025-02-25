@@ -5,9 +5,7 @@
 import React from "react";
 import Image from "next/image";
 import logo from "../../public/okay_bet.png";
-import Pitch from "../components/Landing/Pitch";
 import ConnectButton from "../components/User/ConnectButton";
-import ContractButton from "../components/User/ContractButton";
 import { BetSlipProvider } from "./context/BetSlipContext";
 import { BetSlip } from "../components/Bet/BetSlip";
 import PredictionMarkets from "../components/Markets/PredictionMarkets";
