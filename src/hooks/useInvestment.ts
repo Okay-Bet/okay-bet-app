@@ -15,9 +15,17 @@ const PARLAY_CONTRACT =
 
 const usdcAbi = [
   {
+    members: [
+      { name: "low", type: "felt" },
+      { name: "high", type: "felt" },
+    ],
+    name: "Uint256",
+    type: "struct",
+  },
+  {
     inputs: [
-      { name: "spender", type: "felt" }, // Changed to felt
-      { name: "amount", type: "Uint256" }, // Note the capital U
+      { name: "spender", type: "felt" },
+      { name: "amount", type: "Uint256" },
     ],
     name: "approve",
     outputs: [{ name: "success", type: "felt" }],
@@ -27,9 +35,15 @@ const usdcAbi = [
 
 const parlayAbi = [
   {
-    inputs: [
-      { name: "value", type: "Uint256" }, // Note the capital U
+    members: [
+      { name: "low", type: "felt" },
+      { name: "high", type: "felt" },
     ],
+    name: "Uint256",
+    type: "struct",
+  },
+  {
+    inputs: [{ name: "value", type: "Uint256" }],
     name: "invest",
     type: "function",
   },
@@ -98,46 +112,37 @@ export const useInvestment = () => {
 
       setLoading(true);
 
+      // Convert amount to base units (6 decimals for USDC)
       const baseUnits = BigInt(Math.floor(parseFloat(amount) * 1_000_000));
       console.log("Amount in base units:", baseUnits.toString());
 
-      // Use contract.populate() instead of manual call construction
+      // Create the amount struct as expected by Cairo
+      const amountStruct = {
+        low: baseUnits,
+        high: 0n,
+      };
+
+      // Create calls using contract.populate()
       const approveCall = usdcContract.populate("approve", [
         PARLAY_CONTRACT,
-        { low: baseUnits, high: 0n },
+        amountStruct,
       ]);
 
-      const investCall = parlayContract.populate("invest", [
-        { low: baseUnits, high: 0n },
-      ]);
+      const investCall = parlayContract.populate("invest", [amountStruct]);
 
       console.log("Sending transactions...", [approveCall, investCall]);
 
-      // Actually send the transaction
-      try {
-        const tx = await sendTransaction({
-          calls: [approveCall, investCall],
-        });
-        console.log("Transaction sent:", tx);
+      // Send the transaction
+      const response = await sendTransaction({
+        calls: [approveCall, investCall],
+      });
 
-        setAmount("");
-        setErrorMessage("Transaction submitted successfully!");
-      } catch (txError) {
-        console.error("Transaction failed:", txError);
-        setErrorMessage(
-          `Transaction failed: ${
-            txError instanceof Error ? txError.message : "Unknown error"
-          }`
-        );
-      }
+      console.log("Transaction response:", response);
+      setAmount("");
+      setErrorMessage("Transaction submitted successfully!");
     } catch (error) {
       console.error("Investment failed:", error);
-      if (error instanceof Error) {
-        setErrorMessage(`Investment failed: ${error.message}`);
-      } else {
-        console.error("Detailed error:", JSON.stringify(error, null, 2));
-        setErrorMessage("Investment failed. Check console for details.");
-      }
+      setErrorMessage("Investment failed. Please check console for details.");
     } finally {
       setLoading(false);
     }

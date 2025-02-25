@@ -16,8 +16,15 @@ export default function InvestComponent() {
     balanceLoading,
     balanceError,
     errorMessage,
-    status,
   } = useInvestment();
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Only allow numbers and decimals
+    if (value === "" || /^\d*\.?\d*$/.test(value)) {
+      setAmount(value);
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto bg-white rounded-lg shadow-lg p-6 m-4">
@@ -88,16 +95,17 @@ export default function InvestComponent() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-black">
-                      Amount to Deposit
+                      Amount to Deposit (USDC)
                     </label>
                     <input
-                      type="number"
+                      type="text"
                       value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
+                      onChange={handleAmountChange}
                       className="mt-1 block w-full border border-gray-300 text-black rounded-md shadow-sm p-2"
                       placeholder="Enter amount in USDC"
                     />
                   </div>
+
                   {errorMessage && (
                     <div
                       className={`p-3 rounded-md mb-4 ${
