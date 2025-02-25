@@ -57,14 +57,10 @@ export default function InvestComponent() {
               <p className="leading-relaxed">
                 Send USDC to the parlay contract. The funds will be used to
                 underwrite prediction market parlays. You will be issued a yield
-                generating investment token.
+                generating investment token. The token is valued 1:1 with USDC
+                but after the funding round closes it will accrue value from the
+                wagers placed.
               </p>
-              <ul className="list-disc pl-5 mt-6 space-y-2">
-                <li>
-                  Turn binary prediction markets into a passive investment
-                </li>
-                <li>Redeem your funds at any time</li>
-              </ul>
             </div>
           </div>
 
@@ -126,7 +122,7 @@ export default function InvestComponent() {
                   <button
                     onClick={handleDeposit}
                     disabled={loading || !amount}
-                    className={`w-full mt-4 bg-secondary text-black px-6 py-3 rounded-lg font-medium transition-all duration-200
+                    className={`w-full mt-4 bg-secondary text-font text-bold px-6 py-3 rounded-lg font-medium transition-all duration-200
                       ${
                         loading
                           ? "opacity-50 cursor-not-allowed"
