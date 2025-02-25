@@ -115,11 +115,16 @@ export const useInvestment = () => {
   const handleDeposit = async () => {
     console.log("Attempting deposit with amount:", amount);
     setErrorMessage(null);
+    
 
     try {
       if (!validateInputs()) return;
       if (!usdcContract || !parlayContract || !address) {
         setErrorMessage("Contracts not initialized or wallet not connected");
+        return;
+      }
+      if (!usdcContract?.address || !parlayContract?.address) {
+        setErrorMessage("Contract addresses are invalid or not deployed");
         return;
       }
 
