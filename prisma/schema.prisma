@@ -10,20 +10,25 @@ datasource db {
 
 model GroupedMarket {
   id                String    @id @default(cuid())
-  limitlessTitle    String    // Original Limitless question
-  limitlessDesc     String?   // Limitless description
-  polymarketTitle   String    // Original Polymarket question
-  polymarketDesc    String?   // Polymarket description
+  limitlessTitle    String    
+  limitlessDesc     String?   
+  polymarketTitle   String    
+  polymarketDesc    String?   
+  kalshiTitle       String    // Added Kalshi title
+  kalshiDesc        String?   // Added Kalshi description
   description       String?   // Optional common description
   limitlessId       String?
   polymarketId      String?
-  similarity        Float
+  kalshiId          String?   // Added Kalshi ID
+  similarityPoly    Float     // Renamed to clarify this is Polymarket similarity
+  similarityKalshi  Float     // Added Kalshi similarity
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   endDate           DateTime?
 
   @@index([limitlessId])
   @@index([polymarketId])
+  @@index([kalshiId])
 }
 
 model PolymarketMarket {
@@ -39,4 +44,23 @@ model PolymarketMarket {
 
   @@index([isActive])
   @@index([endDate])
+}
+
+model KalshiMarket {
+  id              String    @id  // This will be the ticker
+  question        String
+  description     String?
+  endDate         DateTime?
+  volume          Float?
+  openInterest    Float?    // Added for Kalshi
+  liquidity       Float?    // Added for Kalshi
+  status          String?   // Added for Kalshi
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  isActive        Boolean   @default(true)
+  lastChecked     DateTime  @default(now())
+
+  @@index([isActive])
+  @@index([endDate])
+  @@index([status])
 }
