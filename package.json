@@ -14,9 +14,12 @@
     "prestart": "npm install",
     "lint": "next lint",
     "analyze": "ANALYZE=true npm run build",
-    "setup-python": "python3 -m venv .venv && .venv/bin/pip install -r scripts/polymarket/requirements.txt",
-    "populate-markets": ".venv/bin/python scripts/polymarket/populate_markets.py",
-    "match-markets": ".venv/bin/python scripts/polymarket/market_matcher.py"
+    "setup-python": "python3 -m venv .venv && .venv/bin/pip install -r scripts/requirements.txt",
+    "populate-polymarket": "PYTHONPATH=. .venv/bin/python scripts/polymarket/populate_polymarket.py",
+    "populate-kalshi": "PYTHONPATH=. .venv/bin/python scripts/kalshi/populate_kalshi.py",
+    "populate-limitless": "PYTHONPATH=. .venv/bin/python scripts/limitless/populate_limitless.py",
+    "match-markets": "PYTHONPATH=. .venv/bin/python scripts/matcher/market_matcher.py",
+    "populate-all-markets": "npm run populate-polymarket && npm run populate-kalshi && npm run populate-limitless"
   },
   "dependencies": {
     "@0x/utils": "^7.0.0",

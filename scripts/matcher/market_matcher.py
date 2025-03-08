@@ -8,6 +8,8 @@ from datetime import datetime
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from scripts.common.base import MarketAPI, MIN_VOLUME
+from scripts.common.db import DatabaseUpdater
 
 # Load environment variables
 load_dotenv()
