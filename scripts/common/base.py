@@ -15,4 +15,4 @@ class MarketAPI(ABC):
         pass
 
 # Common constants
-MIN_VOLUME = 1000  # Minimum volume to consider a market
+MIN_VOLUME = 100  # Minimum volume to consider a market
