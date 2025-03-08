@@ -221,6 +221,53 @@ class KalshiAPI(MarketAPI):
         print(f"Found {len(all_markets)} active Kalshi markets with sufficient volume")
         return all_markets
 
+class LimitlessAPI(MarketAPI):
+    def __init__(self):
+        super().__init__()
+        self.base_url = os.getenv('LIMITLESS_API_URL', 'https://api.limitless.markets')
+        
+    def fetch_markets(self) -> List[Dict]:
+        """Fetch all active markets from Limitless API."""
+        all_markets = []
+        
+        try:
+            # Fetch active markets
+            url = f"{self.base_url}/v1/markets"
+            print(f'Requesting Limitless markets from: {url}')
+            
+            response = self.session.get(url)
+            
+            if response.status_code != 200:
+                print(f"Error fetching Limitless markets: {response.text}")
+                return []
+
+            markets_data = response.json()
+            
+            for market in markets_data.get('markets', []):
+                # Extract relevant market data
+                market_data = {
+                    'id': market.get('id'),
+                    'question': market.get('title'),
+                    'description': market.get('description'),
+                    'endDate': market.get('expirationTime'),
+                    'volume': float(market.get('volume', 0)),
+                    'openInterest': float(market.get('openInterest', 0)),
+                }
+                
+                # Only include markets with sufficient activity
+                if market_data['volume'] > MIN_VOLUME or market_data['openInterest'] > MIN_VOLUME:
+                    all_markets.append(market_data)
+                    print(f"Added Limitless market: {market_data['question']} "
+                          f"(Volume: {market_data['volume']}, "
+                          f"Open Interest: {market_data['openInterest']})")
+
+        except Exception as e:
+            print(f"Error in fetch_markets: {e}")
+            if hasattr(e, 'response'):
+                print(f'Response content: {e.response.text}')
+
+        print(f"Found {len(all_markets)} active Limitless markets with sufficient volume")
+        return all_markets
 
 def get_database_connection():
     """Create a connection to the database using environment variables."""
@@ -252,11 +299,13 @@ class DatabaseUpdater:
                 INSERT INTO "{market_type}Market" (
                     "id", "question", "description", "endDate", "volume", 
                     "isActive", "lastChecked", "createdAt", "updatedAt"
-                    {', "openInterest", "liquidity"' if market_type == 'Kalshi' else ''}
+                    {', "openInterest"' if market_type in ['Kalshi', 'Limitless'] else ''}
+                    {', "liquidity"' if market_type == 'Kalshi' else ''}
                 ) 
                 VALUES (
                     %s, %s, %s, %s, %s, TRUE, NOW(), NOW(), NOW()
-                    {', %s, %s' if market_type == 'Kalshi' else ''}
+                    {', %s' if market_type in ['Kalshi', 'Limitless'] else ''}
+                    {', %s' if market_type == 'Kalshi' else ''}
                 )
                 ON CONFLICT ("id") DO UPDATE 
                 SET 
@@ -267,7 +316,8 @@ class DatabaseUpdater:
                     "isActive" = TRUE,
                     "lastChecked" = NOW(),
                     "updatedAt" = NOW()
-                    {', "openInterest" = EXCLUDED."openInterest", "liquidity" = EXCLUDED."liquidity"' if market_type == 'Kalshi' else ''}
+                    {', "openInterest" = EXCLUDED."openInterest"' if market_type in ['Kalshi', 'Limitless'] else ''}
+                    {', "liquidity" = EXCLUDED."liquidity"' if market_type == 'Kalshi' else ''}
             """
 
             for market in markets:
@@ -279,11 +329,11 @@ class DatabaseUpdater:
                     market['volume']
                 ]
                 
+                if market_type in ['Kalshi', 'Limitless']:
+                    values.append(market.get('openInterest', 0))
+                
                 if market_type == 'Kalshi':
-                    values.extend([
-                        market.get('openInterest', 0),
-                        market.get('liquidity', 0)
-                    ])
+                    values.append(market.get('liquidity', 0))
 
                 cur.execute(upsert_query, values)
 
@@ -308,8 +358,9 @@ def main():
         # Initialize APIs
         polymarket_api = PolymarketAPI()
         kalshi_api = KalshiAPI()
+        limitless_api = LimitlessAPI()
         
-        # Fetch markets from both sources
+        # Fetch markets from all sources
         print('\nFetching Polymarket markets...')
         polymarket_markets = polymarket_api.fetch_markets()
         print(f'Found {len(polymarket_markets)} valid active Polymarket markets')
@@ -317,6 +368,10 @@ def main():
         print('\nFetching Kalshi markets...')
         kalshi_markets = kalshi_api.fetch_markets()
         print(f'Found {len(kalshi_markets)} valid active Kalshi markets')
+        
+        print('\nFetching Limitless markets...')
+        limitless_markets = limitless_api.fetch_markets()
+        print(f'Found {len(limitless_markets)} valid active Limitless markets')
         
         # Update database
         db_updater = DatabaseUpdater()
@@ -326,6 +381,9 @@ def main():
         
         print('\nUpdating Kalshi database...')
         db_updater.update_markets(kalshi_markets, "Kalshi")
+        
+        print('\nUpdating Limitless database...')
+        db_updater.update_markets(limitless_markets, "Limitless")
         
         db_updater.close()
         print('\nDatabase updates completed successfully')

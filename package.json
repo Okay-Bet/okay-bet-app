@@ -15,7 +15,8 @@
     "lint": "next lint",
     "analyze": "ANALYZE=true npm run build",
     "setup-python": "python3 -m venv .venv && .venv/bin/pip install -r scripts/polymarket/requirements.txt",
-    "populate-polymarket": ".venv/bin/python scripts/polymarket/populate_markets.py"
+    "populate-markets": ".venv/bin/python scripts/polymarket/populate_markets.py",
+    "match-markets": ".venv/bin/python scripts/polymarket/market_matcher.py"
   },
   "dependencies": {
     "@0x/utils": "^7.0.0",
