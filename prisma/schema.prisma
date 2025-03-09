@@ -10,22 +10,47 @@ datasource db {
 
 model GroupedMarket {
   id                String    @id @default(cuid())
-  limitlessId       String?
-  polymarketId      String?
-  kalshiId          String?
-  similarityPoly    Float?    // Made optional with ?
-  similarityKalshi  Float?    // Made optional with ?
+  limitlessMarkets  LimitlessGroupedMarket[]
+  polymarketMarkets PolymarketGroupedMarket[]
+  kalshiMarkets     KalshiGroupedMarket[]
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+}
 
-  // Add foreign key relationships
-  limitlessMarket   LimitlessMarket? @relation(fields: [limitlessId], references: [id])
-  polymarketMarket  PolymarketMarket? @relation(fields: [polymarketId], references: [id])
-  kalshiMarket      KalshiMarket? @relation(fields: [kalshiId], references: [id])
+model LimitlessGroupedMarket {
+  id            String         @id @default(cuid())
+  groupedMarket GroupedMarket  @relation(fields: [groupId], references: [id])
+  market        LimitlessMarket @relation(fields: [marketId], references: [id])
+  groupId       String
+  marketId      String
+  similarity    Float?
 
-  @@index([limitlessId])
-  @@index([polymarketId])
-  @@index([kalshiId])
+  @@index([groupId])
+  @@index([marketId])
+}
+
+model PolymarketGroupedMarket {
+  id            String          @id @default(cuid())
+  groupedMarket GroupedMarket   @relation(fields: [groupId], references: [id])
+  market        PolymarketMarket @relation(fields: [marketId], references: [id])
+  groupId       String
+  marketId      String
+  similarity    Float?
+
+  @@index([groupId])
+  @@index([marketId])
+}
+
+model KalshiGroupedMarket {
+  id            String         @id @default(cuid())
+  groupedMarket GroupedMarket  @relation(fields: [groupId], references: [id])
+  market        KalshiMarket   @relation(fields: [marketId], references: [id])
+  groupId       String
+  marketId      String
+  similarity    Float?
+
+  @@index([groupId])
+  @@index([marketId])
 }
 
 
@@ -40,7 +65,7 @@ model PolymarketMarket {
   isActive        Boolean   @default(true)
   lastChecked     DateTime  @default(now())
   
-  groupedMarkets  GroupedMarket[]
+  groupedMarkets PolymarketGroupedMarket[]
 
   @@index([isActive])
   @@index([endDate])
@@ -60,7 +85,7 @@ model KalshiMarket {
   isActive        Boolean   @default(true)
   lastChecked     DateTime  @default(now())
   
-  groupedMarkets  GroupedMarket[]
+  groupedMarkets KalshiGroupedMarket[]
 
   @@index([isActive])
   @@index([endDate])
@@ -79,7 +104,7 @@ model LimitlessMarket {
   isActive        Boolean   @default(true)
   lastChecked     DateTime  @default(now())
   
-  groupedMarkets  GroupedMarket[]
+  groupedMarkets LimitlessGroupedMarket[]
 
   @@index([isActive])
   @@index([endDate])

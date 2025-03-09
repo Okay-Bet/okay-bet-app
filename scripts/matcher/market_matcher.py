@@ -8,6 +8,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import Levenshtein
 from collections import defaultdict
 from scripts.common.db import MarketFetcher
+import json
 
 @dataclass
 class Market:
@@ -75,6 +76,9 @@ class MarketMatcher:
             for j, target_market in enumerate(target_market_objects):
                 similarity = similarity_matrix[i, j]
                 if similarity >= threshold:
+                    print(f"\nFound match with similarity {similarity:.3f}:")
+                    print(f"Source ({source_market.platform}): {source_market.question}")
+                    print(f"Target ({target_market.platform}): {target_market.question}")
                     matches.append((source_market, target_market, similarity))
         
         return matches
@@ -102,6 +106,7 @@ class MarketMatcher:
         market_groups = defaultdict(list)
         processed_markets = set()
         
+        print("\nGrouping markets:")
         for source_market, target_market, similarity in matches:
             if similarity < min_similarity:
                 continue
@@ -118,19 +123,30 @@ class MarketMatcher:
             
             if group_key is None:
                 group_key = f"group_{len(market_groups)}"
+                print(f"\nCreating new group {group_key}:")
+            else:
+                print(f"\nAdding to existing group {group_key}:")
             
             # Add both markets if not already in group
             if source_market.id not in [m.id for m in market_groups[group_key]]:
+                print(f"Adding {source_market.platform} market: {source_market.question}")
                 market_groups[group_key].append(source_market)
             if target_market.id not in [m.id for m in market_groups[group_key]]:
+                print(f"Adding {target_market.platform} market: {target_market.question}")
                 market_groups[group_key].append(target_market)
                 
             processed_markets.add(source_market.id)
             processed_markets.add(target_market.id)
-        
+
         # Convert to list of groups
-        return [
-            {
+        final_groups = []
+        for key, markets in market_groups.items():
+            print(f"\nFinal group {key}:")
+            print("Markets in group:")
+            for m in markets:
+                print(f"- {m.platform}: {m.question}")
+            
+            group_data = {
                 "markets": [
                     {
                         "id": m.id,
@@ -146,10 +162,11 @@ class MarketMatcher:
                 "platform_count": len(set(m.platform for m in markets)),
                 "avg_similarity": min_similarity
             }
-            for markets in market_groups.values()
-        ]
+            final_groups.append(group_data)
+        
+        return final_groups
 
-    def process_markets(self, similarity_threshold: float = 0.7, date_threshold: int = 5):
+    def process_markets(self, similarity_threshold: float = 0.7):
         """Main processing function."""
         try:
             # Fetch markets using MarketFetcher
@@ -176,20 +193,7 @@ class MarketMatcher:
             print(f"Found {len(limitless_poly_matches)} initial Poly matches")
             print(f"Found {len(limitless_kalshi_matches)} initial Kalshi matches")
             
-            # Filter by date
-            limitless_poly_matches = self.filter_by_date(
-                limitless_poly_matches,
-                date_threshold
-            )
-            limitless_kalshi_matches = self.filter_by_date(
-                limitless_kalshi_matches,
-                date_threshold
-            )
-            
-            print(f"After date filtering: {len(limitless_poly_matches)} Poly matches")
-            print(f"After date filtering: {len(limitless_kalshi_matches)} Kalshi matches")
-            
-            # Combine all matches
+            # Combine all matches without date filtering
             all_matches = limitless_poly_matches + limitless_kalshi_matches
             
             # Group markets
@@ -199,17 +203,35 @@ class MarketMatcher:
 
             # Validate groups before database update
             valid_groups = []
+            print("\nValidating groups:")
             for group in market_groups:
-                # Ensure each group has at least one Limitless market and one other market
+                print("\nChecking group:")
+                for market in group["markets"]:
+                    print(f"- {market['platform']}: {market['question']}")
+                
+                # Ensure each group has at least one Limitless market and one other platform
                 has_limitless = any(m["platform"] == "Limitless" for m in group["markets"])
                 has_other = any(m["platform"] != "Limitless" for m in group["markets"])
                 
                 if has_limitless and has_other:
-                    valid_groups.append(group)
+                    print("✓ Valid group (has Limitless and other platform)")
+                    valid_groups.append({
+                        "markets": group["markets"],
+                        "avg_similarity": group["avg_similarity"]
+                    })
                 else:
-                    print(f"Skipping invalid group: {[m['platform'] for m in group['markets']]}")
+                    print("✗ Invalid group (missing Limitless or other platform)")
 
             print(f"Found {len(valid_groups)} valid groups after validation")
+
+            # Print formatted groups for debugging
+            print("\nFormatted groups for database:")
+            for group in valid_groups:
+                print(json.dumps({
+                    "market_count": len(group["markets"]),
+                    "platforms": list(set(m["platform"] for m in group["markets"])),
+                    "similarity": group["avg_similarity"]
+                }, indent=2))
 
             # Update database with valid groups
             if valid_groups:

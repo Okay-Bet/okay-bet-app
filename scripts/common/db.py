@@ -5,6 +5,7 @@ from typing import List, Dict
 from dotenv import load_dotenv
 import json
 from datetime import datetime
+import cuid
 
 # Load environment variables
 load_dotenv()
@@ -224,43 +225,46 @@ class MarketFetcher:
         """Update the GroupedMarket table with new matches."""
         cur = self.conn.cursor()
         try:
-            # Clear existing groups
+            # Clear existing groups and their relationships
             cur.execute('TRUNCATE TABLE "GroupedMarket" CASCADE')
-
-            # Insert new groups
+            
             for group in market_groups:
+                # Create new group
+                group_id = cuid.cuid()
+                cur.execute("""
+                    INSERT INTO "GroupedMarket" (id, "createdAt", "updatedAt")
+                    VALUES (%s, NOW(), NOW())
+                    RETURNING id
+                """, (group_id,))
+                
+                # Process each market by platform
                 for market in group["markets"]:
-                    if market.platform == "Limitless":
-                        limitless_id = market.id
-                        poly_id = None
-                        kalshi_id = None
-                        similarity_poly = None
-                        similarity_kalshi = None
-                    elif market.platform == "Polymarket":
-                        limitless_id = None
-                        poly_id = market.id
-                        kalshi_id = None
-                        similarity_poly = group["avg_similarity"]
-                        similarity_kalshi = None
-                    else:  # Kalshi
-                        limitless_id = None
-                        poly_id = None
-                        kalshi_id = market.id
-                        similarity_poly = None
-                        similarity_kalshi = group["avg_similarity"]
+                    market_id = market["id"]
+                    similarity = group["avg_similarity"]
+                    
+                    if market["platform"] == "Limitless":
+                        cur.execute("""
+                            INSERT INTO "LimitlessGroupedMarket" 
+                            (id, "groupId", "marketId", similarity, "createdAt", "updatedAt")
+                            VALUES (%s, %s, %s, %s, NOW(), NOW())
+                        """, (cuid.cuid(), group_id, market_id, similarity))
+                    
+                    elif market["platform"] == "Polymarket":
+                        cur.execute("""
+                            INSERT INTO "PolymarketGroupedMarket"
+                            (id, "groupId", "marketId", similarity, "createdAt", "updatedAt")
+                            VALUES (%s, %s, %s, %s, NOW(), NOW())
+                        """, (cuid.cuid(), group_id, market_id, similarity))
+                    
+                    elif market["platform"] == "Kalshi":
+                        cur.execute("""
+                            INSERT INTO "KalshiGroupedMarket"
+                            (id, "groupId", "marketId", similarity, "createdAt", "updatedAt")
+                            VALUES (%s, %s, %s, %s, NOW(), NOW())
+                        """, (cuid.cuid(), group_id, market_id, similarity))
 
-                    cur.execute("""
-                        INSERT INTO "GroupedMarket" (
-                            "limitlessId", "polymarketId", "kalshiId",
-                            "similarityPoly", "similarityKalshi",
-                            "createdAt", "updatedAt"
-                        ) VALUES (%s, %s, %s, %s, %s, NOW(), NOW())
-                    """, (
-                        limitless_id, poly_id, kalshi_id,
-                        similarity_poly, similarity_kalshi
-                    ))
-
-            self.conn.commit()
+                self.conn.commit()
+                
         except Exception as e:
             self.conn.rollback()
             raise e
