@@ -26,35 +26,49 @@ class LimitlessAPI(MarketAPI):
             return None
         
     def fetch_markets(self) -> List[Dict]:
-        """Fetch all active markets from Limitless API."""
+        """Fetch all active markets from Limitless API with pagination."""
         all_markets = []
-        
-        try:
-            url = f"{self.base_url}/markets/active"
-            print(f'Requesting Limitless markets from: {url}')
-            
-            response = self.session.get(url)
-            
-            if response.status_code != 200:
-                print(f"Error fetching Limitless markets: {response.text}")
-                return []
+        skipped_markets = []
+        page = 1
+        BATCH_SIZE = 50
 
-            markets_data = response.json()
-            markets_list = markets_data.get('data', [])
-            
-            print(f"Retrieved {len(markets_list)} markets from API")
-            
-            for market in markets_list:
-                try:
-                    # Format values properly
-                    volume = float(market.get('volumeFormatted', '0'))
-                    open_interest = float(market.get('openInterestFormatted', '0'))
-                    collateral_token = market.get('collateralToken', {}).get('address')
-                    
-                    # Only include USDC markets with sufficient activity
-                    if ((volume > MIN_VOLUME or open_interest > MIN_VOLUME) and 
-                        collateral_token and 
-                        collateral_token.lower() == '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913'.lower()):  # USDC on Base
+        while True:
+            try:
+                url = f"{self.base_url}/markets/active"
+                params = {
+                    'page': page,
+                    'limit': BATCH_SIZE
+                }
+                print(f'Requesting Limitless markets from: {url} (Page: {page}, Limit: {BATCH_SIZE})')
+                
+                response = self.session.get(url, params=params)
+                
+                if response.status_code != 200:
+                    print(f"Error fetching Limitless markets: {response.text}")
+                    break
+
+                markets_data = response.json()
+                markets_list = markets_data.get('data', [])
+                
+                print(f"Retrieved {len(markets_list)} markets from API on page {page}")
+                
+                if not markets_list:  # No more markets to fetch
+                    print(f'No more markets found on page {page}')
+                    break
+                
+                for market in markets_list:
+                    try:
+                        # Format values properly
+                        volume = float(market.get('volumeFormatted', '0'))
+                        open_interest = float(market.get('openInterestFormatted', '0'))
+                        collateral_token = market.get('collateralToken', {}).get('address')
+                        
+                        # Print raw market data for debugging
+                        print(f"\nRaw market data:")
+                        print(f"Title: {market.get('title')}")
+                        print(f"Volume: {volume}")
+                        print(f"Open Interest: {open_interest}")
+                        print(f"Collateral Token: {collateral_token}")
                         
                         # Format market data to exactly match Prisma schema
                         market_data = {
@@ -65,29 +79,69 @@ class LimitlessAPI(MarketAPI):
                             'volume': volume,  # Float?
                             'openInterest': open_interest,  # Float?
                         }
-                        
-                        # Verify required fields are present and valid
+
+                        # Only check for required fields, remove other filters
                         if market_data['id'] and market_data['question']:
                             all_markets.append(market_data)
-                            print(f"Added Limitless market: {market_data['question']} "
-                                  f"(Volume: {market_data['volume']}, "
-                                  f"Open Interest: {market_data['openInterest']}, "
-                                  f"End Date: {market_data['endDate']})")
+                            print(f"Added market: {market_data['question']} "
+                                f"(Volume: {market_data['volume']}, "
+                                f"Open Interest: {market_data['openInterest']}, "
+                                f"End Date: {market_data['endDate']})")
                         else:
-                            print(f"Skipping market due to missing required fields: {market_data}")
-                
-                except Exception as e:
-                    print(f"Error processing market: {e}")
-                    print(f"Market data causing error: {market}")
-                    continue
+                            skipped_reason = "Missing required fields (id or question)"
+                            skipped_markets.append((market_data, skipped_reason))
+                            print(f"Skipping market: {skipped_reason}")
+                    
+                    except Exception as e:
+                        print(f"Error processing market: {e}")
+                        print(f"Market data causing error: {market}")
+                        continue
 
-        except Exception as e:
-            print(f"Error in fetch_markets: {e}")
-            if hasattr(e, 'response') and e.response:
-                print(f'Response content: {e.response.text}')
+                # If we got fewer markets than the batch size, we're on the last page
+                if len(markets_list) < BATCH_SIZE:
+                    print(f'Last page reached (page {page})')
+                    break
+                    
+                page += 1
+                # Add a small delay to avoid rate limiting
+                time.sleep(1)
 
-        print(f"Found {len(all_markets)} active Limitless markets with sufficient volume")
+            except Exception as e:
+                print(f"Error in fetch_markets: {e}")
+                if hasattr(e, 'response') and e.response:
+                    print(f'Response content: {e.response.text}')
+                break
+
+        print(f"\nSummary:")
+        print(f"Total pages fetched: {page}")
+        print(f"Markets added: {len(all_markets)}")
+        print(f"Markets skipped: {len(skipped_markets)}")
+        
+        # Print skipped markets details
+        if skipped_markets:
+            print("\nSkipped markets details:")
+            for market, reason in skipped_markets:
+                print(f"Market: {market.get('question', 'N/A')} - Reason: {reason}")
+
         return all_markets
+    
+    def parse_date(self, date_str: str) -> str:
+        """Convert date string to ISO format."""
+        if not date_str:
+            return None
+        try:
+            # First try parsing as ISO format
+            try:
+                dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+            except ValueError:
+                # If that fails, try parsing the "Month Day, Year" format
+                dt = datetime.strptime(date_str, '%b %d, %Y')
+            
+            # Convert to UTC and return ISO format
+            return dt.astimezone(timezone.utc).isoformat()
+        except Exception as e:
+            print(f"Error parsing date {date_str}: {e}")
+            return None
 
 def main():
     try:

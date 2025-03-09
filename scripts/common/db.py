@@ -33,8 +33,12 @@ class DatabaseUpdater:
             print(f"No {market_type} markets to update")
             return
 
-        print(f'Starting {market_type} database update...')
+        print(f'\nStarting {market_type} database update...')
+        print(f'Total markets to process: {len(markets)}')
         cur = self.conn.cursor()
+
+        success_count = 0
+        error_count = 0
 
         try:
             # Mark all existing markets as inactive
@@ -43,6 +47,7 @@ class DatabaseUpdater:
                 SET "isActive" = FALSE 
                 WHERE "isActive" = TRUE
             """)
+            print(f"Marked existing {market_type} markets as inactive")
 
             # Different handling based on market type
             if market_type == "Limitless":
@@ -104,6 +109,11 @@ class DatabaseUpdater:
 
             for market in markets:
                 try:
+                    print(f"\nProcessing market:")
+                    print(f"ID: {market.get('id')}")
+                    print(f"Question: {market.get('question')[:100]}...")
+                    print(f"Volume: {market.get('volume')}")
+                    print(f"Open Interest: {market.get('openInterest')}")
                     # Format values based on market type
                     if market_type == "Limitless":
                         values = [
