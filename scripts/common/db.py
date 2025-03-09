@@ -160,3 +160,104 @@ class DatabaseUpdater:
         """Close the database connection."""
         if self.conn:
             self.conn.close()
+
+class MarketFetcher:
+    def __init__(self):
+        self.conn = psycopg2.connect(os.getenv('DATABASE_URL'))
+
+    def fetch_active_markets(self, platform: str) -> List[Dict]:
+        """Fetch active markets for a given platform."""
+        cur = self.conn.cursor()
+        try:
+            if platform == "Limitless":
+                query = """
+                    SELECT id, question, description, volume, "endDate", 
+                           "openInterest", 0 as liquidity
+                    FROM "LimitlessMarket"
+                    WHERE "isActive" = TRUE
+                """
+            elif platform == "Polymarket":
+                query = """
+                    SELECT id, question, description, volume, "endDate",
+                           0 as "openInterest", 0 as liquidity
+                    FROM "PolymarketMarket"
+                    WHERE "isActive" = TRUE
+                """
+            elif platform == "Kalshi":
+                query = """
+                    SELECT id, question, description, volume, "endDate",
+                           "openInterest", "liquidity"
+                    FROM "KalshiMarket"
+                    WHERE "isActive" = TRUE
+                """
+            else:
+                raise ValueError(f"Unknown platform: {platform}")
+
+            cur.execute(query)
+            markets = []
+            for row in cur.fetchall():
+                markets.append({
+                    "id": row[0],
+                    "question": row[1],
+                    "description": row[2] or '',
+                    "volume": float(row[3] or 0),
+                    "end_date": row[4],
+                    "platform": platform,
+                    "open_interest": float(row[5] or 0),
+                    "liquidity": float(row[6] or 0)
+                })
+            return markets
+        finally:
+            cur.close()
+
+    def update_grouped_markets(self, market_groups: List[Dict]):
+        """Update the GroupedMarket table with new matches."""
+        cur = self.conn.cursor()
+        try:
+            # Clear existing groups
+            cur.execute('TRUNCATE TABLE "GroupedMarket" CASCADE')
+
+            # Insert new groups
+            for group in market_groups:
+                for market in group["markets"]:
+                    if market.platform == "Limitless":
+                        limitless_id = market.id
+                        poly_id = None
+                        kalshi_id = None
+                        similarity_poly = None
+                        similarity_kalshi = None
+                    elif market.platform == "Polymarket":
+                        limitless_id = None
+                        poly_id = market.id
+                        kalshi_id = None
+                        similarity_poly = group["avg_similarity"]
+                        similarity_kalshi = None
+                    else:  # Kalshi
+                        limitless_id = None
+                        poly_id = None
+                        kalshi_id = market.id
+                        similarity_poly = None
+                        similarity_kalshi = group["avg_similarity"]
+
+                    cur.execute("""
+                        INSERT INTO "GroupedMarket" (
+                            "limitlessId", "polymarketId", "kalshiId",
+                            "similarityPoly", "similarityKalshi",
+                            "createdAt", "updatedAt"
+                        ) VALUES (%s, %s, %s, %s, %s, NOW(), NOW())
+                    """, (
+                        limitless_id, poly_id, kalshi_id,
+                        similarity_poly, similarity_kalshi
+                    ))
+
+            self.conn.commit()
+        except Exception as e:
+            self.conn.rollback()
+            raise e
+        finally:
+            cur.close()
+
+    def close(self):
+        """Close the database connection."""
+        if self.conn:
+            self.conn.close()

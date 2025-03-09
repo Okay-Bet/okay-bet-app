@@ -1,18 +1,13 @@
-import os
-from dotenv import load_dotenv
-import psycopg2
-from typing import List, Dict, Optional
-import json
+# scripts/matcher/market_matcher.py
+from typing import List, Dict, Tuple
 from dataclasses import dataclass
 from datetime import datetime
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from scripts.common.base import MarketAPI, MIN_VOLUME
-from scripts.common.db import DatabaseUpdater
-
-# Load environment variables
-load_dotenv()
+import Levenshtein
+from collections import defaultdict
+from scripts.common.db import MarketFetcher
 
 @dataclass
 class Market:
@@ -25,175 +20,217 @@ class Market:
     liquidity: float = 0
     open_interest: float = 0
 
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'Market':
+        return cls(
+            id=data['id'],
+            question=data['question'],
+            description=data.get('description', ''),
+            volume=float(data.get('volume', 0)),
+            end_date=data['end_date'],
+            platform=data['platform'],
+            liquidity=float(data.get('liquidity', 0)),
+            open_interest=float(data.get('open_interest', 0))
+        )
+
 class MarketMatcher:
     def __init__(self):
-        self.conn = psycopg2.connect(os.getenv('DATABASE_URL'))
+        self.db = MarketFetcher()
         self.vectorizer = TfidfVectorizer(stop_words='english')
+
+    def preprocess_text(self, text: str) -> str:
+        """Basic text preprocessing."""
+        text = text.lower()
+        text = text.replace('?', '')
+        return ' '.join(text.split())  # Normalize whitespace
+
+    def get_initial_matches(self,
+                          source_markets: List[Dict],
+                          target_markets: List[Dict],
+                          threshold: float = 0.7) -> List[Tuple[Market, Market, float]]:
+        """First layer: Basic string similarity matching."""
+        matches = []
+
+        # Convert dictionaries to Market objects
+        source_market_objects = [Market.from_dict(m) for m in source_markets]
+        target_market_objects = [Market.from_dict(m) for m in target_markets]
         
-    def fetch_active_markets(self, platform: str) -> List[Market]:
-        """Fetch active markets for a given platform."""
-        cur = self.conn.cursor()
-        try:
-            query = f"""
-                SELECT id, question, description, volume, "endDate", 
-                       {"openInterest, liquidity" if platform != "Polymarket" else "0, 0"}
-                FROM "{platform}Market"
-                WHERE "isActive" = TRUE
-            """
-            cur.execute(query)
-            markets = []
-            for row in cur.fetchall():
-                markets.append(Market(
-                    id=row[0],
-                    question=row[1],
-                    description=row[2] or '',
-                    volume=float(row[3]),
-                    end_date=row[4],
-                    platform=platform,
-                    open_interest=float(row[5]) if platform != "Polymarket" else 0,
-                    liquidity=float(row[6]) if platform != "Polymarket" else 0
-                ))
-            return markets
-        finally:
-            cur.close()
-
-    def calculate_similarity(self, text1: str, text2: str) -> float:
-        """Calculate cosine similarity between two text strings."""
-        try:
-            # Combine texts for vectorization
-            texts = [text1.lower(), text2.lower()]
-            tfidf_matrix = self.vectorizer.fit_transform(texts)
-            
-            # Calculate cosine similarity
-            similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
-            return float(similarity)
-        except Exception as e:
-            print(f"Error calculating similarity: {e}")
-            return 0.0
-
-    def find_similar_markets(self, 
-                           market: Market, 
-                           other_markets: List[Market], 
-                           similarity_threshold: float = 0.5) -> List[Dict]:
-        """Find similar markets above the threshold."""
-        similar_markets = []
+        # Preprocess all questions
+        source_questions = [self.preprocess_text(m.question) for m in source_market_objects]
+        target_questions = [self.preprocess_text(m.question) for m in target_market_objects]
         
-        for other_market in other_markets:
-            # Combine question and description for better matching
-            text1 = f"{market.question} {market.description}"
-            text2 = f"{other_market.question} {other_market.description}"
-            
-            similarity = self.calculate_similarity(text1, text2)
-            
-            if similarity >= similarity_threshold:
-                similar_markets.append({
-                    "market": other_market,
-                    "similarity": similarity
-                })
+        # Convert to TF-IDF vectors
+        all_questions = source_questions + target_questions
+        tfidf_matrix = self.vectorizer.fit_transform(all_questions)
         
-        # Sort by similarity score
-        similar_markets.sort(key=lambda x: x["similarity"], reverse=True)
-        return similar_markets
+        # Calculate similarity between source and target markets
+        source_vectors = tfidf_matrix[:len(source_markets)]
+        target_vectors = tfidf_matrix[len(source_markets):]
+        
+        # Calculate similarity matrix
+        similarity_matrix = cosine_similarity(source_vectors, target_vectors)
+        
+        # Find matches above threshold
+        for i, source_market in enumerate(source_market_objects):
+            for j, target_market in enumerate(target_market_objects):
+                similarity = similarity_matrix[i, j]
+                if similarity >= threshold:
+                    matches.append((source_market, target_market, similarity))
+        
+        return matches
 
-    def update_grouped_markets(self, 
-                             limitless_market: Market, 
-                             poly_matches: List[Dict], 
-                             kalshi_matches: List[Dict]):
-        """Update or insert grouped markets in the database."""
-        cur = self.conn.cursor()
+    def filter_by_date(self,
+                      matches: List[Tuple[Market, Market, float]],
+                      max_days_diff: int = 5) -> List[Tuple[Market, Market, float]]:
+        """Second layer: Filter matches by end date proximity."""
+        filtered_matches = []
+        
+        for source_market, target_market, similarity in matches:
+            if not source_market.end_date or not target_market.end_date:
+                continue
+                
+            days_diff = abs((source_market.end_date - target_market.end_date).days)
+            if days_diff <= max_days_diff:
+                filtered_matches.append((source_market, target_market, similarity))
+                
+        return filtered_matches
+
+    def group_markets(self,
+                     matches: List[Tuple[Market, Market, float]],
+                     min_similarity: float = 0.7) -> List[Dict]:
+        """Create market groups from matches."""
+        market_groups = defaultdict(list)
+        processed_markets = set()
+        
+        for source_market, target_market, similarity in matches:
+            if similarity < min_similarity:
+                continue
+                
+            # Create or add to group
+            group_key = None
+            
+            # Check if either market is already in a group
+            for key in market_groups:
+                if source_market.id in [m.id for m in market_groups[key]] or \
+                   target_market.id in [m.id for m in market_groups[key]]:
+                    group_key = key
+                    break
+            
+            if group_key is None:
+                group_key = f"group_{len(market_groups)}"
+            
+            # Add both markets if not already in group
+            if source_market.id not in [m.id for m in market_groups[group_key]]:
+                market_groups[group_key].append(source_market)
+            if target_market.id not in [m.id for m in market_groups[group_key]]:
+                market_groups[group_key].append(target_market)
+                
+            processed_markets.add(source_market.id)
+            processed_markets.add(target_market.id)
+        
+        # Convert to list of groups
+        return [
+            {
+                "markets": [
+                    {
+                        "id": m.id,
+                        "question": m.question,
+                        "description": m.description,
+                        "volume": m.volume,
+                        "end_date": m.end_date,
+                        "platform": m.platform,
+                        "liquidity": m.liquidity,
+                        "open_interest": m.open_interest
+                    } for m in markets
+                ],
+                "platform_count": len(set(m.platform for m in markets)),
+                "avg_similarity": min_similarity
+            }
+            for markets in market_groups.values()
+        ]
+
+    def process_markets(self, similarity_threshold: float = 0.7, date_threshold: int = 5):
+        """Main processing function."""
         try:
-            # First, create the group
-            cur.execute("""
-                INSERT INTO "GroupedMarket" (
-                    "limitlessId", "createdAt", "updatedAt"
-                ) VALUES (%s, NOW(), NOW())
-                RETURNING id
-            """, (limitless_market.id,))
-            group_id = cur.fetchone()[0]
+            # Fetch markets using MarketFetcher
+            limitless_markets = self.db.fetch_active_markets("Limitless")
+            poly_markets = self.db.fetch_active_markets("Polymarket")
+            kalshi_markets = self.db.fetch_active_markets("Kalshi")
 
-            # Add Polymarket matches
-            for match in poly_matches:
-                cur.execute("""
-                    INSERT INTO "GroupedMarket" (
-                        "limitlessId", "polymarketId", "similarity",
-                        "createdAt", "updatedAt"
-                    ) VALUES (%s, %s, %s, NOW(), NOW())
-                """, (
-                    limitless_market.id,
-                    match["market"].id,
-                    match["similarity"]
-                ))
-
-            # Add Kalshi matches
-            for match in kalshi_matches:
-                cur.execute("""
-                    INSERT INTO "GroupedMarket" (
-                        "limitlessId", "kalshiId", "similarity",
-                        "createdAt", "updatedAt"
-                    ) VALUES (%s, %s, %s, NOW(), NOW())
-                """, (
-                    limitless_market.id,
-                    match["market"].id,
-                    match["similarity"]
-                ))
-
-            self.conn.commit()
-            return group_id
-        except Exception as e:
-            self.conn.rollback()
-            print(f"Error updating grouped markets: {e}")
-            raise
-        finally:
-            cur.close()
-
-    def process_markets(self, similarity_threshold: float = 0.5):
-        """Main process to match markets across platforms."""
-        try:
-            # Fetch active markets from all platforms
-            limitless_markets = self.fetch_active_markets("Limitless")
-            polymarket_markets = self.fetch_active_markets("Polymarket")
-            kalshi_markets = self.fetch_active_markets("Kalshi")
-
-            print(f"Found {len(limitless_markets)} Limitless markets")
-            print(f"Found {len(polymarket_markets)} Polymarket markets")
+            print(f"Processing {len(limitless_markets)} Limitless markets...")
+            print(f"Found {len(poly_markets)} Polymarket markets")
             print(f"Found {len(kalshi_markets)} Kalshi markets")
+            
+            # Get initial matches for each platform pair
+            limitless_poly_matches = self.get_initial_matches(
+                limitless_markets,
+                poly_markets,
+                similarity_threshold
+            )
+            limitless_kalshi_matches = self.get_initial_matches(
+                limitless_markets,
+                kalshi_markets,
+                similarity_threshold
+            )
+            
+            print(f"Found {len(limitless_poly_matches)} initial Poly matches")
+            print(f"Found {len(limitless_kalshi_matches)} initial Kalshi matches")
+            
+            # Filter by date
+            limitless_poly_matches = self.filter_by_date(
+                limitless_poly_matches,
+                date_threshold
+            )
+            limitless_kalshi_matches = self.filter_by_date(
+                limitless_kalshi_matches,
+                date_threshold
+            )
+            
+            print(f"After date filtering: {len(limitless_poly_matches)} Poly matches")
+            print(f"After date filtering: {len(limitless_kalshi_matches)} Kalshi matches")
+            
+            # Combine all matches
+            all_matches = limitless_poly_matches + limitless_kalshi_matches
+            
+            # Group markets
+            market_groups = self.group_markets(all_matches, similarity_threshold)
+            
+            print(f"Created {len(market_groups)} market groups")
 
-            # Clear existing grouped markets
-            cur = self.conn.cursor()
-            cur.execute('TRUNCATE TABLE "GroupedMarket" CASCADE')
-            self.conn.commit()
+            # Validate groups before database update
+            valid_groups = []
+            for group in market_groups:
+                # Ensure each group has at least one Limitless market and one other market
+                has_limitless = any(m["platform"] == "Limitless" for m in group["markets"])
+                has_other = any(m["platform"] != "Limitless" for m in group["markets"])
+                
+                if has_limitless and has_other:
+                    valid_groups.append(group)
+                else:
+                    print(f"Skipping invalid group: {[m['platform'] for m in group['markets']]}")
 
-            # Process each Limitless market
-            for limitless_market in limitless_markets:
-                print(f"\nProcessing Limitless market: {limitless_market.question}")
+            print(f"Found {len(valid_groups)} valid groups after validation")
 
-                # Find similar markets on both platforms
-                poly_matches = self.find_similar_markets(
-                    limitless_market, polymarket_markets, similarity_threshold
-                )
-                kalshi_matches = self.find_similar_markets(
-                    limitless_market, kalshi_markets, similarity_threshold
-                )
-
-                if poly_matches or kalshi_matches:
-                    print(f"Found {len(poly_matches)} Polymarket matches")
-                    print(f"Found {len(kalshi_matches)} Kalshi matches")
-                    
-                    # Update database with matches
-                    group_id = self.update_grouped_markets(
-                        limitless_market, poly_matches, kalshi_matches
-                    )
-                    print(f"Created group with ID: {group_id}")
+            # Update database with valid groups
+            if valid_groups:
+                try:
+                    self.db.update_grouped_markets(valid_groups)
+                    print("Successfully updated grouped markets in database")
+                except Exception as e:
+                    print(f"Error updating grouped markets: {e}")
+                    raise
+            else:
+                print("No valid groups found to update")
 
         except Exception as e:
-            print(f"Error processing markets: {e}")
+            print(f"Error in process_markets: {e}")
             raise
         finally:
-            self.conn.close()
+            self.db.close()
 
 def main():
     matcher = MarketMatcher()
-    matcher.process_markets(similarity_threshold=0.5)
+    matcher.process_markets(similarity_threshold=0.7)
 
 if __name__ == "__main__":
     main()

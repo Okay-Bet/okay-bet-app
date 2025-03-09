@@ -3,3 +3,4 @@ psycopg2-binary==2.9.9
 python-dotenv==1.0.0
 scikit-learn==1.6.1
 numpy==1.26.4
+python-Levenshtein==0.23.0
