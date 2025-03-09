@@ -245,22 +245,22 @@ class MarketFetcher:
                     if market["platform"] == "Limitless":
                         cur.execute("""
                             INSERT INTO "LimitlessGroupedMarket" 
-                            (id, "groupId", "marketId", similarity, "createdAt", "updatedAt")
-                            VALUES (%s, %s, %s, %s, NOW(), NOW())
+                            (id, "groupId", "marketId", similarity)
+                            VALUES (%s, %s, %s, %s)
                         """, (cuid.cuid(), group_id, market_id, similarity))
                     
                     elif market["platform"] == "Polymarket":
                         cur.execute("""
                             INSERT INTO "PolymarketGroupedMarket"
-                            (id, "groupId", "marketId", similarity, "createdAt", "updatedAt")
-                            VALUES (%s, %s, %s, %s, NOW(), NOW())
+                            (id, "groupId", "marketId", similarity)
+                            VALUES (%s, %s, %s, %s)
                         """, (cuid.cuid(), group_id, market_id, similarity))
                     
                     elif market["platform"] == "Kalshi":
                         cur.execute("""
                             INSERT INTO "KalshiGroupedMarket"
-                            (id, "groupId", "marketId", similarity, "createdAt", "updatedAt")
-                            VALUES (%s, %s, %s, %s, NOW(), NOW())
+                            (id, "groupId", "marketId", similarity)
+                            VALUES (%s, %s, %s, %s)
                         """, (cuid.cuid(), group_id, market_id, similarity))
 
                 self.conn.commit()
