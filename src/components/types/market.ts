@@ -57,6 +57,15 @@ export interface PolymarketMarket extends BaseMarket {
   volume_num?: number;
 }
 
+export interface KalshiMarket extends BaseMarket {
+  provider: "KALSHI";
+  ticker: string; // Kalshi specific
+  category: string; // Kalshi specific
+  status: MarketStatus;
+  openInterest: number;
+  volume24H?: number;
+}
+
 export interface OrderBook {
   yes: {
     bid?: number;
@@ -101,7 +110,7 @@ export interface Event {
   liquidity: number;
   volume: number;
   description?: string;
-  markets: LimitlessMarket[]; // Accept both market types
+  markets: (LimitlessMarket | PolymarketMarket | KalshiMarket)[];
   activeMarketsCount?: number;
 }
 
@@ -140,34 +149,50 @@ export interface GroupedMarketsResponse {
 }
 
 export interface GroupedMarketCard {
-  id: string; // GroupedMarket id
-  limitlessMarket: LimitlessMarket; // Full limitless market data
-  polymarketMatches: {
-    market: PolymarketMarket; // Full polymarket data
-    similarity: number; // Similarity score from matching
+  id: string;
+  limitlessMarkets: {
+    market: LimitlessMarket;
+    similarity: number | null;
+  }[];
+  polymarketMarkets: {
+    market: PolymarketMarket;
+    similarity: number | null;
+  }[];
+  kalshiMarkets: {
+    market: KalshiMarket;
+    similarity: number | null;
   }[];
   metrics: {
-    totalVolume: number; // Combined volume across all markets
-    highestLiquidity: number; // Highest liquidity among all markets
-    averageSimilarity: number; // Average similarity score
+    totalVolume: number;
+    highestLiquidity: number;
     platforms: {
       limitless: {
-        volume: number;
-        liquidity: number;
-        openInterest: number;
+        markets: Array<{
+          id: string;
+          volume: number;
+          openInterest: number;
+        }>;
       };
       polymarket: {
-        matches: Array<{
+        markets: Array<{
           id: string;
           volume: number;
           liquidity: number;
+        }>;
+      };
+      kalshi: {
+        markets: Array<{
+          id: string;
+          volume: number;
+          liquidity: number;
+          openInterest: number;
         }>;
       };
     };
   };
 }
 
-export interface GroupedMarketsCardResponse {
+export interface GroupedMarketsResponse {
   success: boolean;
   data: GroupedMarketCard[];
   error?: string;
