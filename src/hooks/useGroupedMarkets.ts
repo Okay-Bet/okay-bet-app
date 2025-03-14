@@ -1,18 +1,42 @@
-// hooks/useGroupedMarkets.ts
+// src/hooks/useGroupedMarkets.ts
 import { useState, useEffect } from 'react';
-import type { GroupedMarketCard } from '@/components/types';
+import type { 
+  GroupedMarketCard, 
+  LimitlessMarket, 
+  PolymarketMarket,
+  PolymarketBet 
+} from '@/components/types';
+import { useMarketPrices } from '@/hooks/useMarketPrices';
+import { useBetSlip } from '@/app/context/BetSlipContext';
 
 interface UseGroupedMarketsReturn {
   groupedMarkets: GroupedMarketCard[];
   loading: boolean;
   error: string | null;
+  marketActions: {
+    handleBetClick: (market: LimitlessMarket, position: "YES" | "NO") => void;
+    handlePolymarketBetClick: (market: PolymarketMarket, position: "YES" | "NO") => void;
+    toggleMarketExpanded: (marketId: string) => void;
+  };
+  marketStates: {
+    showMoneyline: boolean;
+    setShowMoneyline: (show: boolean) => void;
+    expandedMarkets: Set<string>;
+    pricesLoading: boolean;
+    realtimePrices: any; // Type this properly based on useMarketPrices return
+  };
 }
 
 export function useGroupedMarkets(): UseGroupedMarketsReturn {
   const [groupedMarkets, setGroupedMarkets] = useState<GroupedMarketCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showMoneyline, setShowMoneyline] = useState(false);
+  const [expandedMarkets, setExpandedMarkets] = useState<Set<string>>(new Set());
+  
+  const { addBet } = useBetSlip();
 
+  // Fetch grouped markets data
   useEffect(() => {
     const fetchGroupedMarkets = async () => {
       try {
@@ -34,5 +58,76 @@ export function useGroupedMarkets(): UseGroupedMarketsReturn {
     fetchGroupedMarkets();
   }, []);
 
-  return { groupedMarkets, loading, error };
+  const handleBetClick = (market: LimitlessMarket, position: "YES" | "NO") => {
+    const { prices: realtimePrices } = useMarketPrices(market);
+    
+    const priceToUse =
+      position === "YES"
+        ? realtimePrices?.yes?.ask ?? market.prices.yes.ask
+        : realtimePrices?.no?.ask ?? market.prices.no.ask;
+
+    if (
+      typeof priceToUse !== "number" ||
+      isNaN(priceToUse) ||
+      priceToUse <= 0 ||
+      priceToUse > 1
+    ) {
+      return;
+    }
+
+    const bet = {
+      marketId: market.id,
+      eventTitle: market.question,
+      marketQuestion: market.question,
+      position,
+      price: priceToUse,
+      tokenId: market.id,
+      provider: "LIMITLESS" as const,
+    };
+
+    addBet(bet);
+  };
+
+  const handlePolymarketBetClick = (market: PolymarketMarket, position: "YES" | "NO") => {
+    const bet: PolymarketBet = {
+      marketId: market.id,
+      eventTitle: market.question,
+      marketQuestion: market.question,
+      position,
+      price: position === "YES" ? market.prices.yes.ask : market.prices.no.ask,
+      provider: "POLYMARKET",
+      slug: market.slug,
+    };
+    addBet(bet);
+  };
+
+  const toggleMarketExpanded = (marketId: string) => {
+    setExpandedMarkets((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(marketId)) {
+        newSet.delete(marketId);
+      } else {
+        newSet.add(marketId);
+      }
+      return newSet;
+    });
+  };
+
+  return {
+    groupedMarkets,
+    loading,
+    error,
+    marketActions: {
+      handleBetClick,
+      handlePolymarketBetClick,
+      toggleMarketExpanded,
+    },
+    marketStates: {
+      showMoneyline,
+      setShowMoneyline,
+      expandedMarkets,
+      pricesLoading: false, // Update this based on your needs
+      realtimePrices: null, // Update this based on your needs
+    },
+  };
 }

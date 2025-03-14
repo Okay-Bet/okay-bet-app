@@ -1,15 +1,13 @@
-// components/Markets/GroupedMarketCard.tsx
-import React, { useState } from "react";
+// src/components/Markets/GroupedMarketCard.tsx
+import React from "react";
 import Image from "next/image";
 import type {
   GroupedMarketCard as GroupedMarketCardType,
   LimitlessMarket,
   PolymarketMarket,
-  PolymarketBet,
 } from "@/components/types";
 import { formatPrice } from "@/utils/marketUtils";
-import { useMarketPrices } from "@/hooks/useMarketPrices";
-import { useBetSlip } from "@/app/context/BetSlipContext";
+import { useGroupedMarkets } from "@/hooks/useGroupedMarkets";
 
 interface GroupedMarketCardProps {
   groupedMarket: GroupedMarketCardType;
@@ -29,80 +27,24 @@ interface MarketDetailsProps {
 export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
   groupedMarket,
 }) => {
-  const { limitlessMarket, polymarketMatches, metrics } = groupedMarket;
-  const [showDetails, setShowDetails] = useState(false);
-  const [showMoneyline, setShowMoneyline] = useState(false);
-  const [expandedPolymarkets, setExpandedPolymarkets] = useState<Set<string>>(
-    new Set()
-  );
-  const { addBet } = useBetSlip();
+  const { marketActions, marketStates } = useGroupedMarkets();
+  const { handleBetClick, handlePolymarketBetClick, toggleMarketExpanded } =
+    marketActions;
+  const { showMoneyline, setShowMoneyline, expandedMarkets, pricesLoading } =
+    marketStates;
 
-  // Get real-time Limitless prices
-  const { prices: realtimePrices, loading: pricesLoading } =
-    useMarketPrices(limitlessMarket);
+  const { limitlessMarkets, polymarketMarkets, kalshiMarkets, metrics } =
+    groupedMarket;
+  const primaryLimitlessMarket = limitlessMarkets[0]?.market;
 
-  const handleBetClick = (position: "YES" | "NO") => {
-    const priceToUse =
-      position === "YES"
-        ? realtimePrices?.yes?.ask ?? limitlessMarket.prices.yes.ask
-        : realtimePrices?.no?.ask ?? limitlessMarket.prices.no.ask;
-
-    if (
-      typeof priceToUse !== "number" ||
-      isNaN(priceToUse) ||
-      priceToUse <= 0 ||
-      priceToUse > 1
-    ) {
-      return;
-    }
-
-    const bet = {
-      marketId: limitlessMarket.id,
-      eventTitle: limitlessMarket.question,
-      marketQuestion: limitlessMarket.question,
-      position,
-      price: priceToUse,
-      tokenId: limitlessMarket.id,
-      provider: "LIMITLESS" as const,
-    };
-
-    addBet(bet);
-  };
-
-  const handlePolymarketBetClick = (market: any, position: "YES" | "NO") => {
-    const bet: PolymarketBet = {
-      marketId: market.id,
-      eventTitle: market.question,
-      marketQuestion: market.question,
-      position,
-      price: position === "YES" ? market.prices.yes.ask : market.prices.no.ask,
-      provider: "POLYMARKET",
-      slug: market.slug,
-    };
-    addBet(bet);
-  };
-
-  const togglePolymarketExpanded = (marketId: string) => {
-    setExpandedPolymarkets((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(marketId)) {
-        newSet.delete(marketId);
-      } else {
-        newSet.add(marketId);
-      }
-      return newSet;
-    });
-  };
-
-  // Get the latest prices with proper fallback handling
-  const yesPrice = pricesLoading
-    ? limitlessMarket.prices.yes.ask
-    : realtimePrices?.yes?.ask ?? limitlessMarket.prices.yes.ask;
-  const noPrice = pricesLoading
-    ? limitlessMarket.prices.no.ask
-    : realtimePrices?.no?.ask ?? limitlessMarket.prices.no.ask;
-
-  const isMarketActive = limitlessMarket.status === "ACTIVE";
+  if (
+    !limitlessMarkets ||
+    !polymarketMarkets ||
+    !kalshiMarkets ||
+    !primaryLimitlessMarket
+  ) {
+    return null;
+  }
 
   const MarketDetailsSection: React.FC<MarketDetailsProps> = ({
     isPolymarket = false,
@@ -114,9 +56,8 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
       if (isPolymarket) {
         return `$${(metrics?.volume || 0).toLocaleString()}`;
       }
-      const limitlessMarket = market as LimitlessMarket;
       return `$${(
-        parseFloat(limitlessMarket.metrics.volumeRaw) / 1e6
+        parseFloat(market.metrics.volumeRaw) / 1e6
       ).toLocaleString()}`;
     };
 
@@ -124,9 +65,8 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
       if (isPolymarket) {
         return `$${(metrics?.liquidity || 0).toLocaleString()}`;
       }
-      const limitlessMarket = market as LimitlessMarket;
       return `$${(
-        parseFloat(limitlessMarket.metrics.openInterestRaw) / 1e6
+        parseFloat(market.metrics.openInterestRaw) / 1e6
       ).toLocaleString()}`;
     };
 
@@ -189,7 +129,7 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
         <div className="px-4 py-3">
           <div className="flex justify-between items-start">
             <h2 className="text-2xl font-header text-gray-800 leading-tight">
-              {limitlessMarket.question}
+              {primaryLimitlessMarket.question}
             </h2>
             <button
               onClick={() => setShowMoneyline(!showMoneyline)}
@@ -205,78 +145,80 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
 
       {/* Market Content */}
       <div className="p-4">
-        {/* Markets Table */}
         <div className="space-y-2">
-          {/* Limitless Market Row */}
-          <div className="border border-gray-200 rounded-lg hover:border-accent-red-500 transition-all duration-300">
-            <div className="grid grid-cols-12 gap-2">
-              <button
-                onClick={() => setShowDetails(!showDetails)}
-                className="col-span-6 py-2 px-2 text-left hover:bg-gray-50 transition-all duration-300" // reduced px from 3 to 2
-              >
-                <div className="flex items-center gap-1 sm:gap-2">
-                  <div className="relative w-12 sm:w-16 h-6 flex-shrink-0">
-                    <Image
-                      src="/icons/limitless-logo.png"
-                      alt="Limitless Logo"
-                      className="object-contain"
-                      fill
-                      sizes="(max-width: 640px) 48px, 64px" // adjusted sizes to match new dimensions
-                      priority
-                    />
+          {/* Limitless Markets */}
+          {limitlessMarkets.map(({ market }) => (
+            <div
+              key={market.id}
+              className="border border-gray-200 rounded-lg hover:border-accent-red-500 transition-all duration-300"
+            >
+              <div className="grid grid-cols-12 gap-2">
+                <button
+                  onClick={() => toggleMarketExpanded(market.id)}
+                  className="col-span-6 py-2 px-2 text-left hover:bg-gray-50 transition-all duration-300"
+                >
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <div className="relative w-12 sm:w-16 h-6 flex-shrink-0">
+                      <Image
+                        src="/icons/limitless-logo.png"
+                        alt="Limitless Logo"
+                        className="object-contain"
+                        fill
+                        sizes="(max-width: 640px) 48px, 64px"
+                        priority
+                      />
+                    </div>
+                    <span className="text-gray-800 line-clamp-2 text-sm sm:text-base flex-grow">
+                      {market.question}
+                    </span>
                   </div>
-                  <span className="text-gray-800 line-clamp-2 text-sm sm:text-base flex-grow">
-                    {limitlessMarket.question}
-                  </span>
-                </div>
-              </button>
+                </button>
 
-              <button
-                onClick={() => handleBetClick("YES")}
-                disabled={!isMarketActive || !yesPrice || pricesLoading}
-                className="col-span-3 py-2 px-3 text-green-600 font-header text-center
-                         disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 
-                         border-l border-gray-200 hover:bg-green-600 hover:text-white 
-                         active:bg-green-700 transform hover:scale-105"
-              >
-                {pricesLoading ? (
-                  <span className="text-gray-400 animate-pulse">...</span>
-                ) : (
-                  formatPrice(yesPrice, showMoneyline)
-                )}
-              </button>
+                <button
+                  onClick={() => handleBetClick(market, "YES")}
+                  disabled={market.status !== "ACTIVE" || pricesLoading}
+                  className="col-span-3 py-2 px-3 text-green-600 font-header text-center
+                           disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 
+                           border-l border-gray-200 hover:bg-green-600 hover:text-white 
+                           active:bg-green-700 transform hover:scale-105"
+                >
+                  {pricesLoading ? (
+                    <span className="text-gray-400 animate-pulse">...</span>
+                  ) : (
+                    formatPrice(market.prices.yes.ask || 0, showMoneyline)
+                  )}
+                </button>
 
-              <button
-                onClick={() => handleBetClick("NO")}
-                disabled={!isMarketActive || !noPrice || pricesLoading}
-                className="col-span-3 py-2 px-3 text-accent-red-500 font-header text-center
-                         disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300
-                         border-l border-gray-200 hover:bg-accent-red-500 hover:text-white 
-                         active:bg-accent-red-600 transform hover:scale-105"
-              >
-                {pricesLoading ? (
-                  <span className="text-gray-400 animate-pulse">...</span>
-                ) : (
-                  formatPrice(noPrice, showMoneyline)
-                )}
-              </button>
+                <button
+                  onClick={() => handleBetClick(market, "NO")}
+                  disabled={market.status !== "ACTIVE" || pricesLoading}
+                  className="col-span-3 py-2 px-3 text-accent-red-500 font-header text-center
+                           disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300
+                           border-l border-gray-200 hover:bg-accent-red-500 hover:text-white 
+                           active:bg-accent-red-600 transform hover:scale-105"
+                >
+                  {pricesLoading ? (
+                    <span className="text-gray-400 animate-pulse">...</span>
+                  ) : (
+                    formatPrice(market.prices.no.ask || 0, showMoneyline)
+                  )}
+                </button>
+              </div>
+
+              {expandedMarkets.has(market.id) && (
+                <MarketDetailsSection
+                  market={market}
+                  className="sm:text-base text-sm"
+                />
+              )}
             </div>
+          ))}
 
-            {/* Expanded Details */}
-            {showDetails && (
-              <MarketDetailsSection
-                market={limitlessMarket}
-                className="sm:text-base text-sm"
-              />
-            )}
-          </div>
-
-          {/* Polymarket Matches */}
-          {polymarketMatches.map(({ market }) => {
-            const marketMetrics = metrics.platforms.polymarket.matches.find(
+          {/* Polymarket Markets */}
+          {polymarketMarkets.map(({ market }) => {
+            const marketMetrics = metrics.platforms.polymarket.markets.find(
               (m) => m.id === market.id
             );
-            const isExpanded = expandedPolymarkets.has(market.id);
 
             return (
               <div
@@ -285,8 +227,8 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
               >
                 <div className="grid grid-cols-12 gap-2">
                   <button
-                    onClick={() => togglePolymarketExpanded(market.id)}
-                    className="col-span-6 py-2 px-2 text-left hover:bg-gray-50 transition-all duration-300" // reduced px from 3 to 2
+                    onClick={() => toggleMarketExpanded(market.id)}
+                    className="col-span-6 py-2 px-2 text-left hover:bg-gray-50 transition-all duration-300"
                   >
                     <div className="flex items-center gap-1 sm:gap-2">
                       <div className="relative w-12 sm:w-16 h-6 flex-shrink-0">
@@ -295,7 +237,7 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                           alt="Polymarket Logo"
                           className="object-contain"
                           fill
-                          sizes="(max-width: 640px) 48px, 64px" // adjusted sizes to match new dimensions
+                          sizes="(max-width: 640px) 48px, 64px"
                           priority
                         />
                       </div>
@@ -308,27 +250,74 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                   <button
                     onClick={() => handlePolymarketBetClick(market, "YES")}
                     className="col-span-3 py-2 px-3 text-green-600 font-header text-center
-    transition-all duration-300 border-l border-gray-200 
-    hover:bg-green-600 hover:text-white active:bg-green-700 
-    transform hover:scale-105"
+                             transition-all duration-300 border-l border-gray-200 
+                             hover:bg-green-600 hover:text-white active:bg-green-700 
+                             transform hover:scale-105"
                   >
                     {formatPrice(market.prices.yes.ask || 0, showMoneyline)}
                   </button>
+
                   <button
                     onClick={() => handlePolymarketBetClick(market, "NO")}
                     className="col-span-3 py-2 px-3 text-accent-red-500 font-header text-center
-    transition-all duration-300 border-l border-gray-200 
-    hover:bg-accent-red-500 hover:text-white active:bg-accent-red-600 
-    transform hover:scale-105"
+                             transition-all duration-300 border-l border-gray-200 
+                             hover:bg-accent-red-500 hover:text-white active:bg-accent-red-600 
+                             transform hover:scale-105"
                   >
                     {formatPrice(market.prices.no.ask || 0, showMoneyline)}
                   </button>
                 </div>
 
-                {/* Expanded Polymarket Details */}
-                {isExpanded && (
+                {expandedMarkets.has(market.id) && (
                   <MarketDetailsSection
                     isPolymarket
+                    market={market}
+                    metrics={marketMetrics}
+                    className="sm:text-base text-sm"
+                  />
+                )}
+              </div>
+            );
+          })}
+
+          {/* Kalshi Markets */}
+          {kalshiMarkets.map(({ market }) => {
+            const marketMetrics = metrics.platforms.kalshi.markets.find(
+              (m) => m.id === market.id
+            );
+
+            return (
+              <div
+                key={market.id}
+                className="border border-gray-200 rounded-lg hover:border-accent-red-500 transition-all duration-300"
+              >
+                <div className="grid grid-cols-12 gap-2">
+                  <button
+                    onClick={() => toggleMarketExpanded(market.id)}
+                    className="col-span-6 py-2 px-2 text-left hover:bg-gray-50 transition-all duration-300"
+                  >
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <div className="relative w-12 sm:w-16 h-6 flex-shrink-0">
+                        <Image
+                          src="/icons/kalshi-logo.jpeg"
+                          alt="Kalshi Logo"
+                          className="object-contain"
+                          fill
+                          sizes="(max-width: 640px) 48px, 64px"
+                          priority
+                        />
+                      </div>
+                      <span className="text-gray-800 line-clamp-2 text-sm sm:text-base flex-grow">
+                        {market.question}
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* Add Kalshi betting buttons here */}
+                </div>
+
+                {expandedMarkets.has(market.id) && (
+                  <MarketDetailsSection
                     market={market}
                     metrics={marketMetrics}
                     className="sm:text-base text-sm"
