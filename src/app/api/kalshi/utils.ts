@@ -1,13 +1,14 @@
 import type { KalshiMarket, MarketStatus } from "@/components/types";
 
-const KALSHI_API_URL = "https://trading-api.kalshi.com/v1";
+const KALSHI_API_URL = "https://api.elections.kalshi.com/trade-api/v2";
 
 export interface KalshiAPIMarket {
   ticker: string;
+  event_ticker: string;
   title: string;
-  category: string;
-  sub_category?: string;
-  description?: string;
+  subtitle?: string;
+  rules_primary?: string;
+  rules_secondary?: string;
   close_time: string;
   status: string;
   volume_24h: number;
@@ -19,22 +20,23 @@ export interface KalshiAPIMarket {
   no_ask?: number;
   no_bid?: number;
   last_price?: number;
-  created_time: string;
+  created_time?: string;
   updated_time?: string;
 }
 
-export const transformKalshiMarket = (market: KalshiAPIMarket): KalshiMarket => {
+export const transformKalshiMarket = (
+  market: KalshiAPIMarket
+): KalshiMarket => {
   try {
     const status: MarketStatus = (() => {
       switch (market.status.toLowerCase()) {
         case 'active':
-          return 'Open';
+          return 'ACTIVE';
         case 'closed':
-          return 'Closed';
         case 'settled':
-          return 'Resolved';
+          return 'RESOLVED';
         default:
-          return 'Open';
+          return 'ACTIVE';
       }
     })();
 
@@ -42,17 +44,19 @@ export const transformKalshiMarket = (market: KalshiAPIMarket): KalshiMarket => 
       id: market.ticker,
       provider: "KALSHI",
       question: market.title,
-      description: market.description || "",
+      description: `Rules: ${market.rules_primary || ""}\nAdditional Info: ${
+        market.rules_secondary || ""
+      }`.trim(),
       ticker: market.ticker,
-      category: market.category,
+      category: market.event_ticker,
       status,
       expirationDate: market.close_time,
       timestamps: {
-        created: market.created_time,
+        created: market.created_time || new Date().toISOString(),
         updated: market.updated_time,
       },
       collateral: {
-        address: "", // Kalshi uses USD directly
+        address: "",
         symbol: "USD",
         decimals: 2,
       },
@@ -89,20 +93,20 @@ export async function fetchKalshiMarkets(
   marketIds: string[]
 ): Promise<KalshiMarket[]> {
   try {
-    // Kalshi API might require authentication
     const headers = {
-      'Content-Type': 'application/json',
-      // Add any required API keys or authentication headers
+      accept: "application/json",
+      "Content-Type": "application/json",
     };
 
-    // Fetch markets in parallel if needed
     const marketPromises = marketIds.map(async (id) => {
       const response = await fetch(`${KALSHI_API_URL}/markets/${id}`, {
         headers,
       });
 
       if (!response.ok) {
-        console.error(`Failed to fetch Kalshi market ${id}: ${response.status}`);
+        console.error(
+          `Failed to fetch Kalshi market ${id}: ${response.status}`
+        );
         return null;
       }
 
@@ -132,7 +136,7 @@ export async function fetchKalshiMarket(
 
 // Helper function to fetch multiple markets with additional parameters
 export const fetchKalshiData = async (
-  marketIds: string[],
+  marketIds: string[]
 ): Promise<KalshiMarket[]> => {
   try {
     const markets = await fetchKalshiMarkets(marketIds);
