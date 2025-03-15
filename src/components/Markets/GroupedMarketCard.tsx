@@ -15,7 +15,7 @@ interface GroupedMarketCardProps {
 
 interface MarketDetailsProps {
   isPolymarket?: boolean;
-  market: LimitlessMarket | PolymarketMarket;
+  market: LimitlessMarket | PolymarketMarket | KalshiMarket;
   metrics?: {
     volume?: number;
     liquidity?: number;
@@ -28,8 +28,12 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
   groupedMarket,
 }) => {
   const { marketActions, marketStates } = useGroupedMarkets();
-  const { handleBetClick, handlePolymarketBetClick, handleKalshiBetClick, toggleMarketExpanded } =
-    marketActions;
+  const {
+    handleBetClick,
+    handlePolymarketBetClick,
+    handleKalshiBetClick,
+    toggleMarketExpanded,
+  } = marketActions;
   const { showMoneyline, setShowMoneyline, expandedMarkets, pricesLoading } =
     marketStates;
 
@@ -56,6 +60,11 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
       if (isPolymarket) {
         return `$${(metrics?.volume || 0).toLocaleString()}`;
       }
+      // Handle Kalshi market
+      if (market.provider === "KALSHI") {
+        return `$${parseFloat(market.metrics.volume).toLocaleString()}`;
+      }
+      // Default Limitless handling
       return `$${(
         parseFloat(market.metrics.volumeRaw) / 1e6
       ).toLocaleString()}`;
@@ -65,6 +74,11 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
       if (isPolymarket) {
         return `$${(metrics?.liquidity || 0).toLocaleString()}`;
       }
+      // Handle Kalshi market
+      if (market.provider === "KALSHI") {
+        return `$${parseFloat(market.metrics.liquidity).toLocaleString()}`;
+      }
+      // Default Limitless handling
       return `$${(
         parseFloat(market.metrics.openInterestRaw) / 1e6
       ).toLocaleString()}`;
@@ -89,7 +103,11 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
 
             <div className="flex items-center">
               <span className="text-gray-500 min-w-[90px]">
-                {isPolymarket ? "Liquidity:" : "Open Interest:"}
+                {market.provider === "KALSHI"
+                  ? "Liquidity:"
+                  : isPolymarket
+                  ? "Liquidity:"
+                  : "Open Interest:"}
               </span>
               <span className="text-gray-800 font-medium">
                 {getLiquidityDisplay()}
@@ -282,10 +300,9 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
 
           {/* Kalshi Markets */}
           {kalshiMarkets.map(({ market }) => {
-            const prices = {
-              yes: market.prices.yes.ask,
-              no: market.prices.no.ask,
-            };
+            const marketMetrics = metrics.platforms.kalshi?.markets.find(
+              (m) => m.id === market.id
+            );
 
             return (
               <div

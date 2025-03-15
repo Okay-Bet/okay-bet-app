@@ -1,14 +1,14 @@
 // src/hooks/useGroupedMarkets.ts
-import { useState, useEffect } from 'react';
-import type { 
-  GroupedMarketCard, 
-  LimitlessMarket, 
+import { useState, useEffect } from "react";
+import type {
+  GroupedMarketCard,
+  LimitlessMarket,
   PolymarketMarket,
   KalshiMarket,
-  PolymarketBet 
-} from '@/components/types';
-import { useMarketPrices } from '@/hooks/useMarketPrices';
-import { useBetSlip } from '@/app/context/BetSlipContext';
+  PolymarketBet,
+} from "@/components/types";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
+import { useBetSlip } from "@/app/context/BetSlipContext";
 
 interface UseGroupedMarketsReturn {
   groupedMarkets: GroupedMarketCard[];
@@ -16,8 +16,14 @@ interface UseGroupedMarketsReturn {
   error: string | null;
   marketActions: {
     handleBetClick: (market: LimitlessMarket, position: "YES" | "NO") => void;
-    handlePolymarketBetClick: (market: PolymarketMarket, position: "YES" | "NO") => void;
-    handleKalshiBetClick: (market: KalshiMarket, position: "YES" | "NO") => void;
+    handlePolymarketBetClick: (
+      market: PolymarketMarket,
+      position: "YES" | "NO"
+    ) => void;
+    handleKalshiBetClick: (
+      market: KalshiMarket,
+      position: "YES" | "NO"
+    ) => void;
     toggleMarketExpanded: (marketId: string) => void;
   };
   marketStates: {
@@ -34,24 +40,26 @@ export function useGroupedMarkets(): UseGroupedMarketsReturn {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showMoneyline, setShowMoneyline] = useState(false);
-  const [expandedMarkets, setExpandedMarkets] = useState<Set<string>>(new Set());
-  
+  const [expandedMarkets, setExpandedMarkets] = useState<Set<string>>(
+    new Set()
+  );
+
   const { addBet } = useBetSlip();
 
   // Fetch grouped markets data
   useEffect(() => {
     const fetchGroupedMarkets = async () => {
       try {
-        const response = await fetch('/api/grouped-markets');
+        const response = await fetch("/api/grouped-markets");
         const data = await response.json();
 
         if (!data.success) {
-          throw new Error(data.error || 'Failed to fetch grouped markets');
+          throw new Error(data.error || "Failed to fetch grouped markets");
         }
 
         setGroupedMarkets(data.data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
         setLoading(false);
       }
@@ -62,7 +70,7 @@ export function useGroupedMarkets(): UseGroupedMarketsReturn {
 
   const handleBetClick = (market: LimitlessMarket, position: "YES" | "NO") => {
     const { prices: realtimePrices } = useMarketPrices(market);
-    
+
     const priceToUse =
       position === "YES"
         ? realtimePrices?.yes?.ask ?? market.prices.yes.ask
@@ -90,7 +98,10 @@ export function useGroupedMarkets(): UseGroupedMarketsReturn {
     addBet(bet);
   };
 
-  const handlePolymarketBetClick = (market: PolymarketMarket, position: "YES" | "NO") => {
+  const handlePolymarketBetClick = (
+    market: PolymarketMarket,
+    position: "YES" | "NO"
+  ) => {
     const bet: PolymarketBet = {
       marketId: market.id,
       eventTitle: market.question,
@@ -103,35 +114,34 @@ export function useGroupedMarkets(): UseGroupedMarketsReturn {
     addBet(bet);
   };
 
-  const handleKalshiBetClick = (market: KalshiMarket, position: "YES" | "NO") => {
-    const priceToUse = position === "YES" 
-      ? market.prices.yes.ask 
-      : market.prices.no.ask;
-  
+  const handleKalshiBetClick = (
+    market: KalshiMarket,
+    position: "YES" | "NO"
+  ) => {
+    const priceToUse =
+      position === "YES" ? market.prices.yes.ask : market.prices.no.ask;
+
     if (
       typeof priceToUse !== "number" ||
       isNaN(priceToUse) ||
       priceToUse <= 0 ||
       priceToUse > 1
     ) {
-      // If price validation fails, open Kalshi website
-      window.open(`https://kalshi.com/markets/${market.ticker}`, '_blank');
+      console.error("Invalid price for Kalshi market:", priceToUse);
       return;
     }
-  
-    // Create a Kalshi bet object similar to Polymarket
-    const bet = {
+
+    const bet: KalshiBet = {
       marketId: market.id,
       eventTitle: market.question,
       marketQuestion: market.question,
       position,
       price: priceToUse,
-      provider: "KALSHI" as const,
+      provider: "KALSHI",
       ticker: market.ticker,
     };
-  
-    // For now, just open Kalshi website, but structured similarly to other markets
-    window.open(`https://kalshi.com/markets/${market.ticker}`, '_blank');
+
+    addBet(bet);
   };
 
   const toggleMarketExpanded = (marketId: string) => {
@@ -160,8 +170,8 @@ export function useGroupedMarkets(): UseGroupedMarketsReturn {
       showMoneyline,
       setShowMoneyline,
       expandedMarkets,
-      pricesLoading: false, 
-      realtimePrices: null, 
+      pricesLoading: false,
+      realtimePrices: null,
     },
   };
 }

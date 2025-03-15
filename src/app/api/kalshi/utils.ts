@@ -73,12 +73,12 @@ export const transformKalshiMarket = (
       },
       prices: {
         yes: {
-          bid: market.yes_bid,
-          ask: market.yes_ask,
+          bid: normalizePrice(market.yes_bid),
+          ask: normalizePrice(market.yes_ask),
         },
         no: {
-          bid: market.no_bid,
-          ask: market.no_ask,
+          bid: normalizePrice(market.no_bid),
+          ask: normalizePrice(market.no_ask),
         },
       },
       yesBestAsk: normalizePrice(market.yes_ask),

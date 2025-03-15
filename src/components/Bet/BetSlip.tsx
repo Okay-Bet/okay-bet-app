@@ -158,6 +158,13 @@ export const BetSlip: React.FC = () => {
       return;
     }
 
+    if (bet.provider === "KALSHI") {
+      const kalshiUrl = `https://kalshi.com/markets/${bet.ticker}`;
+      window.open(kalshiUrl, "_blank");
+      clearBets();
+      return;
+    }
+
     // At this point, we know it's a Limitless bet
     const limitlessBet = bet as LimitlessBet;
 
@@ -189,9 +196,9 @@ export const BetSlip: React.FC = () => {
     const baseClasses =
       "text-white font-medium rounded-lg transition-all duration-300";
 
-    if (bet?.provider === "POLYMARKET") {
-      return `${baseClasses} px-6 py-3 w-full bg-accent-red-500 hover:bg-accent-red-600 transform hover:scale-105 shadow-lg`;
-    }
+      if (bet?.provider === "POLYMARKET" || bet?.provider === "KALSHI") {
+        return `${baseClasses} px-6 py-3 w-full bg-accent-red-500 hover:bg-accent-red-600 transform hover:scale-105 shadow-lg`;
+      }
 
     if (status.state === "complete") {
       return `${baseClasses} px-6 py-3 bg-green-500 hover:bg-green-600 transform scale-105 shadow-lg`;
@@ -211,6 +218,10 @@ export const BetSlip: React.FC = () => {
   const getButtonText = () => {
     if (bet?.provider === "POLYMARKET") {
       return "Go To Polymarket";
+    }
+
+    if (bet?.provider === "KALSHI") {
+      return "Go To Kalshi";
     }
 
     if (!amount || parseFloat(amount) < MIN_TOKENS) return "Enter Amount";
@@ -257,12 +268,12 @@ export const BetSlip: React.FC = () => {
           </div>
 
           {/* Polymarket Warning Message */}
-          {bet.provider === "POLYMARKET" && (
+          {(bet.provider === "POLYMARKET" || bet.provider === "KALSHI") && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-2">
               <p className="text-blue-700 text-sm">
-                Polymarket order execution is not yet available on Okay Bet.
-                Clicking the button will redirect you to Polymarket.com to
-                complete your order.
+                {bet.provider === "POLYMARKET"
+                  ? "Polymarket order execution is not yet available on Okay Bet. Clicking the button will redirect you to Polymarket.com to complete your order."
+                  : "Kalshi order execution is not yet available on Okay Bet. Clicking the button will redirect you to Kalshi.com to complete your order."}
               </p>
             </div>
           )}
@@ -336,7 +347,9 @@ export const BetSlip: React.FC = () => {
           {/* Input and Action Section */}
           <div
             className={`flex items-center gap-4 ${
-              bet?.provider === "POLYMARKET" ? "block" : ""
+              bet?.provider === "POLYMARKET" || bet?.provider === "KALSHI"
+                ? "block"
+                : ""
             }`}
           >
             {/* Only show amount input for Limitless */}
