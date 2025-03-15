@@ -159,7 +159,9 @@ export const BetSlip: React.FC = () => {
     }
 
     if (bet.provider === "KALSHI") {
-      const kalshiUrl = `https://kalshi.com/markets/${bet.ticker}`;
+      // Split the ticker at the first dash and take the first part
+      const baseTickerPart = bet.ticker.split('-')[0];
+      const kalshiUrl = `https://kalshi.com/markets/${baseTickerPart}`;
       window.open(kalshiUrl, "_blank");
       clearBets();
       return;
