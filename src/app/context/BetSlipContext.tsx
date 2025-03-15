@@ -21,8 +21,14 @@ export interface PolymarketBet extends BaseBet {
   slug: string;
 }
 
+// Kalshi specific bet interface
+export interface KalshiBet extends BaseBet {
+  provider: "KALSHI";
+  ticker: string;
+}
+
 // Union type for all possible bet types
-export type Bet = LimitlessBet | PolymarketBet;
+export type Bet = LimitlessBet | PolymarketBet | KalshiBet;
 
 interface BetSlipContextType {
   bet: Bet | null;

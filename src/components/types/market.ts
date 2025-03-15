@@ -59,11 +59,15 @@ export interface PolymarketMarket extends BaseMarket {
 
 export interface KalshiMarket extends BaseMarket {
   provider: "KALSHI";
-  ticker: string; // Kalshi specific
-  category: string; // Kalshi specific
+  ticker: string;
+  category: string; 
   status: MarketStatus;
   openInterest: number;
   volume24H?: number;
+  yesBestAsk?: number;
+  noBestAsk?: number;
+  yesBestBid?: number;
+  noBestBid?: number;
 }
 
 export interface OrderBook {

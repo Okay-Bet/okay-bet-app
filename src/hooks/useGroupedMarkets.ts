@@ -4,6 +4,7 @@ import type {
   GroupedMarketCard, 
   LimitlessMarket, 
   PolymarketMarket,
+  KalshiMarket,
   PolymarketBet 
 } from '@/components/types';
 import { useMarketPrices } from '@/hooks/useMarketPrices';
@@ -16,6 +17,7 @@ interface UseGroupedMarketsReturn {
   marketActions: {
     handleBetClick: (market: LimitlessMarket, position: "YES" | "NO") => void;
     handlePolymarketBetClick: (market: PolymarketMarket, position: "YES" | "NO") => void;
+    handleKalshiBetClick: (market: KalshiMarket, position: "YES" | "NO") => void;
     toggleMarketExpanded: (marketId: string) => void;
   };
   marketStates: {
@@ -101,6 +103,37 @@ export function useGroupedMarkets(): UseGroupedMarketsReturn {
     addBet(bet);
   };
 
+  const handleKalshiBetClick = (market: KalshiMarket, position: "YES" | "NO") => {
+    const priceToUse = position === "YES" 
+      ? market.prices.yes.ask 
+      : market.prices.no.ask;
+  
+    if (
+      typeof priceToUse !== "number" ||
+      isNaN(priceToUse) ||
+      priceToUse <= 0 ||
+      priceToUse > 1
+    ) {
+      // If price validation fails, open Kalshi website
+      window.open(`https://kalshi.com/markets/${market.ticker}`, '_blank');
+      return;
+    }
+  
+    // Create a Kalshi bet object similar to Polymarket
+    const bet = {
+      marketId: market.id,
+      eventTitle: market.question,
+      marketQuestion: market.question,
+      position,
+      price: priceToUse,
+      provider: "KALSHI" as const,
+      ticker: market.ticker,
+    };
+  
+    // For now, just open Kalshi website, but structured similarly to other markets
+    window.open(`https://kalshi.com/markets/${market.ticker}`, '_blank');
+  };
+
   const toggleMarketExpanded = (marketId: string) => {
     setExpandedMarkets((prev) => {
       const newSet = new Set(prev);
@@ -120,14 +153,15 @@ export function useGroupedMarkets(): UseGroupedMarketsReturn {
     marketActions: {
       handleBetClick,
       handlePolymarketBetClick,
+      handleKalshiBetClick,
       toggleMarketExpanded,
     },
     marketStates: {
       showMoneyline,
       setShowMoneyline,
       expandedMarkets,
-      pricesLoading: false, // Update this based on your needs
-      realtimePrices: null, // Update this based on your needs
+      pricesLoading: false, 
+      realtimePrices: null, 
     },
   };
 }

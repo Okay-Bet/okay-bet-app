@@ -28,7 +28,7 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
   groupedMarket,
 }) => {
   const { marketActions, marketStates } = useGroupedMarkets();
-  const { handleBetClick, handlePolymarketBetClick, toggleMarketExpanded } =
+  const { handleBetClick, handlePolymarketBetClick, handleKalshiBetClick, toggleMarketExpanded } =
     marketActions;
   const { showMoneyline, setShowMoneyline, expandedMarkets, pricesLoading } =
     marketStates;
@@ -282,9 +282,10 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
 
           {/* Kalshi Markets */}
           {kalshiMarkets.map(({ market }) => {
-            const marketMetrics = metrics.platforms.kalshi.markets.find(
-              (m) => m.id === market.id
-            );
+            const prices = {
+              yes: market.prices.yes.ask,
+              no: market.prices.no.ask,
+            };
 
             return (
               <div
@@ -313,7 +314,35 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                     </div>
                   </button>
 
-                  {/* Add Kalshi betting buttons here */}
+                  <button
+                    onClick={() => handleKalshiBetClick(market, "YES")}
+                    disabled={market.status !== "ACTIVE" || pricesLoading}
+                    className="col-span-3 py-2 px-3 text-green-600 font-header text-center
+                   disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 
+                   border-l border-gray-200 hover:bg-green-600 hover:text-white 
+                   active:bg-green-700 transform hover:scale-105"
+                  >
+                    {pricesLoading ? (
+                      <span className="text-gray-400 animate-pulse">...</span>
+                    ) : (
+                      formatPrice(market.prices.yes.ask || 0, showMoneyline)
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => handleKalshiBetClick(market, "NO")}
+                    disabled={market.status !== "ACTIVE" || pricesLoading}
+                    className="col-span-3 py-2 px-3 text-accent-red-500 font-header text-center
+                   disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300
+                   border-l border-gray-200 hover:bg-accent-red-500 hover:text-white 
+                   active:bg-accent-red-600 transform hover:scale-105"
+                  >
+                    {pricesLoading ? (
+                      <span className="text-gray-400 animate-pulse">...</span>
+                    ) : (
+                      formatPrice(market.prices.no.ask || 0, showMoneyline)
+                    )}
+                  </button>
                 </div>
 
                 {expandedMarkets.has(market.id) && (

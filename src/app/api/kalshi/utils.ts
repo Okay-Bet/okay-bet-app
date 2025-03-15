@@ -40,6 +40,9 @@ export const transformKalshiMarket = (
       }
     })();
 
+    const normalizePrice = (price?: number) => 
+      typeof price === 'number' ? price / 100 : undefined;  
+
     return {
       id: market.ticker,
       provider: "KALSHI",
@@ -78,6 +81,10 @@ export const transformKalshiMarket = (
           ask: market.no_ask,
         },
       },
+      yesBestAsk: normalizePrice(market.yes_ask),
+      noBestAsk: normalizePrice(market.no_ask),
+      yesBestBid: normalizePrice(market.yes_bid),
+      noBestBid: normalizePrice(market.no_bid),
       contract: {
         address: market.ticker,
         network: "kalshi",
