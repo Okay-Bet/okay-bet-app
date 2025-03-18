@@ -217,13 +217,13 @@ export class SubgraphService {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Accept": "application/json",
+          Accept: "application/json",
           "Cache-Control": "no-cache, no-store, must-revalidate",
-          "Pragma": "no-cache",
-          "Expires": "0",
+          Pragma: "no-cache",
+          Expires: "0",
         },
         body: JSON.stringify(query),
-        cache: 'no-store',
+        cache: "no-store",
       });
 
       if (!response.ok) {
@@ -264,5 +264,118 @@ export class SubgraphService {
     processEvents(data?.data?.payoutRedemptions, "redemption");
 
     return finalParentCollectionIds;
+  }
+
+  // src/services/subgraph.service.ts
+
+  async fetchMarketPrices(
+    marketAddresses: string[]
+  ): Promise<Map<string, number[]>> {
+    console.log(
+      "[SubgraphService] Fetching prices for markets:",
+      marketAddresses
+    );
+
+    const query = {
+      query: `{
+      buys: FixedProductMarketMakerFactory_FPMMBuy(
+        where: { buyer: { _in: ${JSON.stringify(marketAddresses)} } }
+      ) {
+        id
+        buyer
+        investmentAmount
+        outcomeTokensBought
+        outcomeIndex
+      }
+      sells: FixedProductMarketMakerFactory_FPMMSell(
+        where: { seller: { _in: ${JSON.stringify(marketAddresses)} } }
+      ) {
+        id
+        seller
+        returnAmount
+        outcomeTokensSold
+        outcomeIndex
+      }
+    }`,
+    };
+
+    try {
+      const response = await fetch(this.subgraphUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(query),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Market prices request failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      if (data.errors) {
+        console.error("[SubgraphService] GraphQL errors:", data.errors);
+        throw new Error("GraphQL query failed");
+      }
+
+      console.log("[SubgraphService] Raw trade data:", data);
+
+      // Process the trades to calculate prices
+      const marketPrices = new Map<string, number[]>();
+
+      marketAddresses.forEach((market) => {
+        // Initialize prices array for this market
+        const prices = [0, 0]; // [NO, YES] prices
+
+        if (data.data) {
+          const marketBuys = (data.data.buys || []).filter(
+            (trade: any) => trade.buyer.toLowerCase() === market.toLowerCase()
+          );
+          const marketSells = (data.data.sells || []).filter(
+            (trade: any) => trade.seller.toLowerCase() === market.toLowerCase()
+          );
+
+          console.log(`[SubgraphService] Market ${market} trades:`, {
+            buys: marketBuys.length,
+            sells: marketSells.length,
+          });
+
+          if (marketBuys.length > 0) {
+            // Sort by ID to get the most recent trade
+            const latestBuy = marketBuys.sort((a: any, b: any) =>
+              b.id.localeCompare(a.id)
+            )[0];
+            const price =
+              Number(latestBuy.investmentAmount) /
+              Number(latestBuy.outcomeTokensBought);
+            prices[Number(latestBuy.outcomeIndex)] = price;
+          }
+
+          if (marketSells.length > 0) {
+            // Sort by ID to get the most recent trade
+            const latestSell = marketSells.sort((a: any, b: any) =>
+              b.id.localeCompare(a.id)
+            )[0];
+            const price =
+              Number(latestSell.returnAmount) /
+              Number(latestSell.outcomeTokensSold);
+            prices[Number(latestSell.outcomeIndex)] = price;
+          }
+        }
+
+        console.log(
+          `[SubgraphService] Calculated prices for market ${market}:`,
+          prices
+        );
+        marketPrices.set(market, prices);
+      });
+
+      return marketPrices;
+    } catch (error) {
+      console.error("[SubgraphService] Error fetching market prices:", error);
+      throw error;
+    }
   }
 }
