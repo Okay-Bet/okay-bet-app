@@ -6,6 +6,7 @@ import type {
   PolymarketMarket,
   KalshiMarket,
   PolymarketBet,
+  KalshiBet
 } from "@/components/types";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { useBetSlip } from "@/app/context/BetSlipContext";
@@ -35,7 +36,7 @@ interface UseGroupedMarketsReturn {
   };
 }
 
-export function useGroupedMarkets(): UseGroupedMarketsReturn {
+function useGroupedMarkets(): UseGroupedMarketsReturn {
   const [groupedMarkets, setGroupedMarkets] = useState<GroupedMarketCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,12 +70,9 @@ export function useGroupedMarkets(): UseGroupedMarketsReturn {
   }, []);
 
   const handleBetClick = (market: LimitlessMarket, position: "YES" | "NO") => {
-    const { prices: realtimePrices } = useMarketPrices(market);
-
+    // Simply use the prices directly from the market object
     const priceToUse =
-      position === "YES"
-        ? realtimePrices?.yes?.ask ?? market.prices.yes.ask
-        : realtimePrices?.no?.ask ?? market.prices.no.ask;
+      position === "YES" ? market.prices.yes.ask : market.prices.no.ask;
 
     if (
       typeof priceToUse !== "number" ||
@@ -107,7 +105,7 @@ export function useGroupedMarkets(): UseGroupedMarketsReturn {
       eventTitle: market.question,
       marketQuestion: market.question,
       position,
-      price: position === "YES" ? market.prices.yes.ask : market.prices.no.ask,
+      price: (position === "YES" ? market.prices.yes.ask : market.prices.no.ask) ?? 0,
       provider: "POLYMARKET",
       slug: market.slug,
     };
@@ -175,3 +173,5 @@ export function useGroupedMarkets(): UseGroupedMarketsReturn {
     },
   };
 }
+
+export { useGroupedMarkets };

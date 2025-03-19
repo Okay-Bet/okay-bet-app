@@ -148,7 +148,7 @@ export interface GroupedMarketIds {
 
 export interface GroupedMarketsResponse {
   success: boolean;
-  data: GroupedMarketIds[];
+  data: GroupedMarketCard[];
   error?: string;
 }
 

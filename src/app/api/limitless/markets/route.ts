@@ -84,7 +84,7 @@ const transformToEvent = (market: LimitlessMarket): Event => {
     title: market.question,
     description: market.description,
     liquidity: parseFloat(market.metrics.liquidity),
-    volume: parseFloat(market.metrics.volume),
+    volume: parseFloat(market.metrics.volume ?? "0"),
     markets: [market],
     activeMarketsCount: 1,
   };

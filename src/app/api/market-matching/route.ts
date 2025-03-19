@@ -91,8 +91,12 @@ export async function POST(request: Request) {
     // Clear existing matches for these Limitless markets
     await prisma.groupedMarket.deleteMany({
       where: {
-        limitlessId: {
-          in: limitlessMarkets.map((m) => m.address),
+        limitlessMarkets: {
+          some: {
+            marketId: {
+              in: limitlessMarkets.map((m) => m.address),
+            },
+          },
         },
       },
     });

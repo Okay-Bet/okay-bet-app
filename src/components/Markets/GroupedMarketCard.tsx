@@ -5,6 +5,7 @@ import type {
   GroupedMarketCard as GroupedMarketCardType,
   LimitlessMarket,
   PolymarketMarket,
+  KalshiMarket,
 } from "@/components/types";
 import { formatPrice } from "@/utils/marketUtils";
 import { useGroupedMarkets } from "@/hooks/useGroupedMarkets";
@@ -62,7 +63,8 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
       }
       // Handle Kalshi market
       if (market.provider === "KALSHI") {
-        return `$${parseFloat(market.metrics.volume).toLocaleString()}`;
+        const volume = parseFloat(market.volume24H?.toString() || "0");
+        return `$${volume.toLocaleString()}`;
       }
       // Default Limitless handling
       return `$${(

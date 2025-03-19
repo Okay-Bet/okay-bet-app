@@ -44,6 +44,7 @@ export const transformKalshiMarket = (
       typeof price === 'number' ? price / 100 : undefined;  
 
     return {
+      openInterest: market.open_interest,
       id: market.ticker,
       provider: "KALSHI",
       question: market.title,
