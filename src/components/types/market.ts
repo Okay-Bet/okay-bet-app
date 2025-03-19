@@ -20,7 +20,7 @@ export interface BaseMarket {
     decimals: number;
   };
   metrics: {
-    volume: string;
+    volume?: string;
     volumeRaw: string;
     liquidity: string;
     liquidityRaw: string;

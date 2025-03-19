@@ -124,17 +124,17 @@ export async function GET(request: Request) {
       (group) => {
         // Process markets for each platform
         const limitlessProcessed = group.limitlessMarkets.map((lm) => ({
-          market: limitlessMap.get(lm.marketId) || lm.market,
+          market: limitlessMap.get(lm.marketId) as LimitlessMarket || lm.market,
           similarity: lm.similarity,
         }));
 
         const polymarketProcessed = group.polymarketMarkets.map((pm) => ({
-          market: polymarketMap.get(pm.marketId) || pm.market,
+          market: polymarketMap.get(pm.marketId) as PolymarketMarket || pm.market,
           similarity: pm.similarity,
         }));
 
         const kalshiProcessed = group.kalshiMarkets.map((km) => ({
-          market: kalshiMap.get(km.marketId) || km.market,
+          market: kalshiMap.get(km.marketId) as KalshiMarket || km.market,
           similarity: km.similarity,
         }));
 
@@ -146,23 +146,23 @@ export async function GET(request: Request) {
             limitless: {
               markets: limitlessProcessed.map((lm) => ({
                 id: lm.market.id,
-                volume: parseFloat(lm.market.volume || "0"),
-                openInterest: parseFloat(lm.market.openInterest || "0"),
+                volume: parseFloat(lm.market.metrics.volume || "0"),
+                openInterest: parseFloat(lm.market.metrics.openInterest || "0"),
               })),
             },
             polymarket: {
               markets: polymarketProcessed.map((pm) => ({
                 id: pm.market.id,
-                volume: parseFloat(pm.market.volume || "0"),
-                liquidity: parseFloat(pm.market.liquidity || "0"),
+                volume: parseFloat(pm.market.metrics.volume || "0"),
+                liquidity: parseFloat(pm.market.metrics.liquidity || "0"),
               })),
             },
             kalshi: {
               markets: kalshiProcessed.map((km) => ({
                 id: km.market.id,
-                volume: parseFloat(km.market.volume || "0"),
-                liquidity: parseFloat(km.market.liquidity || "0"),
-                openInterest: parseFloat(km.market.openInterest || "0"),
+                volume: parseFloat(km.market.metrics.volume || "0"),
+                liquidity: parseFloat(km.market.metrics.liquidity || "0"),
+                openInterest: parseFloat(km.market.metrics.openInterest || "0"),
               })),
             },
           },
