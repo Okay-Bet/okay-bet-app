@@ -197,7 +197,7 @@ export const MarketCard: React.FC<MarketCardProps> = ({
               </div>
               <div className="text-lg font-header text-electric-cyan group-hover/stats:text-accent-red-500 
                            transition-colors">
-                ${parseFloat(currentMarket.metrics.volume).toFixed(2).toLocaleString()}
+                ${parseFloat(currentMarket.metrics.volume ?? "0").toFixed(2).toLocaleString()}
               </div>
             </div>
           </div>

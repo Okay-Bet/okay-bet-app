@@ -19,7 +19,7 @@ export async function GET(
 
     // Initialize services
     const subgraphService = new SubgraphService(SUBGRAPH_URL!);
-    const limitlessService = new LimitlessService(LIMITLESS_API_URL);
+    const limitlessService = new LimitlessService(LIMITLESS_API_URL, subgraphService);
     const positionService = new PositionService();
 
     // Fetch transfer history with position outcomes and redemptions

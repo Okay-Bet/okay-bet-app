@@ -10,21 +10,49 @@ datasource db {
 
 model GroupedMarket {
   id                String    @id @default(cuid())
-  limitlessTitle    String    // Original Limitless question
-  limitlessDesc     String?   // Limitless description
-  polymarketTitle   String    // Original Polymarket question
-  polymarketDesc    String?   // Polymarket description
-  description       String?   // Optional common description
-  limitlessId       String?
-  polymarketId      String?
-  similarity        Float
+  limitlessMarkets  LimitlessGroupedMarket[]
+  polymarketMarkets PolymarketGroupedMarket[]
+  kalshiMarkets     KalshiGroupedMarket[]
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
-  endDate           DateTime?
-
-  @@index([limitlessId])
-  @@index([polymarketId])
 }
+
+model LimitlessGroupedMarket {
+  id            String         @id @default(cuid())
+  groupedMarket GroupedMarket  @relation(fields: [groupId], references: [id])
+  market        LimitlessMarket @relation(fields: [marketId], references: [id])
+  groupId       String
+  marketId      String
+  similarity    Float?
+
+  @@index([groupId])
+  @@index([marketId])
+}
+
+model PolymarketGroupedMarket {
+  id            String          @id @default(cuid())
+  groupedMarket GroupedMarket   @relation(fields: [groupId], references: [id])
+  market        PolymarketMarket @relation(fields: [marketId], references: [id])
+  groupId       String
+  marketId      String
+  similarity    Float?
+
+  @@index([groupId])
+  @@index([marketId])
+}
+
+model KalshiGroupedMarket {
+  id            String         @id @default(cuid())
+  groupedMarket GroupedMarket  @relation(fields: [groupId], references: [id])
+  market        KalshiMarket   @relation(fields: [marketId], references: [id])
+  groupId       String
+  marketId      String
+  similarity    Float?
+
+  @@index([groupId])
+  @@index([marketId])
+}
+
 
 model PolymarketMarket {
   id              String    @id
@@ -36,6 +64,47 @@ model PolymarketMarket {
   updatedAt       DateTime  @updatedAt
   isActive        Boolean   @default(true)
   lastChecked     DateTime  @default(now())
+  
+  groupedMarkets PolymarketGroupedMarket[]
+
+  @@index([isActive])
+  @@index([endDate])
+}
+
+model KalshiMarket {
+  id              String    @id
+  question        String
+  description     String?
+  endDate         DateTime?
+  volume          Float?
+  openInterest    Float?
+  liquidity       Float?
+  status          String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  isActive        Boolean   @default(true)
+  lastChecked     DateTime  @default(now())
+  
+  groupedMarkets KalshiGroupedMarket[]
+
+  @@index([isActive])
+  @@index([endDate])
+  @@index([status])
+}
+
+model LimitlessMarket {
+  id              String    @id
+  question        String
+  description     String?
+  endDate         DateTime?
+  volume          Float?
+  openInterest    Float?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  isActive        Boolean   @default(true)
+  lastChecked     DateTime  @default(now())
+  
+  groupedMarkets LimitlessGroupedMarket[]
 
   @@index([isActive])
   @@index([endDate])

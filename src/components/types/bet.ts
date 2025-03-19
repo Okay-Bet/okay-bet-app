@@ -18,4 +18,9 @@ export interface PolymarketBet extends BaseBet {
   slug: string;
 }
 
-export type Bet = LimitlessBet | PolymarketBet;
+export interface KalshiBet extends BaseBet {
+  provider: "KALSHI";
+  ticker: string;
+}
+
+export type Bet = LimitlessBet | PolymarketBet | KalshiBet;

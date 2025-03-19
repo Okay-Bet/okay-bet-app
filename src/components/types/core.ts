@@ -1,5 +1,5 @@
 // src/types/core.ts
-export type MarketProvider = 'POLYMARKET' | 'LIMITLESS';
+export type MarketProvider = "LIMITLESS" | "POLYMARKET" | "KALSHI";
 export type MarketOutcome = 'YES' | 'NO';
 export type MarketStatus = 'ACTIVE' | 'RESOLVED' | 'CANCELLED';
 export type Side = 'BUY' | 'SELL';

@@ -235,15 +235,18 @@ export const matchMarkets = async (
         try {
           const groupedMarket = await prisma.groupedMarket.create({
             data: {
-              limitlessTitle: limitlessMarket.title,
-              limitlessDesc: limitlessMarket.description,
-              polymarketTitle: match.polyMarket.question,
-              polymarketDesc: match.polyMarket.description,
-              description: limitlessMarket.description,
-              limitlessId: limitlessMarket.address,
-              polymarketId: match.polyMarket.condition_id,
-              similarity: match.similarity,
-              endDate: new Date(limitlessMarket.expirationDate),
+              limitlessMarkets: {
+                create: {
+                  marketId: limitlessMarket.address,
+                  similarity: match.similarity,
+                },
+              },
+              polymarketMarkets: {
+                create: {
+                  marketId: match.polyMarket.condition_id,
+                  similarity: match.similarity,
+                },
+              },
             },
           });
 
