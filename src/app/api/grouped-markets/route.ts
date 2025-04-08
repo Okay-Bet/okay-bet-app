@@ -7,7 +7,7 @@ import type {
 } from "@/components/types";
 import { fetchMarketsByIds } from "@/app/api/limitless/markets/utils";
 import { fetchPolymarketData } from "@/app/api/markets/utils";
-import { fetchKalshiMarkets } from "@/app/api/kalshi/utils"; // Add this import
+import { fetchKalshiMarkets } from "@/app/api/kalshi/utils";
 
 interface GroupedMarketCard {
   id: string;
@@ -122,23 +122,38 @@ export async function GET(request: Request) {
     // Transform into GroupedMarketCards
     const groupedMarketCards: GroupedMarketCard[] = groupedMarkets.map(
       (group) => {
-        // Process markets for each platform
-        const limitlessProcessed = group.limitlessMarkets.map((lm) => ({
-          market: limitlessMap.get(lm.marketId) as LimitlessMarket || lm.market,
-          similarity: lm.similarity,
-        }));
+        // Process Limitless markets with null checks
+        const limitlessProcessed = group.limitlessMarkets
+          .map((lm) => {
+            const market = limitlessMap.get(lm.marketId);
+            return market
+              ? {
+                  market,
+                  similarity: lm.similarity,
+                }
+              : null;
+          })
+          .filter(
+            (m): m is { market: LimitlessMarket; similarity: number | null } =>
+              m !== null
+          );
 
-        const polymarketProcessed = group.polymarketMarkets.map((pm) => ({
-          market: polymarketMap.get(pm.marketId) as PolymarketMarket || pm.market,
-          similarity: pm.similarity,
-        }));
+        // Keep existing processing for other platforms
+        const polymarketProcessed = group.polymarketMarkets
+          .map((pm) => ({
+            market: polymarketMap.get(pm.marketId) || pm.market,
+            similarity: pm.similarity,
+          }))
+          .filter((m) => m.market !== undefined);
 
-        const kalshiProcessed = group.kalshiMarkets.map((km) => ({
-          market: kalshiMap.get(km.marketId) as KalshiMarket || km.market,
-          similarity: km.similarity,
-        }));
+        const kalshiProcessed = group.kalshiMarkets
+          .map((km) => ({
+            market: kalshiMap.get(km.marketId) || km.market,
+            similarity: km.similarity,
+          }))
+          .filter((m) => m.market !== undefined);
 
-        // Calculate metrics
+        // Calculate metrics with safe access
         const metrics = {
           totalVolume: 0,
           highestLiquidity: 0,
@@ -146,41 +161,75 @@ export async function GET(request: Request) {
             limitless: {
               markets: limitlessProcessed.map((lm) => ({
                 id: lm.market.id,
-                volume: parseFloat(lm.market.metrics.volume || "0"),
-                openInterest: parseFloat(lm.market.metrics.openInterest || "0"),
+                volume: parseFloat(lm.market.metrics?.volumeRaw || "0"),
+                openInterest: parseFloat(
+                  lm.market.metrics?.openInterestRaw || "0"
+                ),
               })),
             },
             polymarket: {
               markets: polymarketProcessed.map((pm) => ({
                 id: pm.market.id,
-                volume: parseFloat(pm.market.metrics.volume || "0"),
-                liquidity: parseFloat(pm.market.metrics.liquidity || "0"),
+                volume: pm.market.metrics?.volume
+                  ? parseFloat(pm.market.metrics.volume)
+                  : 0,
+                liquidity: pm.market.metrics?.liquidity
+                  ? parseFloat(pm.market.metrics.liquidity)
+                  : 0,
               })),
             },
             kalshi: {
               markets: kalshiProcessed.map((km) => ({
                 id: km.market.id,
-                volume: parseFloat(km.market.metrics.volume || "0"),
-                liquidity: parseFloat(km.market.metrics.liquidity || "0"),
-                openInterest: parseFloat(km.market.metrics.openInterest || "0"),
+                volume: km.market.metrics?.volume
+                  ? parseFloat(km.market.metrics.volume)
+                  : 0,
+                liquidity: km.market.metrics?.liquidity
+                  ? parseFloat(km.market.metrics.liquidity)
+                  : 0,
+                openInterest: km.market.metrics?.openInterest
+                  ? parseFloat(km.market.metrics.openInterest)
+                  : 0,
               })),
             },
           },
         };
 
-        // Calculate total volume and highest liquidity
-        metrics.totalVolume = [
-          ...metrics.platforms.limitless.markets.map((m) => m.volume),
-          ...metrics.platforms.polymarket.markets.map((m) => m.volume),
-          ...metrics.platforms.kalshi.markets.map((m) => m.volume),
-        ].reduce((sum, vol) => sum + (isNaN(vol) ? 0 : vol), 0);
+        // Calculate total volume safely
+        metrics.totalVolume =
+          metrics.platforms.limitless.markets.reduce(
+            (sum, m) => sum + (m.volume || 0),
+            0
+          ) +
+          metrics.platforms.polymarket.markets.reduce(
+            (sum, m) => sum + (m.volume || 0),
+            0
+          ) +
+          metrics.platforms.kalshi.markets.reduce(
+            (sum, m) => sum + (m.volume || 0),
+            0
+          );
+
+        // Calculate highest liquidity safely
+        const limitlessLiquidity = Math.max(
+          0,
+          ...metrics.platforms.limitless.markets.map((m) => m.openInterest || 0)
+        );
+        const polymarketLiquidity = Math.max(
+          0,
+          ...metrics.platforms.polymarket.markets.map((m) => m.liquidity || 0)
+        );
+        const kalshiLiquidity = Math.max(
+          0,
+          ...metrics.platforms.kalshi.markets.map((m) =>
+            Math.max(m.liquidity || 0, m.openInterest || 0)
+          )
+        );
 
         metrics.highestLiquidity = Math.max(
-          ...metrics.platforms.limitless.markets.map((m) => m.openInterest),
-          ...metrics.platforms.polymarket.markets.map((m) => m.liquidity),
-          ...metrics.platforms.kalshi.markets.map((m) =>
-            Math.max(m.liquidity, m.openInterest)
-          )
+          limitlessLiquidity,
+          polymarketLiquidity,
+          kalshiLiquidity
         );
 
         return {

@@ -37,7 +37,7 @@ export default function Home() {
           <div className="w-full">
         <main className="mt-8 mb-4">
           <BetSlipProvider>
-            <UserPositions />
+            {/* <UserPositions /> */}
             <PredictionMarkets/>
             <BetSlip />
           </BetSlipProvider>

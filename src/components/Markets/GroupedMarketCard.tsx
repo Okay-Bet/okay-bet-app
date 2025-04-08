@@ -25,6 +25,13 @@ interface MarketDetailsProps {
   className?: string;
 }
 
+const getMarketPrice = (
+  market: LimitlessMarket | PolymarketMarket | KalshiMarket,
+  position: "yes" | "no"
+): number | undefined => {
+  return market.prices?.[position]?.ask;
+};
+
 export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
   groupedMarket,
 }) => {
@@ -198,14 +205,17 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                   onClick={() => handleBetClick(market, "YES")}
                   disabled={market.status !== "ACTIVE" || pricesLoading}
                   className="col-span-3 py-2 px-3 text-green-600 font-header text-center
-                           disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 
-                           border-l border-gray-200 hover:bg-green-600 hover:text-white 
-                           active:bg-green-700 transform hover:scale-105"
+                disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 
+                border-l border-gray-200 hover:bg-green-600 hover:text-white 
+                active:bg-green-700 transform hover:scale-105"
                 >
                   {pricesLoading ? (
                     <span className="text-gray-400 animate-pulse">...</span>
                   ) : (
-                    formatPrice(market.prices.yes.ask || 0, showMoneyline)
+                    formatPrice(
+                      getMarketPrice(market, "yes") ?? 0,
+                      showMoneyline
+                    )
                   )}
                 </button>
 
@@ -213,14 +223,17 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                   onClick={() => handleBetClick(market, "NO")}
                   disabled={market.status !== "ACTIVE" || pricesLoading}
                   className="col-span-3 py-2 px-3 text-accent-red-500 font-header text-center
-                           disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300
-                           border-l border-gray-200 hover:bg-accent-red-500 hover:text-white 
-                           active:bg-accent-red-600 transform hover:scale-105"
+                disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300
+                border-l border-gray-200 hover:bg-accent-red-500 hover:text-white 
+                active:bg-accent-red-600 transform hover:scale-105"
                 >
                   {pricesLoading ? (
                     <span className="text-gray-400 animate-pulse">...</span>
                   ) : (
-                    formatPrice(market.prices.no.ask || 0, showMoneyline)
+                    formatPrice(
+                      getMarketPrice(market, "no") ?? 0,
+                      showMoneyline
+                    )
                   )}
                 </button>
               </div>
@@ -270,21 +283,27 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                   <button
                     onClick={() => handlePolymarketBetClick(market, "YES")}
                     className="col-span-3 py-2 px-3 text-green-600 font-header text-center
-                             transition-all duration-300 border-l border-gray-200 
-                             hover:bg-green-600 hover:text-white active:bg-green-700 
-                             transform hover:scale-105"
+                   transition-all duration-300 border-l border-gray-200 
+                   hover:bg-green-600 hover:text-white active:bg-green-700 
+                   transform hover:scale-105"
                   >
-                    {formatPrice(market.prices.yes.ask || 0, showMoneyline)}
+                    {formatPrice(
+                      getMarketPrice(market, "yes") ?? 0,
+                      showMoneyline
+                    )}
                   </button>
 
                   <button
                     onClick={() => handlePolymarketBetClick(market, "NO")}
                     className="col-span-3 py-2 px-3 text-accent-red-500 font-header text-center
-                             transition-all duration-300 border-l border-gray-200 
-                             hover:bg-accent-red-500 hover:text-white active:bg-accent-red-600 
-                             transform hover:scale-105"
+                   transition-all duration-300 border-l border-gray-200 
+                   hover:bg-accent-red-500 hover:text-white active:bg-accent-red-600 
+                   transform hover:scale-105"
                   >
-                    {formatPrice(market.prices.no.ask || 0, showMoneyline)}
+                    {formatPrice(
+                      getMarketPrice(market, "no") ?? 0,
+                      showMoneyline
+                    )}
                   </button>
                 </div>
 
@@ -344,7 +363,10 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                     {pricesLoading ? (
                       <span className="text-gray-400 animate-pulse">...</span>
                     ) : (
-                      formatPrice(market.prices.yes.ask || 0, showMoneyline)
+                      formatPrice(
+                        getMarketPrice(market, "yes") ?? 0,
+                        showMoneyline
+                      )
                     )}
                   </button>
 
@@ -359,7 +381,10 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                     {pricesLoading ? (
                       <span className="text-gray-400 animate-pulse">...</span>
                     ) : (
-                      formatPrice(market.prices.no.ask || 0, showMoneyline)
+                      formatPrice(
+                        getMarketPrice(market, "no") ?? 0,
+                        showMoneyline
+                      )
                     )}
                   </button>
                 </div>

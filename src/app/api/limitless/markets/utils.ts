@@ -1,37 +1,46 @@
 import type { LimitlessMarket, MarketStatus } from "@/components/types";
 
-const LIMITLESS_API_URL = "https://api.limitless.exchange";
+const FASTAPI_URL = "http://157.245.87.57:8000/api/v1/limitless";
 
-export interface LimitlessAPIMarket {
-  address: string;
-  conditionId: string;
+export interface FastAPIMarket {
+  id: string;
+  limitless_id: number;
   title: string;
-  description: string;
-  collateralToken: {
-    address: string;
-    decimals: number;
-    symbol: string;
-  };
-  expirationDate: string;
-  expirationTimestamp: number;
-  createdAt: string;
-  category: string;
+  description: string | null;
   status: string;
-  creator: {
-    name: string;
-    imageURI: string;
-    link: string;
+  expiration_date: string;
+  api_volume: number;
+  contract_volume: number;
+  volume_24h: number;
+  total_trades: number;
+  unique_traders: number;
+  collateral_token_symbol: string;
+  collateral_token_address: string;
+  collateral_token_decimals: number;
+  categories: string[];
+  created_at: string;
+  updated_at: string;
+  last_checked: string;
+  prices: {
+    yes: {
+      bid: number;
+      ask: number;
+    };
+    no: {
+      bid: number;
+      ask: number;
+    };
   };
-  tags: string[];
-  openInterest: string;
-  openInterestFormatted: string;
-  volume: string;
-  volumeFormatted: string;
-  liquidity: string;
-  liquidityFormatted: string;
+}
+
+export interface MarketResponse {
+  status: string;
+  market: FastAPIMarket;
 }
 
 const mapStatus = (status: string): MarketStatus => {
+  if (!status) return "CANCELLED";
+  
   switch (status.toUpperCase()) {
     case "FUNDED":
       return "ACTIVE";
@@ -44,98 +53,158 @@ const mapStatus = (status: string): MarketStatus => {
 
 const cleanMarkdownText = (text: string): string => {
   if (!text) return "";
-
   // Remove HTML tags
   const withoutTags = text.replace(/<[^>]*>/g, "");
-
   // Replace HTML entities
   const withoutEntities = withoutTags
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
-
-  // Clean up multiple spaces and trim
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+  // Clean up whitespace
   return withoutEntities.replace(/\s+/g, " ").trim();
 };
 
-export const transformMarket = (
-  market: LimitlessAPIMarket
-): LimitlessMarket => {
-  // Parse the raw values and convert from string
-  const volumeRaw = market.volume ? parseFloat(market.volume) : 0;
-  const openInterestRaw = market.openInterest
-    ? parseFloat(market.openInterest)
-    : 0;
-
-  // Format with proper scaling (values are in USDC with 6 decimals)
-  const volumeFormatted = (volumeRaw / 1e6).toString();
-  const openInterestFormatted = (openInterestRaw / 1e6).toString();
-
-  return {
-    id: market.address,
-    provider: "LIMITLESS" as const,
-    question: market.title,
-    description: cleanMarkdownText(market.description),
-    status: mapStatus(market.status),
-    expirationDate: market.expirationDate,
-    timestamps: {
-      created: market.createdAt,
-    },
-    collateral: {
-      address: market.collateralToken.address,
-      symbol: market.collateralToken.symbol,
-      decimals: market.collateralToken.decimals,
-    },
-    metrics: {
-      volume: volumeFormatted,
-      volumeRaw: volumeRaw.toString(),
-      liquidity: openInterestFormatted, 
-      liquidityRaw: openInterestRaw.toString(),
-      openInterest: openInterestFormatted,
-      openInterestRaw: openInterestRaw.toString(),
-    },
-    prices: {
-      yes: {},
-      no: {},
-    },
-    contract: {
-      address: market.address,
-      network: "base",
-    },
-    conditionId: market.conditionId,
-  };
-};
-
-export async function fetchMarketById(
-  address: string
-): Promise<LimitlessMarket | null> {
+async function fetchFastAPIMarketData(marketId: string): Promise<FastAPIMarket | null> {
   try {
-    const response = await fetch(`${LIMITLESS_API_URL}/markets/${address}`);
-
+    console.log(`Fetching from FastAPI: ${FASTAPI_URL}/markets/${marketId}`);
+    const response = await fetch(`${FASTAPI_URL}/markets/${marketId}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      },
+      cache: 'no-store',
+      next: { revalidate: 0 }
+    });
+    
     if (!response.ok) {
-      if (response.status === 404) {
-        return null;
-      }
-      throw new Error(
-        `Limitless API error: ${response.status} ${response.statusText}`
-      );
+      console.error(`FastAPI error: ${response.status} ${response.statusText}`);
+      return null;
     }
 
-    const market: LimitlessAPIMarket = await response.json();
-    return transformMarket(market);
+    const data: MarketResponse = await response.json();
+    console.log("FastAPI Raw Response:", JSON.stringify(data, null, 2));
+    return data.market;
   } catch (error) {
-    console.error(`Error fetching market ${address}:`, error);
+    console.error(`Error fetching from FastAPI:`, error);
     return null;
   }
 }
 
-export async function fetchMarketsByIds(
-  addresses: string[]
-): Promise<LimitlessMarket[]> {
-  const markets = await Promise.all(
-    addresses.map((address) => fetchMarketById(address))
-  );
+function validateMarketData(market: LimitlessMarket): boolean {
+  if (!market.id || !market.question) {
+    console.log("Missing required fields:", { id: market.id, question: market.question });
+    return false;
+  }
+  return true;
+}
 
-  return markets.filter((market): market is LimitlessMarket => market !== null);
+function formatNumber(value: number | string | null | undefined, decimals: number = 6): string {
+  if (value === null || value === undefined) return "0";
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  return (num / Math.pow(10, decimals)).toFixed(2);
+}
+
+export const transformMarket = async (marketId: string): Promise<LimitlessMarket | null> => {
+  try {
+    console.log(`Transforming market ${marketId}`);
+    
+    const fastAPIData = await fetchFastAPIMarketData(marketId);
+
+    if (!fastAPIData) {
+      console.error(`No data available for market ${marketId}`);
+      return null;
+    }
+
+    const market: LimitlessMarket = {
+      id: marketId,
+      provider: "LIMITLESS",
+      question: fastAPIData.title,
+      description: cleanMarkdownText(fastAPIData.description || ""),
+      status: mapStatus(fastAPIData.status),
+      expirationDate: fastAPIData.expiration_date,
+      timestamps: {
+        created: fastAPIData.created_at,
+        updated: fastAPIData.updated_at,
+        resolved: fastAPIData.status === "RESOLVED" ? fastAPIData.updated_at : undefined,
+      },
+      collateral: {
+        address: fastAPIData.collateral_token_address,
+        symbol: fastAPIData.collateral_token_symbol,
+        decimals: fastAPIData.collateral_token_decimals,
+      },
+      metrics: {
+        volume: formatNumber(fastAPIData.contract_volume),
+        volumeRaw: String(fastAPIData.contract_volume),
+        liquidity: formatNumber(fastAPIData.volume_24h),
+        liquidityRaw: String(fastAPIData.volume_24h),
+        openInterest: formatNumber(fastAPIData.volume_24h),
+        openInterestRaw: String(fastAPIData.volume_24h),
+      },
+      prices: {
+        yes: { 
+          bid: fastAPIData.prices?.yes?.bid || undefined,
+          ask: fastAPIData.prices?.yes?.ask || undefined
+        },
+        no: { 
+          bid: fastAPIData.prices?.no?.bid || undefined,
+          ask: fastAPIData.prices?.no?.ask || undefined
+        },
+      },
+      contract: {
+        address: marketId,
+        network: "base",
+      },
+      conditionId: marketId,
+    };
+
+    if (!validateMarketData(market)) {
+      console.error(`Invalid market data for ${marketId}`);
+      return null;
+    }
+
+    console.log("Transformed market:", market);
+    return market;
+
+  } catch (error) {
+    console.error(`Error transforming market ${marketId}:`, error);
+    return null;
+  }
+};
+
+export async function fetchMarketsByIds(addresses: string[]): Promise<LimitlessMarket[]> {
+  console.log("Fetching markets for addresses:", addresses);
+  
+  try {
+    const marketPromises = addresses.map(address => transformMarket(address));
+    const markets = await Promise.all(marketPromises);
+    
+    const validMarkets = markets.filter((market): market is LimitlessMarket => {
+      if (!market) {
+        return false;
+      }
+      return validateMarketData(market);
+    });
+
+    console.log(`Successfully processed ${validMarkets.length} out of ${addresses.length} markets`);
+    return validMarkets;
+  } catch (error) {
+    console.error("Error fetching markets:", error);
+    return [];
+  }
+}
+
+export async function fetchMarketById(address: string): Promise<LimitlessMarket | null> {
+  try {
+    console.log(`Fetching single market: ${address}`);
+    return await transformMarket(address);
+  } catch (error) {
+    console.error(`Error fetching market ${address}:`, error);
+    return null;
+  }
 }
