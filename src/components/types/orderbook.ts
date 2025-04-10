@@ -15,10 +15,27 @@ export interface OrderBookData {
   minSize: string;
 }
 
+interface MarketInfo {
+  best_bid_price: number;
+  best_bid_size: number;
+  best_ask_price: number;
+  best_ask_size: number;
+  max_spread: number;
+  adjusted_midpoint: number;
+  last_checked: string;
+}
+
+export interface OrderBookResponse {
+  orderbook: OrderBookData;
+  market_info: MarketInfo;
+}
+
 export interface OrderQuote {
+  tokenAmount: number;
   estimatedTotal: number;
-  averagePrice: number;
   priceImpact: number;
+  averagePrice: number;
+  potentialPayout: number;
   unfilled?: number;
 }
 
@@ -148,17 +165,6 @@ export interface LimitlessConfig {
   defaultExpirationHours: number;
 }
 
-// Market specific types
-export interface MarketInfo {
-  slug: string;
-  tokenId: string;
-  question: string;
-  description: string;
-  expirationTime: string;
-  minSize: string;
-  maxSpread: string;
-  status: "active" | "expired" | "resolved";
-}
 
 // Order cancellation types
 export interface CancelOrderRequest {

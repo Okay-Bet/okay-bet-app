@@ -1,23 +1,32 @@
 import React, { useState, useEffect } from "react";
 import { useBetSlip } from "../../app/context/BetSlipContext";
 import { useOrder } from "../../hooks/order/useOrder";
-import { Bet, LimitlessBet, PolymarketBet,   
-  OrderBookData, 
-  OrderQuote, 
+import {
+  Bet,
+  LimitlessBet,
+  PolymarketBet,
+  OrderBookData,
+  OrderQuote,
+  OrderBookResponse,
   LimitlessOrder,
   OrderRequest,
-  MarketInfo } from "../../components/types";
+  MarketInfo,
+} from "../../components/types";
 
 // Constants
+const FASTAPI_BASE_URL =
+  process.env.NEXT_PUBLIC_FASTAPI_BASE_URL || "http://157.245.87.57:8000";
 const MIN_TOKENS = 1.0;
-const API_URL = process.env.NEXT_PUBLIC_LIMITLESS_API_URL || 'https://api.limitless.exchange';
-
+const API_URL =
+  process.env.NEXT_PUBLIC_LIMITLESS_API_URL || "https://api.limitless.exchange";
 
 export const BetSlip: React.FC = () => {
   // Hook integrations
   const { bet, removeBet, clearBets } = useBetSlip();
   const { submitOrder, status, approvalStep, isLoading } = useOrder();
-  const [orderBookData, setOrderBookData] = useState<OrderBookData | null>(null);
+  const [orderBookData, setOrderBookData] = useState<OrderBookData | null>(
+    null
+  );
 
   // Local state management
   const [amount, setAmount] = useState<string>("");
@@ -50,49 +59,55 @@ export const BetSlip: React.FC = () => {
     }
   }, [approvalStep, status, clearBets]);
 
-
   // Event handlers
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    if (/^\d*\.?\d*$/.test(value)) {
+    if (
+      value === "" ||
+      (/^\d*\.?\d*$/.test(value) && !isNaN(parseFloat(value)))
+    ) {
+      console.log("Setting new amount:", value);
       setAmount(value);
+
+      // Log the current bet state
+      if (bet) {
+        console.log("Current bet:", {
+          provider: bet.provider,
+          position: bet.position,
+          marketSlug: (bet as LimitlessBet).marketSlug,
+        });
+      }
     }
   };
 
   const calculateQuoteFromOrderBook = (
     amount: number,
     position: "YES" | "NO",
-    orderBook: OrderBookData
+    orderBookResponse: OrderBookResponse
   ): OrderQuote | null => {
     try {
+      const orderBook = orderBookResponse.orderbook;
+      const marketInfo = orderBookResponse.market_info;
+      
+      // Use asks for YES positions and bids for NO positions
       const orders = position === "YES" ? orderBook.asks : orderBook.bids;
-      let remainingAmount = amount * 1_000_000; // Convert to base units (USDC 6 decimals)
-      let totalCost = 0;
-      let filledAmount = 0;
-
-      for (const level of orders) {
-        const levelSize = Math.min(remainingAmount, level.size);
-        totalCost += levelSize * level.price;
-        filledAmount += levelSize;
-        remainingAmount -= levelSize;
-
-        if (remainingAmount <= 0) break;
-      }
-
-      if (remainingAmount > 0) {
-        // Order cannot be fully filled
-        return {
-          estimatedTotal: totalCost / 1_000_000, // Convert back to USDC
-          averagePrice: totalCost / filledAmount,
-          priceImpact: Math.abs((orderBook.lastTradePrice - (totalCost / filledAmount)) / orderBook.lastTradePrice),
-          unfilled: remainingAmount / 1_000_000,
-        };
-      }
-
+      const price = position === "YES" ? marketInfo.best_ask_price : marketInfo.best_bid_price;
+      
+      // Calculate number of tokens we can buy with the amount
+      const tokenAmount = amount / price;
+      
+      // Calculate total cost (should equal input amount)
+      const estimatedTotal = amount;
+      
+      // Calculate price impact
+      const priceImpact = Math.abs((orderBook.lastTradePrice - price) / orderBook.lastTradePrice);
+      
       return {
-        estimatedTotal: totalCost / 1_000_000,
-        averagePrice: totalCost / filledAmount,
-        priceImpact: Math.abs((orderBook.lastTradePrice - (totalCost / filledAmount)) / orderBook.lastTradePrice),
+        tokenAmount: tokenAmount,
+        estimatedTotal: estimatedTotal,
+        priceImpact: priceImpact,
+        averagePrice: price,
+        potentialPayout: tokenAmount // For YES positions, payout equals tokens
       };
     } catch (error) {
       console.error("Error calculating quote:", error);
@@ -102,61 +117,49 @@ export const BetSlip: React.FC = () => {
 
   useEffect(() => {
     const getQuote = async () => {
-      if (
-        !bet ||
-        !amount ||
-        isNaN(parseFloat(amount)) ||
-        bet.provider !== "LIMITLESS"
-      ) {
+      console.log("Quote effect triggered with:", { amount, betProvider: bet?.provider });
+      
+      if (!bet || !amount || amount === "" || parseFloat(amount) <= 0 || bet.provider !== "LIMITLESS") {
         setQuote(null);
+        setIsQuoting(false);
         return;
       }
-
-      const limitlessBet = bet as LimitlessBet;
+  
       setIsQuoting(true);
-
+      const limitlessBet = bet as LimitlessBet;
+      
       try {
-        // Fetch orderbook data
         const response = await fetch(
-          `${API_URL}/markets/${limitlessBet.marketSlug}/historical-price`
+          `${FASTAPI_BASE_URL}/api/v1/limitless/orders/orderbook/${limitlessBet.marketSlug}`
         );
-        const orderBook = await response.json();
-
-        if (!orderBook.bids || !orderBook.asks) {
-          throw new Error('Invalid orderbook data received');
+  
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
-        setOrderBookData(orderBook);
-
-        // Calculate quote from orderbook
+  
+        const data: OrderBookResponse = await response.json();
+        console.log("Received orderbook:", data);
+  
         const quoteResult = calculateQuoteFromOrderBook(
           parseFloat(amount),
           limitlessBet.position,
-          orderBook
+          data
         );
-
+  
+        console.log("Calculated quote result:", quoteResult);
+        
         if (quoteResult) {
-          setQuote({
-            tokenAmount: parseFloat(amount) / quoteResult.averagePrice,
-            priceImpact: quoteResult.priceImpact,
-            estimatedTotal: quoteResult.estimatedTotal,
-          });
-
-          // Show warning if there's unfilled amount
-          if (quoteResult.unfilled) {
-            console.warn(`Warning: ${quoteResult.unfilled} USDC cannot be filled at current prices`);
-          }
+          setQuote(quoteResult);
         }
       } catch (error) {
-        console.error("Error getting quote:", error);
+        console.error("Error in quote calculation:", error);
         setQuote(null);
       } finally {
         setIsQuoting(false);
       }
     };
-
-    const timeoutId = setTimeout(getQuote, 500);
-    return () => clearTimeout(timeoutId);
+  
+    getQuote();
   }, [amount, bet]);
 
   const handlePlaceOrder = async () => {
@@ -171,7 +174,7 @@ export const BetSlip: React.FC = () => {
 
     if (bet.provider === "KALSHI") {
       // Split the ticker at the first dash and take the first part
-      const baseTickerPart = bet.ticker.split('-')[0];
+      const baseTickerPart = bet.ticker.split("-")[0];
       const kalshiUrl = `https://kalshi.com/markets/${baseTickerPart}`;
       window.open(kalshiUrl, "_blank");
       clearBets();
@@ -191,7 +194,10 @@ export const BetSlip: React.FC = () => {
         const orderRequest: OrderRequest = {
           marketSlug: bet.marketSlug,
           amount: parseFloat(amount),
-          price: bet.position === "YES" ? quote.averagePrice : 1 - quote.averagePrice,
+          price:
+            bet.position === "YES"
+              ? quote.averagePrice
+              : 1 - quote.averagePrice,
           side: "BUY",
         };
 
@@ -207,9 +213,9 @@ export const BetSlip: React.FC = () => {
     const baseClasses =
       "text-white font-medium rounded-lg transition-all duration-300";
 
-      if (bet?.provider === "POLYMARKET" || bet?.provider === "KALSHI") {
-        return `${baseClasses} px-6 py-3 w-full bg-accent-red-500 hover:bg-accent-red-600 transform hover:scale-105 shadow-lg`;
-      }
+    if (bet?.provider === "POLYMARKET" || bet?.provider === "KALSHI") {
+      return `${baseClasses} px-6 py-3 w-full bg-accent-red-500 hover:bg-accent-red-600 transform hover:scale-105 shadow-lg`;
+    }
 
     if (status.state === "complete") {
       return `${baseClasses} px-6 py-3 bg-green-500 hover:bg-green-600 transform scale-105 shadow-lg`;
@@ -324,33 +330,79 @@ export const BetSlip: React.FC = () => {
           </div>
 
           {/* Quote Section */}
-          {bet?.provider === "LIMITLESS" && quote && !isQuoting && (
+          {bet?.provider === "LIMITLESS" && (
             <div className="bg-white border border-accent-gray-200 rounded-lg p-4">
               <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-accent-gray-600 flex items-center gap-1">
-                    Potential Payout
-                  </span>
-                  <span className="font-medium text-black">
-                  {(quote.estimatedTotal / quote.averagePrice).toFixed(2)} USDC
-                  </span>
+                {/* Debug info */}
+                <div className="text-xs text-gray-500">
+                  Status:{" "}
+                  {isQuoting ? "Quoting" : quote ? "Has Quote" : "No Quote"}
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-accent-gray-600">Price Impact</span>
-                  <span
-                    className={`font-medium ${
-                      quote.priceImpact > 0.05 ? "text-red-600" : "text-black"
-                    }`}
-                  >
-                    {(quote.priceImpact * 100).toFixed(2)}%
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-accent-gray-600">You Pay</span>
-                  <span className="font-medium text-black">
-                    {quote.estimatedTotal.toFixed(2)} USDC
-                  </span>
-                </div>
+
+                {isQuoting ? (
+                  <div className="text-center py-2">
+                    <span className="text-accent-gray-600">
+                      Calculating quote...
+                    </span>
+                  </div>
+                ) : quote ? (
+                  <>
+                    <div className="flex justify-between items-center">
+                      <span className="text-accent-gray-600">
+                        Position Size
+                      </span>
+                      <span className="font-medium text-black">
+                        {quote.tokenAmount.toFixed(2)} tokens
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-accent-gray-600">
+                        Average Price
+                      </span>
+                      <span className="font-medium text-black">
+                        ${quote.averagePrice.toFixed(3)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-accent-gray-600">Price Impact</span>
+                      <span
+                        className={`font-medium ${
+                          quote.priceImpact > 0.05
+                            ? "text-red-600"
+                            : "text-black"
+                        }`}
+                      >
+                        {(quote.priceImpact * 100).toFixed(2)}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-accent-gray-600">
+                        Potential Payout
+                      </span>
+                      <span className="font-medium text-green-600">
+                        ${quote.potentialPayout.toFixed(2)} USDC
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-accent-gray-600">You Pay</span>
+                      <span className="font-medium text-black">
+                        ${quote.estimatedTotal.toFixed(2)} USDC
+                      </span>
+                    </div>
+                    {quote.unfilled && (
+                      <div className="mt-2 p-2 bg-yellow-50 rounded text-yellow-700 text-sm">
+                        Warning: ${quote.unfilled.toFixed(2)} USDC cannot be
+                        filled at current prices
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-2">
+                    <span className="text-accent-gray-600">
+                      Enter an amount to see quote
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}
