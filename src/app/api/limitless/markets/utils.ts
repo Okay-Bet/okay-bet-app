@@ -21,16 +21,15 @@ export interface FastAPIMarket {
   created_at: string;
   updated_at: string;
   last_checked: string;
-  prices: {
-    yes: {
-      bid: number;
-      ask: number;
-    };
-    no: {
-      bid: number;
-      ask: number;
-    };
-  };
+  last_trade_time: string;
+  best_bid_price: number;
+  best_bid_size: number;
+  best_ask_price: number;
+  best_ask_size: number;
+  last_trade_price: number;
+  max_spread: number;
+  adjusted_midpoint: number;
+  min_size: number;
 }
 
 export interface MarketResponse {
@@ -79,7 +78,6 @@ async function fetchFastAPIMarketData(marketId: string): Promise<FastAPIMarket |
         'Expires': '0'
       },
       cache: 'no-store',
-      next: { revalidate: 0 }
     });
     
     if (!response.ok) {
@@ -148,12 +146,12 @@ export const transformMarket = async (marketId: string): Promise<LimitlessMarket
       },
       prices: {
         yes: { 
-          bid: fastAPIData.prices?.yes?.bid || undefined,
-          ask: fastAPIData.prices?.yes?.ask || undefined
+          bid: fastAPIData.best_bid_price || undefined,
+          ask: fastAPIData.best_ask_price || undefined
         },
         no: { 
-          bid: fastAPIData.prices?.no?.bid || undefined,
-          ask: fastAPIData.prices?.no?.ask || undefined
+          bid: fastAPIData.best_bid_price ? (1 - fastAPIData.best_bid_price) : undefined,
+          ask: fastAPIData.best_ask_price ? (1 - fastAPIData.best_ask_price) : undefined
         },
       },
       contract: {

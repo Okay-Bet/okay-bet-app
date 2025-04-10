@@ -70,19 +70,15 @@ function useGroupedMarkets(): UseGroupedMarketsReturn {
   }, []);
 
   const handleBetClick = (market: LimitlessMarket, position: "YES" | "NO") => {
-    const priceToUse =
-      position === "YES" ? market.prices?.yes?.ask : market.prices?.no?.ask;
-
-    if (
-      typeof priceToUse !== "number" ||
-      isNaN(priceToUse) ||
-      priceToUse <= 0 ||
-      priceToUse > 1
-    ) {
-      console.log(`Invalid price for ${position}:`, priceToUse);
+    const priceToUse = position === "YES" 
+      ? market.prices?.yes?.ask 
+      : market.prices?.no?.ask;
+  
+    if (typeof priceToUse !== "number" || isNaN(priceToUse) || priceToUse <= 0 || priceToUse > 1) {
+      console.warn(`Invalid price for ${position}:`, priceToUse);
       return;
     }
-
+  
     const bet = {
       marketId: market.id,
       eventTitle: market.question,
@@ -92,7 +88,7 @@ function useGroupedMarkets(): UseGroupedMarketsReturn {
       tokenId: market.id,
       provider: "LIMITLESS" as const,
     };
-
+  
     addBet(bet);
   };
 

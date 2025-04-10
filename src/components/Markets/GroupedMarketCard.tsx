@@ -29,7 +29,22 @@ const getMarketPrice = (
   market: LimitlessMarket | PolymarketMarket | KalshiMarket,
   position: "yes" | "no"
 ): number | undefined => {
-  return market.prices?.[position]?.ask;
+  if (!market.prices) return undefined;
+  
+  // For Limitless markets, use the new pricing structure
+  if (market.provider === "LIMITLESS") {
+    return position === "yes" 
+      ? market.prices.yes?.ask 
+      : market.prices.no?.ask;
+  }
+  
+  // For other markets, keep existing logic
+  return market.prices[position]?.ask;
+};
+
+const cleanMarketTitle = (title: string): string => {
+  // Remove diamond emoji (♦) and any potential whitespace after it
+  return title.replace(/^💎\s*/, '');
 };
 
 export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
@@ -98,7 +113,7 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
         className={`px-3 py-2 border-t border-gray-200 bg-gray-50 ${className}`}
       >
         <h3 className="md:hidden text-gray-800 font-medium mb-3">
-          {market.question}
+        {cleanMarketTitle(market.question)}
         </h3>
 
         <div className="flex flex-col space-y-2">
@@ -156,7 +171,7 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
         <div className="px-4 py-3">
           <div className="flex justify-between items-start">
             <h2 className="text-2xl font-header text-gray-800 leading-tight">
-              {primaryLimitlessMarket.question}
+            {cleanMarketTitle(primaryLimitlessMarket.question)}
             </h2>
             <button
               onClick={() => setShowMoneyline(!showMoneyline)}
@@ -196,7 +211,7 @@ export const GroupedMarketCard: React.FC<GroupedMarketCardProps> = ({
                       />
                     </div>
                     <span className="text-gray-800 line-clamp-2 text-sm sm:text-base flex-grow">
-                      {market.question}
+                      {cleanMarketTitle(market.question)}
                     </span>
                   </div>
                 </button>
