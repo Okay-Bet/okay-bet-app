@@ -70,15 +70,29 @@ function useGroupedMarkets(): UseGroupedMarketsReturn {
   }, []);
 
   const handleBetClick = (market: LimitlessMarket, position: "YES" | "NO") => {
-    const priceToUse = position === "YES" 
-      ? market.prices?.yes?.ask 
-      : market.prices?.no?.ask;
-  
-    if (typeof priceToUse !== "number" || isNaN(priceToUse) || priceToUse <= 0 || priceToUse > 1) {
+    console.log("Handling bet click:", { market, position }); // Debug log
+
+    const priceToUse =
+      position === "YES" ? market.prices?.yes?.ask : market.prices?.no?.ask;
+
+    if (
+      typeof priceToUse !== "number" ||
+      isNaN(priceToUse) ||
+      priceToUse <= 0 ||
+      priceToUse > 1
+    ) {
       console.warn(`Invalid price for ${position}:`, priceToUse);
       return;
     }
-  
+
+    // Debug log for market.slug
+    console.log("Market slug:", market.slug);
+
+    if (!market.slug) {
+      console.error("Missing market slug:", market);
+      return;
+    }
+
     const bet = {
       marketId: market.id,
       eventTitle: market.question,
@@ -87,8 +101,10 @@ function useGroupedMarkets(): UseGroupedMarketsReturn {
       price: priceToUse,
       tokenId: market.id,
       provider: "LIMITLESS" as const,
+      marketSlug: market.slug,
     };
-  
+
+    console.log("Creating bet:", bet); // Debug log
     addBet(bet);
   };
 
@@ -96,10 +112,13 @@ function useGroupedMarkets(): UseGroupedMarketsReturn {
     market: PolymarketMarket,
     position: "YES" | "NO"
   ) => {
-    const priceToUse = getMarketPrice(market, position.toLowerCase() as "yes" | "no");
-    
+    const priceToUse = getMarketPrice(
+      market,
+      position.toLowerCase() as "yes" | "no"
+    );
+
     if (priceToUse === undefined) return;
-  
+
     const bet: PolymarketBet = {
       marketId: market.id,
       eventTitle: market.question,
@@ -116,8 +135,11 @@ function useGroupedMarkets(): UseGroupedMarketsReturn {
     market: KalshiMarket,
     position: "YES" | "NO"
   ) => {
-    const priceToUse = getMarketPrice(market, position.toLowerCase() as "yes" | "no");
-  
+    const priceToUse = getMarketPrice(
+      market,
+      position.toLowerCase() as "yes" | "no"
+    );
+
     if (
       typeof priceToUse !== "number" ||
       isNaN(priceToUse) ||
@@ -127,7 +149,7 @@ function useGroupedMarkets(): UseGroupedMarketsReturn {
       console.error("Invalid price for Kalshi market:", priceToUse);
       return;
     }
-  
+
     const bet: KalshiBet = {
       marketId: market.id,
       eventTitle: market.question,
@@ -137,7 +159,7 @@ function useGroupedMarkets(): UseGroupedMarketsReturn {
       provider: "KALSHI",
       ticker: market.ticker,
     };
-  
+
     addBet(bet);
   };
 

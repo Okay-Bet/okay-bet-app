@@ -1,50 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { useBetSlip } from "../../app/context/BetSlipContext";
 import { useOrder } from "../../hooks/order/useOrder";
-import { createPublicClient, http, parseAbi } from "viem";
-import { Bet, LimitlessBet, PolymarketBet } from "../../components/types";
-import { base } from "viem/chains";
-
-// Define types for order requests and validation
-interface OrderRequest {
-  tokenId: string;
-  price: number;
-  amount: number;
-  side: "BUY" | "SELL";
-  isYesToken: boolean;
-  estimatedTokens?: number;
-  priceImpact?: number;
-}
-
-interface OrderQuote {
-  tokenAmount: number;
-  priceImpact: number;
-  estimatedTotal: number;
-}
-
-// FPMM contract interface
-const FPMM_ABI = parseAbi([
-  "function calcBuyAmount(uint256 investmentAmount, uint256 outcomeIndex) view returns (uint256)",
-  "function calcSellAmount(uint256 returnAmount, uint256 outcomeIndex) view returns (uint256)",
-]);
-
-const isLimitlessBet = (bet: Bet): bet is LimitlessBet => {
-  return bet.provider === "LIMITLESS";
-};
-
-// Initialize the public client for blockchain interactions
-const publicClient = createPublicClient({
-  chain: base,
-  transport: http(),
-});
+import { Bet, LimitlessBet, PolymarketBet,   
+  OrderBookData, 
+  OrderQuote, 
+  LimitlessOrder,
+  OrderRequest,
+  MarketInfo } from "../../components/types";
 
 // Constants
 const MIN_TOKENS = 1.0;
+const API_URL = process.env.NEXT_PUBLIC_LIMITLESS_API_URL || 'https://api.limitless.exchange';
+
 
 export const BetSlip: React.FC = () => {
   // Hook integrations
   const { bet, removeBet, clearBets } = useBetSlip();
   const { submitOrder, status, approvalStep, isLoading } = useOrder();
+  const [orderBookData, setOrderBookData] = useState<OrderBookData | null>(null);
 
   // Local state management
   const [amount, setAmount] = useState<string>("");
@@ -77,57 +50,103 @@ export const BetSlip: React.FC = () => {
     }
   }, [approvalStep, status, clearBets]);
 
-  // Effect for quote calculation
+
+  // Event handlers
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (/^\d*\.?\d*$/.test(value)) {
+      setAmount(value);
+    }
+  };
+
+  const calculateQuoteFromOrderBook = (
+    amount: number,
+    position: "YES" | "NO",
+    orderBook: OrderBookData
+  ): OrderQuote | null => {
+    try {
+      const orders = position === "YES" ? orderBook.asks : orderBook.bids;
+      let remainingAmount = amount * 1_000_000; // Convert to base units (USDC 6 decimals)
+      let totalCost = 0;
+      let filledAmount = 0;
+
+      for (const level of orders) {
+        const levelSize = Math.min(remainingAmount, level.size);
+        totalCost += levelSize * level.price;
+        filledAmount += levelSize;
+        remainingAmount -= levelSize;
+
+        if (remainingAmount <= 0) break;
+      }
+
+      if (remainingAmount > 0) {
+        // Order cannot be fully filled
+        return {
+          estimatedTotal: totalCost / 1_000_000, // Convert back to USDC
+          averagePrice: totalCost / filledAmount,
+          priceImpact: Math.abs((orderBook.lastTradePrice - (totalCost / filledAmount)) / orderBook.lastTradePrice),
+          unfilled: remainingAmount / 1_000_000,
+        };
+      }
+
+      return {
+        estimatedTotal: totalCost / 1_000_000,
+        averagePrice: totalCost / filledAmount,
+        priceImpact: Math.abs((orderBook.lastTradePrice - (totalCost / filledAmount)) / orderBook.lastTradePrice),
+      };
+    } catch (error) {
+      console.error("Error calculating quote:", error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     const getQuote = async () => {
-      // Early return if no bet, no amount, or if it's a Polymarket bet
       if (
         !bet ||
         !amount ||
         isNaN(parseFloat(amount)) ||
-        bet.provider === "POLYMARKET"
+        bet.provider !== "LIMITLESS"
       ) {
         setQuote(null);
         return;
       }
 
-      // Now we know it's a Limitless bet
       const limitlessBet = bet as LimitlessBet;
-
       setIsQuoting(true);
+
       try {
-        const investmentAmount = BigInt(
-          Math.floor(parseFloat(amount) * 1_000_000)
+        // Fetch orderbook data
+        const response = await fetch(
+          `${API_URL}/markets/${limitlessBet.marketSlug}/historical-price`
         );
-        const outcomeIndex = limitlessBet.position === "YES" ? 0n : 1n;
+        const orderBook = await response.json();
 
-        const tokenAmount = await publicClient.readContract({
-          address: limitlessBet.tokenId as `0x${string}`,
-          abi: FPMM_ABI,
-          functionName: "calcBuyAmount",
-          args: [investmentAmount, outcomeIndex],
-        });
+        if (!orderBook.bids || !orderBook.asks) {
+          throw new Error('Invalid orderbook data received');
+        }
+        
+        setOrderBookData(orderBook);
 
-        const baseAmount = BigInt(1_000_000); // 1 USDC
-        const baseTokens = await publicClient.readContract({
-          address: limitlessBet.tokenId as `0x${string}`,
-          abi: FPMM_ABI,
-          functionName: "calcBuyAmount",
-          args: [baseAmount, outcomeIndex],
-        });
-
-        // Calculate price impact
-        const expectedTokens = Number(baseTokens) * parseFloat(amount);
-        const actualTokens = Number(tokenAmount);
-        const priceImpact = Math.abs(
-          (actualTokens - expectedTokens) / expectedTokens
+        // Calculate quote from orderbook
+        const quoteResult = calculateQuoteFromOrderBook(
+          parseFloat(amount),
+          limitlessBet.position,
+          orderBook
         );
 
-        setQuote({
-          tokenAmount: Number(tokenAmount) / 1_000_000,
-          priceImpact,
-          estimatedTotal: parseFloat(amount),
-        });
+        if (quoteResult) {
+          setQuote({
+            tokenAmount: parseFloat(amount) / quoteResult.averagePrice,
+            priceImpact: quoteResult.priceImpact,
+            estimatedTotal: quoteResult.estimatedTotal,
+          });
+
+          // Show warning if there's unfilled amount
+          if (quoteResult.unfilled) {
+            console.warn(`Warning: ${quoteResult.unfilled} USDC cannot be filled at current prices`);
+          }
+        }
       } catch (error) {
         console.error("Error getting quote:", error);
         setQuote(null);
@@ -139,14 +158,6 @@ export const BetSlip: React.FC = () => {
     const timeoutId = setTimeout(getQuote, 500);
     return () => clearTimeout(timeoutId);
   }, [amount, bet]);
-
-  // Event handlers
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (/^\d*\.?\d*$/.test(value)) {
-      setAmount(value);
-    }
-  };
 
   const handlePlaceOrder = async () => {
     if (!bet) return;
@@ -175,22 +186,20 @@ export const BetSlip: React.FC = () => {
       return;
     }
 
-    try {
-      const amountInUSDC = parseFloat(amount) * 1_000_000;
-      const orderRequest: OrderRequest = {
-        tokenId: limitlessBet.tokenId,
-        price: limitlessBet.price,
-        amount: amountInUSDC,
-        side: "BUY",
-        isYesToken: limitlessBet.position === "YES",
-        estimatedTokens: quote.tokenAmount,
-        priceImpact: quote.priceImpact,
-      };
+    if (bet.provider === "LIMITLESS" && quote) {
+      try {
+        const orderRequest: OrderRequest = {
+          marketSlug: bet.marketSlug,
+          amount: parseFloat(amount),
+          price: bet.position === "YES" ? quote.averagePrice : 1 - quote.averagePrice,
+          side: "BUY",
+        };
 
-      await submitOrder(orderRequest);
-    } catch (err) {
-      console.error("Order placement error:", err);
-      setTransactionStatus("Failed to place order. Please try again.");
+        await submitOrder(orderRequest);
+      } catch (err) {
+        console.error("Order placement error:", err);
+        setTransactionStatus("Failed to place order. Please try again.");
+      }
     }
   };
 
@@ -323,7 +332,7 @@ export const BetSlip: React.FC = () => {
                     Potential Payout
                   </span>
                   <span className="font-medium text-black">
-                    {quote.tokenAmount.toFixed(2)} USDC
+                  {(quote.estimatedTotal / quote.averagePrice).toFixed(2)} USDC
                   </span>
                 </div>
                 <div className="flex justify-between items-center">

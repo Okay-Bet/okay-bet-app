@@ -40,6 +40,7 @@ export interface BaseMarket {
 export interface LimitlessMarket extends BaseMarket {
   provider: "LIMITLESS";
   conditionId: string;
+  slug: string;
 }
 
 export interface PolymarketMarket extends BaseMarket {

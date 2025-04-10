@@ -10,6 +10,7 @@ export interface BaseBet {
 
 export interface LimitlessBet extends BaseBet {
   provider: "LIMITLESS";
+  marketSlug: string;
   tokenId: string;
 }
 

@@ -30,6 +30,7 @@ export interface FastAPIMarket {
   max_spread: number;
   adjusted_midpoint: number;
   min_size: number;
+  slug: string | null;
 }
 
 export interface MarketResponse {
@@ -125,6 +126,7 @@ export const transformMarket = async (marketId: string): Promise<LimitlessMarket
       question: fastAPIData.title,
       description: cleanMarkdownText(fastAPIData.description || ""),
       status: mapStatus(fastAPIData.status),
+      slug: fastAPIData.slug || "",
       expirationDate: fastAPIData.expiration_date,
       timestamps: {
         created: fastAPIData.created_at,
