@@ -57,13 +57,6 @@ export interface LimitlessOrder {
   signatureType: number;
 }
 
-export interface OrderRequest {
-  marketSlug: string;
-  amount: number;
-  price: number;
-  side: "BUY" | "SELL";
-}
-
 export interface OrderResponse {
   order: LimitlessOrder;
   makerMatches: any[]; // Define specific type if needed

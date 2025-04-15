@@ -193,21 +193,19 @@ export const BetSlip: React.FC = () => {
       try {
         const orderRequest: OrderRequest = {
           marketSlug: bet.marketSlug,
+          side: bet.position === "YES" ? 0 : 1, 
+          orderType: "GTC",
+          price: bet.position === "YES" ? quote.averagePrice : 1 - quote.averagePrice,
           amount: parseFloat(amount),
-          price:
-            bet.position === "YES"
-              ? quote.averagePrice
-              : 1 - quote.averagePrice,
-          side: "BUY",
         };
-
+    
         await submitOrder(orderRequest);
       } catch (err) {
         console.error("Order placement error:", err);
         setTransactionStatus("Failed to place order. Please try again.");
       }
-    }
-  };
+    };
+  }
 
   const getButtonClasses = () => {
     const baseClasses =
