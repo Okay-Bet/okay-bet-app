@@ -39,7 +39,7 @@ export default function Home() {
           <BetSlipProvider>
             {/* <UserPositions /> */}
             <PredictionMarkets/>
-            <BetSlip />
+            {/* <BetSlip /> */}
           </BetSlipProvider>
         </main>
         <Testimonials />

@@ -1,5 +1,5 @@
+// src/app/api/grouped-markets/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import type {
   LimitlessMarket,
   PolymarketMarket,
@@ -9,28 +9,50 @@ import { fetchMarketsByIds } from "@/app/api/limitless/markets/utils";
 import { fetchPolymarketData } from "@/app/api/markets/utils";
 import { fetchKalshiMarkets } from "@/app/api/kalshi/utils";
 
-interface GroupedMarketCard {
+// Define interface for the new database schema
+interface GroupedMarket {
   id: string;
-  limitlessMarkets: {
-    market: LimitlessMarket;
-    similarity: number | null;
-  }[];
-  polymarketMarkets: {
-    market: PolymarketMarket;
-    similarity: number | null;
-  }[];
-  kalshiMarkets: {
-    market: KalshiMarket;
-    similarity: number | null;
-  }[];
+  title: string;
+  final_end_date: string;
+  created_at: string;
+  updated_at: string;
+  market_ids: {
+    kalshi: string[];
+    polymarket: string[];
+    limitless?: string[];
+  };
+  platforms: {
+    kalshi: {
+      markets: Array<{
+        id: string;
+        volume: number;
+        liquidity: number;
+        openInterest: number;
+      }>;
+    };
+    polymarket: {
+      markets: Array<{
+        id: string;
+        volume: number;
+        liquidity: number;
+      }>;
+    };
+    limitless: {
+      markets: Array<{
+        id: string;
+        volume: number;
+        liquidity?: number;
+        openInterest?: number;
+      }>;
+    };
+  };
   metrics: {
-    totalVolume: number;
-    highestLiquidity: number;
     platforms: {
-      limitless: {
+      kalshi: {
         markets: Array<{
           id: string;
           volume: number;
+          liquidity: number;
           openInterest: number;
         }>;
       };
@@ -41,223 +63,109 @@ interface GroupedMarketCard {
           liquidity: number;
         }>;
       };
-      kalshi: {
+      limitless: {
         markets: Array<{
           id: string;
           volume: number;
-          liquidity: number;
-          openInterest: number;
+          liquidity?: number;
+          openInterest?: number;
         }>;
       };
     };
   };
 }
 
-interface GroupedMarketsResponse {
-  success: boolean;
-  data: GroupedMarketCard[];
-  error?: string;
+const FASTAPI_BASE_URL = process.env.FASTAPI_BASE_URL || 'http://localhost:8000';
+
+async function fetchGroupedMarkets(): Promise<GroupedMarket[]> {
+  try {
+    const response = await fetch(`${FASTAPI_BASE_URL}/api/v1/grouped-markets/groups/markets`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch grouped markets: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching grouped markets:", error);
+    throw error;
+  }
 }
 
 export async function GET(request: Request) {
   try {
-    // Fetch all grouped markets with their relationships
-    const groupedMarkets = await prisma.groupedMarket.findMany({
-      include: {
-        limitlessMarkets: {
-          include: {
-            market: true,
-          },
-        },
-        polymarketMarkets: {
-          include: {
-            market: true,
-          },
-        },
-        kalshiMarkets: {
-          include: {
-            market: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+    const groupedMarkets = await fetchGroupedMarkets();
 
-    // Get unique IDs for each platform
-    const limitlessIds = [
-      ...new Set(
-        groupedMarkets.flatMap((gm) =>
-          gm.limitlessMarkets.map((m) => m.marketId)
-        )
-      ),
-    ];
-    const polymarketIds = [
-      ...new Set(
-        groupedMarkets.flatMap((gm) =>
-          gm.polymarketMarkets.map((m) => m.marketId)
-        )
-      ),
-    ];
-    const kalshiIds = [
-      ...new Set(
-        groupedMarkets.flatMap((gm) => gm.kalshiMarkets.map((m) => m.marketId))
-      ),
-    ];
-
-    // Fetch latest market data from all platforms
-    const [limitlessMarkets, polymarketMarkets, kalshiMarkets] =
-      await Promise.all([
-        fetchMarketsByIds(limitlessIds),
-        fetchPolymarketData(polymarketIds),
-        fetchKalshiMarkets(kalshiIds),
+    // Fetch latest market data for each platform
+    const marketFetchPromises = groupedMarkets.map(async (group) => {
+      const [limitlessMarkets, polymarketMarkets, kalshiMarkets] = await Promise.all([
+        group.market_ids.limitless?.length 
+          ? fetchMarketsByIds(group.market_ids.limitless)
+          : Promise.resolve([]),
+        group.market_ids.polymarket?.length 
+          ? fetchPolymarketData(group.market_ids.polymarket)
+          : Promise.resolve([]),
+        group.market_ids.kalshi?.length 
+          ? fetchKalshiMarkets(group.market_ids.kalshi)
+          : Promise.resolve([]),
       ]);
 
-    // Create maps for quick lookup
-    const limitlessMap = new Map(limitlessMarkets.map((m) => [m.id, m]));
-    const polymarketMap = new Map(polymarketMarkets.map((m) => [m.id, m]));
-    const kalshiMap = new Map(kalshiMarkets.map((m) => [m.id, m]));
+      // Create maps for quick lookup
+      const marketMaps = {
+        limitless: new Map(limitlessMarkets.map(m => [m.id, m])),
+        polymarket: new Map(polymarketMarkets.map(m => [m.id, m])),
+        kalshi: new Map(kalshiMarkets.map(m => [m.id, m])),
+      };
 
-    // Transform into GroupedMarketCards
-    const groupedMarketCards: GroupedMarketCard[] = groupedMarkets.map(
-      (group) => {
-        // Process Limitless markets with null checks
-        const limitlessProcessed = group.limitlessMarkets
-          .map((lm) => {
-            const market = limitlessMap.get(lm.marketId);
-            return market
-              ? {
-                  market,
-                  similarity: lm.similarity,
-                }
-              : null;
-          })
-          .filter(
-            (m): m is { market: LimitlessMarket; similarity: number | null } =>
-              m !== null
-          );
+      // Process markets for each platform
+      const processedMarkets = {
+        limitlessMarkets: group.platforms.limitless.markets.map(m => ({
+          market: marketMaps.limitless.get(m.id)!,
+          similarity: 1, // or any other relevant similarity metric
+        })).filter(m => m.market),
+        polymarketMarkets: group.platforms.polymarket.markets.map(m => ({
+          market: marketMaps.polymarket.get(m.id)!,
+          similarity: 1,
+        })).filter(m => m.market),
+        kalshiMarkets: group.platforms.kalshi.markets.map(m => ({
+          market: marketMaps.kalshi.get(m.id)!,
+          similarity: 1,
+        })).filter(m => m.market),
+      };
 
-        // Keep existing processing for other platforms
-        const polymarketProcessed = group.polymarketMarkets
-          .map((pm) => ({
-            market: polymarketMap.get(pm.marketId) || pm.market,
-            similarity: pm.similarity,
-          }))
-          .filter((m) => m.market !== undefined);
+      return {
+        id: group.id,
+        title: group.title,
+        final_end_date: group.final_end_date,
+        created_at: group.created_at,
+        updated_at: group.updated_at,
+        ...processedMarkets,
+        metrics: {
+          totalVolume: 
+            group.platforms.kalshi.markets.reduce((sum, m) => sum + (m.volume || 0), 0) +
+            group.platforms.polymarket.markets.reduce((sum, m) => sum + (m.volume || 0), 0) +
+            group.platforms.limitless.markets.reduce((sum, m) => sum + (m.volume || 0), 0),
+          highestLiquidity: Math.max(
+            ...group.platforms.kalshi.markets.map(m => Math.max(m.liquidity || 0, m.openInterest || 0)),
+            ...group.platforms.polymarket.markets.map(m => m.liquidity || 0),
+            ...group.platforms.limitless.markets.map(m => m.liquidity || m.openInterest || 0)
+          ),
+          platforms: group.platforms,
+        },
+      };
+    });
 
-        const kalshiProcessed = group.kalshiMarkets
-          .map((km) => ({
-            market: kalshiMap.get(km.marketId) || km.market,
-            similarity: km.similarity,
-          }))
-          .filter((m) => m.market !== undefined);
+    const processedGroupedMarkets = await Promise.all(marketFetchPromises);
 
-        // Calculate metrics with safe access
-        const metrics = {
-          totalVolume: 0,
-          highestLiquidity: 0,
-          platforms: {
-            limitless: {
-              markets: limitlessProcessed.map((lm) => ({
-                id: lm.market.id,
-                volume: parseFloat(lm.market.metrics?.volumeRaw || "0"),
-                openInterest: parseFloat(
-                  lm.market.metrics?.openInterestRaw || "0"
-                ),
-              })),
-            },
-            polymarket: {
-              markets: polymarketProcessed.map((pm) => ({
-                id: pm.market.id,
-                volume: pm.market.metrics?.volume
-                  ? parseFloat(pm.market.metrics.volume)
-                  : 0,
-                liquidity: pm.market.metrics?.liquidity
-                  ? parseFloat(pm.market.metrics.liquidity)
-                  : 0,
-              })),
-            },
-            kalshi: {
-              markets: kalshiProcessed.map((km) => ({
-                id: km.market.id,
-                volume: km.market.metrics?.volume
-                  ? parseFloat(km.market.metrics.volume)
-                  : 0,
-                liquidity: km.market.metrics?.liquidity
-                  ? parseFloat(km.market.metrics.liquidity)
-                  : 0,
-                openInterest: km.market.metrics?.openInterest
-                  ? parseFloat(km.market.metrics.openInterest)
-                  : 0,
-              })),
-            },
-          },
-        };
-
-        // Calculate total volume safely
-        metrics.totalVolume =
-          metrics.platforms.limitless.markets.reduce(
-            (sum, m) => sum + (m.volume || 0),
-            0
-          ) +
-          metrics.platforms.polymarket.markets.reduce(
-            (sum, m) => sum + (m.volume || 0),
-            0
-          ) +
-          metrics.platforms.kalshi.markets.reduce(
-            (sum, m) => sum + (m.volume || 0),
-            0
-          );
-
-        // Calculate highest liquidity safely
-        const limitlessLiquidity = Math.max(
-          0,
-          ...metrics.platforms.limitless.markets.map((m) => m.openInterest || 0)
-        );
-        const polymarketLiquidity = Math.max(
-          0,
-          ...metrics.platforms.polymarket.markets.map((m) => m.liquidity || 0)
-        );
-        const kalshiLiquidity = Math.max(
-          0,
-          ...metrics.platforms.kalshi.markets.map((m) =>
-            Math.max(m.liquidity || 0, m.openInterest || 0)
-          )
-        );
-
-        metrics.highestLiquidity = Math.max(
-          limitlessLiquidity,
-          polymarketLiquidity,
-          kalshiLiquidity
-        );
-
-        return {
-          id: group.id,
-          limitlessMarkets: limitlessProcessed,
-          polymarketMarkets: polymarketProcessed,
-          kalshiMarkets: kalshiProcessed,
-          metrics,
-        };
-      }
-    );
-
-    const response: GroupedMarketsResponse = {
+    return NextResponse.json({
       success: true,
-      data: groupedMarketCards,
-    };
-
-    return NextResponse.json(response);
+      data: processedGroupedMarkets,
+    });
   } catch (error) {
-    console.error("Error fetching grouped markets:", error);
+    console.error("Error processing grouped markets:", error);
     return NextResponse.json(
       {
         success: false,
         data: [],
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch grouped markets",
+        error: error instanceof Error ? error.message : "Failed to fetch grouped markets",
       },
       { status: 500 }
     );
