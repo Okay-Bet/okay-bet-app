@@ -4,7 +4,7 @@
 
 import type { Metadata } from "next";
 import "../styles/globals.css";
-import { ThirdwebProvider } from "thirdweb/react";
+import Providers from "../components/Providers/privyProvider";
 import { Analytics } from "@vercel/analytics/react";
 import dynamic from "next/dynamic";
 import ServiceWorkerRegistration from "../components/ServiceWorkerRegistration";
@@ -84,11 +84,11 @@ export default function RootLayout({
 
         {/* Content wrapper */}
         <div className="relative z-10">
-          <ThirdwebProvider>
+          <Providers>
             <ServiceWorkerRegistration />
             {children}
             <Analytics />
-          </ThirdwebProvider>
+          </Providers>
         </div>
       </body>
     </html>

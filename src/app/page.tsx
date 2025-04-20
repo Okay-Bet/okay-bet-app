@@ -1,25 +1,23 @@
-// app/page.tsx
-// landing page of the app
-
 "use client";
 import React from "react";
-import { useActiveAccount } from "thirdweb/react";
+import { usePrivy } from "@privy-io/react-auth";
 import Image from "next/image";
 import logo from "../../public/okay_bet.png";
 import Pitch from "../components/Landing/Pitch";
 import ConnectWallet from "../components/User/ConnectWallet";
 import { BetSlipProvider } from "./context/BetSlipContext";
-import { BetSlip } from "../components/Bet/BetSlip";
 import PredictionMarkets from "../components/Markets/PredictionMarkets";
 import Testimonials from "../components/Landing/Testimonials";
-import UserPositions from "../components/User/UserPositions";
-
 
 export default function Home() {
-  const account = useActiveAccount();
+  const { authenticated, ready } = usePrivy();
+
+  if (!ready) {
+    return <div>Loading...</div>;
+  }
 
   return (
-    <main className=" width-full flex-col items-center justify-center">
+    <main className="width-full flex-col items-center justify-center">
       <div className="py-6 text-center">
         <div className="m-3">
           <Image
@@ -33,17 +31,15 @@ export default function Home() {
           />
         </div>
         <ConnectWallet />
-        {account ? (
+        {authenticated ? (
           <div className="w-full">
-        <main className="mt-8 mb-4">
-          <BetSlipProvider>
-            {/* <UserPositions /> */}
-            <PredictionMarkets/>
-            {/* <BetSlip /> */}
-          </BetSlipProvider>
-        </main>
-        <Testimonials />
-        </div>
+            <BetSlipProvider>
+              <main className="mt-8 mb-4">
+                <PredictionMarkets />
+              </main>
+            </BetSlipProvider>
+            <Testimonials />
+          </div>
         ) : (
           <Pitch />
         )}
@@ -51,4 +47,3 @@ export default function Home() {
     </main>
   );
 }
-
