@@ -1,4 +1,5 @@
 // src/hooks/useGroupedMarkets.ts
+// src/hooks/useGroupedMarkets.ts
 import { useState, useEffect } from "react";
 import type {
   GroupedMarketCard,
@@ -11,10 +12,20 @@ import type {
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { useBetSlip } from "@/app/context/BetSlipContext";
 
+interface PaginationState {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  itemsPerPage: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
 interface UseGroupedMarketsReturn {
   groupedMarkets: GroupedMarketCard[];
   loading: boolean;
   error: string | null;
+  pagination: PaginationState;
   marketActions: {
     handleBetClick: (market: LimitlessMarket, position: "YES" | "NO") => void;
     handlePolymarketBetClick: (
@@ -26,15 +37,20 @@ interface UseGroupedMarketsReturn {
       position: "YES" | "NO"
     ) => void;
     toggleMarketExpanded: (marketId: string) => void;
+    handlePageChange: (page: number) => void;
+    handleItemsPerPageChange: (itemsPerPage: number) => void;
   };
   marketStates: {
     showMoneyline: boolean;
     setShowMoneyline: (show: boolean) => void;
     expandedMarkets: Set<string>;
     pricesLoading: boolean;
-    realtimePrices: any; // Type this properly based on useMarketPrices return
+    realtimePrices: any;
   };
 }
+
+const DEFAULT_PAGE = 1;
+const DEFAULT_ITEMS_PER_PAGE = 10;
 
 function useGroupedMarkets(): UseGroupedMarketsReturn {
   const [groupedMarkets, setGroupedMarkets] = useState<GroupedMarketCard[]>([]);
@@ -45,29 +61,60 @@ function useGroupedMarkets(): UseGroupedMarketsReturn {
     new Set()
   );
 
+  // Add pagination state
+  const [pagination, setPagination] = useState<PaginationState>({
+    currentPage: DEFAULT_PAGE,
+    totalPages: 1,
+    totalItems: 0,
+    itemsPerPage: DEFAULT_ITEMS_PER_PAGE,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  });
+
   const { addBet } = useBetSlip();
 
-  // Fetch grouped markets data
-  useEffect(() => {
-    const fetchGroupedMarkets = async () => {
-      try {
-        const response = await fetch("/api/grouped-markets");
-        const data = await response.json();
+  // Fetch grouped markets data with pagination
+  const fetchGroupedMarkets = async (page: number, limit: number) => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `/api/grouped-markets?page=${page}&limit=${limit}`
+      );
+      const data = await response.json();
 
-        if (!data.success) {
-          throw new Error(data.error || "Failed to fetch grouped markets");
-        }
-
-        setGroupedMarkets(data.data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred");
-      } finally {
-        setLoading(false);
+      if (!data.success) {
+        throw new Error(data.error || "Failed to fetch grouped markets");
       }
-    };
 
-    fetchGroupedMarkets();
-  }, []);
+      setGroupedMarkets(data.data);
+      setPagination(data.pagination);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Effect to fetch data when pagination changes
+  useEffect(() => {
+    fetchGroupedMarkets(pagination.currentPage, pagination.itemsPerPage);
+  }, [pagination.currentPage, pagination.itemsPerPage]);
+
+  // Pagination handlers
+  const handlePageChange = (page: number) => {
+    setPagination((prev) => ({
+      ...prev,
+      currentPage: page,
+    }));
+  };
+
+  const handleItemsPerPageChange = (itemsPerPage: number) => {
+    setPagination((prev) => ({
+      ...prev,
+      itemsPerPage,
+      currentPage: 1, // Reset to first page when changing items per page
+    }));
+  };
 
   const handleBetClick = (market: LimitlessMarket, position: "YES" | "NO") => {
     console.log("Handling bet click:", { market, position }); // Debug log
@@ -179,11 +226,14 @@ function useGroupedMarkets(): UseGroupedMarketsReturn {
     groupedMarkets,
     loading,
     error,
+    pagination,
     marketActions: {
       handleBetClick,
       handlePolymarketBetClick,
       handleKalshiBetClick,
       toggleMarketExpanded,
+      handlePageChange,
+      handleItemsPerPageChange,
     },
     marketStates: {
       showMoneyline,

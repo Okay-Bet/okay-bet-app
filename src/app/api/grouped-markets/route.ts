@@ -76,6 +76,8 @@ interface GroupedMarket {
 }
 
 const FASTAPI_BASE_URL = process.env.FASTAPI_BASE_URL || 'http://localhost:8000';
+const DEFAULT_PAGE_SIZE = 10;
+const DEFAULT_PAGE = 1;
 
 async function fetchGroupedMarkets(): Promise<GroupedMarket[]> {
   try {
@@ -92,10 +94,22 @@ async function fetchGroupedMarkets(): Promise<GroupedMarket[]> {
 
 export async function GET(request: Request) {
   try {
-    const groupedMarkets = await fetchGroupedMarkets();
+    // Parse URL to get query parameters
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || DEFAULT_PAGE.toString());
+    const limit = parseInt(searchParams.get('limit') || DEFAULT_PAGE_SIZE.toString());
 
-    // Fetch latest market data for each platform
-    const marketFetchPromises = groupedMarkets.map(async (group) => {
+    // Fetch all grouped markets
+    const allGroupedMarkets = await fetchGroupedMarkets();
+
+    // Calculate pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedMarkets = allGroupedMarkets.slice(startIndex, endIndex);
+    const totalPages = Math.ceil(allGroupedMarkets.length / limit);
+
+    // Process only the paginated subset
+    const marketFetchPromises = paginatedMarkets.map(async (group) => {
       const [limitlessMarkets, polymarketMarkets, kalshiMarkets] = await Promise.all([
         group.market_ids.limitless?.length 
           ? fetchMarketsByIds(group.market_ids.limitless)
@@ -119,7 +133,7 @@ export async function GET(request: Request) {
       const processedMarkets = {
         limitlessMarkets: group.platforms.limitless.markets.map(m => ({
           market: marketMaps.limitless.get(m.id)!,
-          similarity: 1, // or any other relevant similarity metric
+          similarity: 1,
         })).filter(m => m.market),
         polymarketMarkets: group.platforms.polymarket.markets.map(m => ({
           market: marketMaps.polymarket.get(m.id)!,
@@ -158,6 +172,14 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       data: processedGroupedMarkets,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems: allGroupedMarkets.length,
+        itemsPerPage: limit,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      }
     });
   } catch (error) {
     console.error("Error processing grouped markets:", error);
