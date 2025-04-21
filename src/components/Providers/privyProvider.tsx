@@ -1,9 +1,9 @@
 // src/components/Providers/privyProvider.tsx
 "use client";
+
 import { PrivyProvider } from "@privy-io/react-auth";
-import { Analytics } from "@vercel/analytics/react";
-import ServiceWorkerRegistration from "../ServiceWorkerRegistration";
 import { base, polygon, optimism, arbitrum } from "viem/chains";
+import { WalletProvider } from "../../app/context/WalletContext";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -22,17 +22,24 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           },
         ],
         appearance: {
-            logo: '',
-            landingHeader: 'Welcome to Okay Bet',
-            loginMessage: "You are in!",
-            theme: '#EEEEEE',
-
+          logo: "",
+          landingHeader: "Welcome to Okay Bet",
+          loginMessage: "Bet Better",
+          theme: "#EEEEEE",
+          walletList: [
+            "metamask",
+            "rainbow",
+            "phantom",
+            "coinbase_wallet",
+            "rabby_wallet",
+            "detected_ethereum_wallets",
+          ],
         },
       }}
     >
-      <ServiceWorkerRegistration />
-      {children}
-      <Analytics />
+      <WalletProvider>
+        {children}
+      </WalletProvider>
     </PrivyProvider>
   );
 }

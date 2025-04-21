@@ -7,6 +7,7 @@ import Pitch from "../components/Landing/Pitch";
 import ConnectWallet from "../components/User/ConnectWallet";
 import { BetSlipProvider } from "./context/BetSlipContext";
 import PredictionMarkets from "../components/Markets/PredictionMarkets";
+import { UserPositions } from "../components/User/UserPositions";
 import Testimonials from "../components/Landing/Testimonials";
 
 export default function Home() {
@@ -35,6 +36,7 @@ export default function Home() {
           <div className="w-full">
             <BetSlipProvider>
               <main className="mt-8 mb-4">
+                <UserPositions />
                 <PredictionMarkets />
               </main>
             </BetSlipProvider>

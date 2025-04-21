@@ -1,4 +1,3 @@
-"use client";
 import { useLoginWithEmail, usePrivy, useWallets } from "@privy-io/react-auth";
 import { useState } from "react";
 import { base, polygon, optimism, arbitrum } from "viem/chains";
@@ -6,7 +5,10 @@ import { base, polygon, optimism, arbitrum } from "viem/chains";
 const ConnectWallet = () => {
   const { authenticated, user, logout, ready, login, linkWallet } = usePrivy();
 
-  const { activeWallet, switchActiveWallet, wallets } = useWallets();
+  const { wallets, setActiveWallet } = useWallets();
+
+  // Get the first/active wallet
+  const activeWallet = wallets[0];
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +24,24 @@ const ConnectWallet = () => {
       return truncateAddress(activeWallet.address.toString());
     }
     return "Connected User";
+  };
+
+  const handleLogin = async () => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      await login();
+    } catch (err: any) {
+      // Handle different types of errors
+      if (err.message?.includes("Proposal expired")) {
+        setError("Wallet connection timed out. Please try again.");
+      } else {
+        setError("Failed to connect. Please try again.");
+      }
+      console.error("Login error:", err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getCurrentChainName = (): string => {
@@ -59,7 +79,9 @@ const ConnectWallet = () => {
                 key={chain.id}
                 onClick={async () => {
                   try {
-                    await activeWallet?.switchChain(chain.id);
+                    if (activeWallet) {
+                      await activeWallet.switchChain(chain.id);
+                    }
                   } catch (error) {
                     setError(`Failed to switch to ${chain.name}`);
                   }
@@ -134,11 +156,25 @@ const ConnectWallet = () => {
       )}
 
       <button
-        onClick={() => login()}
-        className="w-full bg-secondary text-font px-4 py-2 rounded-lg hover:bg-opacity-90"
+        onClick={handleLogin}
+        disabled={isLoading}
+        className={`
+          w-full bg-secondary text-font px-4 py-2 rounded-lg 
+          transition-all duration-200
+          ${isLoading ? "opacity-50 cursor-not-allowed" : "hover:bg-opacity-90"}
+        `}
       >
-        Login with Email or Social
+        {isLoading ? "Connecting..." : "Login with Email or Social"}
       </button>
+
+      {error && (
+        <button
+          onClick={() => setError(null)}
+          className="text-sm text-gray-500 hover:text-gray-700"
+        >
+          Try Again
+        </button>
+      )}
     </div>
   );
 };
