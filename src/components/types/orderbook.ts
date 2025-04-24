@@ -79,10 +79,6 @@ export interface OrderStatus {
   error?: string;
 }
 
-export interface ApprovalStep {
-  status: "pending" | "approving" | "approved" | "failed";
-  error?: string;
-}
 
 // API response types
 export interface MarketPriceResponse {

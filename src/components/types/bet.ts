@@ -1,17 +1,13 @@
 // types/bet.ts
 
+import { LimitlessBet } from "./orderbook";
+
 export interface BaseBet {
   marketId: string;
   eventTitle: string;
   marketQuestion: string;
   position: "YES" | "NO";
   price: number;
-}
-
-export interface LimitlessBet extends BaseBet {
-  provider: "LIMITLESS";
-  marketSlug: string;
-  tokenId: string;
 }
 
 export interface PolymarketBet extends BaseBet {

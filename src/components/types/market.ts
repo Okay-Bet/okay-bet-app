@@ -202,3 +202,9 @@ export interface GroupedMarketsResponse {
   data: GroupedMarketCard[];
   error?: string;
 }
+
+export const MARKET_PROVIDERS = {
+  LIMITLESS: "LIMITLESS",
+  POLYMARKET: "POLYMARKET",
+  KALSHI: "KALSHI"
+} as const;

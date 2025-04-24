@@ -3,15 +3,18 @@ import { useBetSlip } from "../../app/context/BetSlipContext";
 import { useOrder } from "../../hooks/order/useOrder";
 import { useQuote } from "../../hooks/quote/useQuote";
 import { BetSlipQuoteSection } from "./BetSlipQuoteSection";
-import { LimitlessBet, OrderRequest } from "../types";
+import { LimitlessBet, OrderRequest, ApprovalState, ApprovalStep } from "../types";
 
 const MIN_TOKENS = 1.0;
 
 export const BetSlip: React.FC = () => {
   const { bet, removeBet, clearBets } = useBetSlip();
-  const { submitOrder, status, approvalStep, isLoading } = useOrder();
+  const { submitOrder, status, isLoading } = useOrder();
   const [amount, setAmount] = useState<string>("");
   const [transactionStatus, setTransactionStatus] = useState<string>("");
+  const [approvalStep, setApprovalStep] = useState<ApprovalStep>({
+    status: "none"
+  });
   
   const { quote, isQuoting } = useQuote(bet, amount);
 
@@ -90,7 +93,6 @@ export const BetSlip: React.FC = () => {
     if (isLoading) {
       if (approvalStep.status === "approving") return "Approving USDC...";
       if (approvalStep.status === "pending") return "Confirming...";
-      if (status.state === "submitting_order") return "Placing Order...";
       return "Processing...";
     }
     if (status.state === "complete") return "COMPLETE ✓";
@@ -113,8 +115,6 @@ export const BetSlip: React.FC = () => {
                   (approvalStep.status === "approving"
                     ? "Requesting approval..."
                     : approvalStep.status === "pending"
-                    ? "Confirming approval..."
-                    : status.state === "submitting_order"
                     ? "Submitting order..."
                     : "")}
               </span>

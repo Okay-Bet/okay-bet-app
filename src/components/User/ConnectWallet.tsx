@@ -2,23 +2,32 @@ import { useLoginWithEmail, usePrivy, useWallets } from "@privy-io/react-auth";
 import { useState } from "react";
 import { base, polygon, optimism, arbitrum } from "viem/chains";
 
+interface WalletType {
+  address: string;
+  chainId: number;
+  switchChain: (chainId: number) => Promise<void>;
+}
+
+interface UserType {
+  email: string | { toString: () => string };
+}
+
 const ConnectWallet = () => {
   const { authenticated, user, logout, ready, login, linkWallet } = usePrivy();
-
-  const { wallets, setActiveWallet } = useWallets();
+  const { wallets } = useWallets();
 
   // Get the first/active wallet
-  const activeWallet = wallets[0];
+  const activeWallet = wallets[0] as unknown as WalletType | undefined;
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const getDisplayIdentifier = (): string => {
-    if (user?.email) {
-      return typeof user.email === "object"
-        ? user.email.toString()
-        : user.email;
+    if ((user as UserType)?.email) {
+      const email = (user as UserType).email;
+
+      return email.toString();
     }
     if (activeWallet?.address) {
       return truncateAddress(activeWallet.address.toString());
@@ -31,9 +40,10 @@ const ConnectWallet = () => {
     setIsLoading(true);
     try {
       await login();
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Handle different types of errors
-      if (err.message?.includes("Proposal expired")) {
+      const error = err as { message?: string };
+      if (error.message?.includes("Proposal expired")) {
         setError("Wallet connection timed out. Please try again.");
       } else {
         setError("Failed to connect. Please try again.");
@@ -47,7 +57,7 @@ const ConnectWallet = () => {
   const getCurrentChainName = (): string => {
     if (!activeWallet?.chainId) return "Not Connected";
 
-    const chainMap = {
+    const chainMap: Record<number, string> = {
       [base.id]: "Base",
       [polygon.id]: "Polygon",
       [optimism.id]: "Optimism",
@@ -88,13 +98,13 @@ const ConnectWallet = () => {
                 }}
                 disabled={activeWallet?.chainId === chain.id}
                 className={`
-        px-3 py-1 text-xs rounded-full
-        ${
-          activeWallet?.chainId === chain.id
-            ? "bg-secondary text-white"
-            : "bg-gray-100 hover:bg-gray-200"
-        }
-      `}
+                  px-3 py-1 text-xs rounded-full
+                  ${
+                    activeWallet?.chainId === chain.id
+                      ? "bg-secondary text-white"
+                      : "bg-gray-100 hover:bg-gray-200"
+                  }
+                `}
               >
                 {chain.name}
               </button>
@@ -140,7 +150,6 @@ const ConnectWallet = () => {
     );
   }
 
-  // If user is not authenticated, show single login button
   return (
     <div className="flex flex-col gap-4 items-center max-w-sm mx-auto p-6">
       {error && (
@@ -179,7 +188,6 @@ const ConnectWallet = () => {
   );
 };
 
-// Helper function to truncate wallet addresses
 const truncateAddress = (address: string) => {
   if (!address) return "";
   return `${address.slice(0, 6)}...${address.slice(-4)}`;

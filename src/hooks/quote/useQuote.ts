@@ -57,6 +57,7 @@ export const useQuote = (bet: Bet | null, amount: string) => {
         }
   
         const data: OrderBookResponse = await response.json();
+        console.log("OrderBookResponse:", data);
         const quoteResult = calculateQuoteFromOrderBook(
           parseFloat(amount),
           limitlessBet.position,

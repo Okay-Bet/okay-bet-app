@@ -2,40 +2,50 @@ import type { LimitlessMarket, MarketStatus } from "@/components/types";
 
 const FASTAPI_URL = "http://157.245.87.57:8000/api/v1/limitless";
 
-export interface FastAPIMarket {
+export interface LimitlessAPIMarket {
   id: string;
   limitless_id: number;
   title: string;
   description: string | null;
   status: string;
   expiration_date: string;
+  expirationTimestamp: number;
+  collateralToken: {
+    address: string;
+    symbol: string;
+    decimals: number;
+  };
+  // Formatted values for filtering and sorting
+  liquidityFormatted: string;
+  volumeFormatted: string;
+  openInterestFormatted: string;
+  // Metrics
   api_volume: number;
   contract_volume: number;
   volume_24h: number;
   total_trades: number;
   unique_traders: number;
-  collateral_token_symbol: string;
-  collateral_token_address: string;
-  collateral_token_decimals: number;
-  categories: string[];
-  created_at: string;
-  updated_at: string;
-  last_checked: string;
-  last_trade_time: string;
+  // Market data
   best_bid_price: number;
   best_bid_size: number;
   best_ask_price: number;
   best_ask_size: number;
   last_trade_price: number;
+  // Additional fields
   max_spread: number;
   adjusted_midpoint: number;
   min_size: number;
+  created_at: string;
+  updated_at: string;
+  last_checked: string;
+  last_trade_time: string;
+  categories: string[];
   slug: string | null;
 }
 
 export interface MarketResponse {
   status: string;
-  market: FastAPIMarket;
+  market: LimitlessAPIMarket;
 }
 
 const mapStatus = (status: string): MarketStatus => {
@@ -67,7 +77,7 @@ const cleanMarkdownText = (text: string): string => {
   return withoutEntities.replace(/\s+/g, " ").trim();
 };
 
-async function fetchFastAPIMarketData(marketId: string): Promise<FastAPIMarket | null> {
+async function fetchFastAPIMarketData(marketId: string): Promise<LimitlessAPIMarket | null> {
   try {
     console.log(`Fetching from FastAPI: ${FASTAPI_URL}/markets/${marketId}`);
     const response = await fetch(`${FASTAPI_URL}/markets/${marketId}`, {
@@ -134,9 +144,9 @@ export const transformMarket = async (marketId: string): Promise<LimitlessMarket
         resolved: fastAPIData.status === "RESOLVED" ? fastAPIData.updated_at : undefined,
       },
       collateral: {
-        address: fastAPIData.collateral_token_address,
-        symbol: fastAPIData.collateral_token_symbol,
-        decimals: fastAPIData.collateral_token_decimals,
+        address: '',
+        symbol: '$',
+        decimals: 18,
       },
       metrics: {
         volume: formatNumber(fastAPIData.contract_volume),

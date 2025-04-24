@@ -1,4 +1,5 @@
 // src/types/index.ts
+export * from './approval'; 
 export * from './bridge';
 export * from './bet';
 export * from './core';

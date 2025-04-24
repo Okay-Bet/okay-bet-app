@@ -15,10 +15,6 @@ export const useOrder = () => {
   const submitOrder = async (orderRequest: OrderRequest) => {
     console.log("Order submission temporarily disabled:", orderRequest);
     
-    // If it's not Limitless, we don't need to do anything as those are handled via redirect
-    if (orderRequest.provider !== "LIMITLESS") {
-      return;
-    }
 
     setStatus({ 
       state: "error", 

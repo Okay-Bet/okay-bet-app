@@ -1,4 +1,5 @@
 // src/types/order.ts
+import { OrderStatus } from "./orderbook";
 import { ValidationResult } from "./validation";
 
 export type OrderSide = "BUY" | "SELL";
@@ -35,25 +36,6 @@ export interface BridgeProgress {
   progress: number;
   estimatedTimeRemaining?: number;
 }
-
-// Combined order status that works with both bridging and regular order flow
-export type OrderStatus =
-  | { state: "idle" }
-  | { state: "validating" }
-  | { state: "validated"; data: ValidationResult }
-  | {
-      state: "preparing_transfer";
-      bridgeDetails?: BridgeDetails;
-    }
-  | { state: "awaiting_signature" }
-  | {
-      state: "confirming_transfer";
-      txHash: string;
-      bridgeStatus?: BridgeProgress;
-    }
-  | { state: "submitting_order" }
-  | { state: "complete" }
-  | { state: "error"; error: string; bridgeError?: boolean };
 
 // Hook return type for useOrder
 export interface OrderHook {

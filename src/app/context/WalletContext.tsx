@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { publicClient, createPrivyWalletClient } from "../../lib/viem";
-import type { PublicClient, WalletClient } from "viem";
+import type { Client, PublicClient, WalletClient } from "viem";
 
 interface WalletContextType {
   isConnected: boolean;
@@ -37,30 +37,23 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
           console.error("Failed to setup wallet client:", error);
           setWalletClient(null);
         }
+      } else {
+        setWalletClient(null);
       }
     };
 
     setupWalletClient();
   }, [activeWallet]);
 
-  const value = React.useMemo(
-    () => ({
-      isConnected: authenticated && !!activeWallet?.address,
-      address: activeWallet?.address as `0x${string}` | undefined,
-      publicClient,
-      walletClient,
-      ready,
-      authenticated,
-      chainId: activeWallet?.chainId,
-    }),
-    [
-      authenticated,
-      activeWallet?.address,
-      walletClient,
-      ready,
-      activeWallet?.chainId,
-    ]
-  );
+  const value: WalletContextType = {
+    isConnected: authenticated && !!activeWallet?.address,
+    address: activeWallet?.address as `0x${string}` | undefined,
+    publicClient: publicClient as PublicClient,
+    walletClient,
+    ready,
+    authenticated,
+    chainId: activeWallet?.chainId ? Number(activeWallet.chainId) : undefined, // Convert string to number
+  };
 
   return (
     <WalletContext.Provider value={value}>{children}</WalletContext.Provider>
