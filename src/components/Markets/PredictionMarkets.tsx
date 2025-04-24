@@ -1,6 +1,7 @@
 // components/Markets/PredictionMarkets.tsx
 import { useGroupedMarkets } from '@/hooks/useGroupedMarkets';
 import { GroupedMarketCard } from './GroupedMarketCard';
+import { BetSlip } from '../Bet/BetSlip'; 
 
 const PredictionMarkets = () => {
   const { 
@@ -20,6 +21,7 @@ const PredictionMarkets = () => {
   }
 
   return (
+    <>
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center space-x-2">
@@ -80,6 +82,8 @@ const PredictionMarkets = () => {
         Total items: {pagination.totalItems}
       </div>
     </div>
+    <BetSlip />
+    </>
   );
 };
 

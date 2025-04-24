@@ -1,63 +1,39 @@
-// useOrder.ts
+// src/hooks/order/useOrder.ts
 import { useState } from "react";
-import { useActiveAccount } from "thirdweb/react";
-import { OrderStatus, OrderRequest, BridgeStep } from "../../components/types";
-import { useLimitlessNativeOrder } from "./limitless/useLimitlessNativeOrder";
-
-type Provider = "LIMITLESS" | "POLYMARKET";
+import { OrderStatus, OrderRequest } from "../../components/types";
 
 export const useOrder = () => {
   const [status, setStatus] = useState<OrderStatus>({ state: "idle" });
-  const account = useActiveAccount();
 
-  // Get both order handlers and approval status
-  const {
-    submitOrder: submitNativeOrder,
-    approvalStep,
-  } = useLimitlessNativeOrder();
+  // Simplified approvalStep
+  const approvalStep = {
+    status: "none" as const,
+    isApproved: false
+  };
 
-  // Default to native limitless implementation
-  const provider: Provider = "LIMITLESS";
-
+  // Simplified submitOrder that just logs
   const submitOrder = async (orderRequest: OrderRequest) => {
-    console.log("useOrder: Starting order submission");
-
-    if (!account) {
-      setStatus({ state: "error", error: "Wallet not connected" });
+    console.log("Order submission temporarily disabled:", orderRequest);
+    
+    // If it's not Limitless, we don't need to do anything as those are handled via redirect
+    if (orderRequest.provider !== "LIMITLESS") {
       return;
     }
 
-    try {
-      switch (provider) {
-        case "LIMITLESS":
-          setStatus({ state: "preparing_transfer" });
-          const nativeResult = await submitNativeOrder(orderRequest);
-          setStatus({ state: "complete", result: nativeResult });
-          return nativeResult;
-
-        // case "POLYMARKET":
-        //   throw new Error("Polymarket integration not implemented");
-
-        default:
-          throw new Error("Unknown provider");
-      }
-    } catch (err) {
-      console.error("Order error:", err);
-      const errorMessage =
-        err instanceof Error ? err.message : "An unexpected error occurred";
-      setStatus({ state: "error", error: errorMessage });
-      throw new Error(errorMessage);
-    }
+    setStatus({ 
+      state: "error", 
+      error: "Limitless orders are temporarily unavailable" 
+    });
+    throw new Error("Limitless orders are temporarily unavailable");
   };
 
-  const isLoading = ["preparing_transfer", "submitting_order"].includes(
-    status.state
-  );
+  // Simplified loading state
+  const isLoading = false;
 
   return {
     submitOrder,
     status,
     isLoading,
-    approvalStep, 
+    approvalStep,
   };
 };
