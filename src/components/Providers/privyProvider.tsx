@@ -15,16 +15,16 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         },
         defaultChain: base,
         supportedChains: [base, polygon, optimism, arbitrum],
-        solanaClusters: [
-          {
-            name: "mainnet-beta",
-            rpcUrl: "https://api.mainnet-beta.solana.com",
-          },
-        ],
+        // solanaClusters: [
+        //   {
+        //     name: "mainnet-beta",
+        //     rpcUrl: "https://api.mainnet-beta.solana.com",
+        //   },
+        // ],
         appearance: {
           logo: "",
           landingHeader: "Welcome to Okay Bet",
-          loginMessage: "Bet Better",
+          loginMessage: "Sign in or create an account",
           theme: "#EEEEEE",
           walletList: [
             "metamask",

@@ -1,36 +1,32 @@
-import { useLoginWithEmail, usePrivy, useWallets } from "@privy-io/react-auth";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { useState } from "react";
-import { base, polygon, optimism, arbitrum } from "viem/chains";
+import { base } from "viem/chains";
 
 interface WalletType {
   address: string;
   chainId: number;
-  switchChain: (chainId: number) => Promise<void>;
 }
 
 interface UserType {
-  email: string | { toString: () => string };
+  email: { address: string };
 }
 
 const ConnectWallet = () => {
-  const { authenticated, user, logout, ready, login, linkWallet } = usePrivy();
+  const { authenticated, user, logout, ready, login } = usePrivy();
   const { wallets } = useWallets();
-
-  // Get the first/active wallet
   const activeWallet = wallets[0] as unknown as WalletType | undefined;
-
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const getDisplayIdentifier = (): string => {
-    if ((user as UserType)?.email) {
-      const email = (user as UserType).email;
-
-      return email.toString();
+    if (user?.email) {
+      if (typeof user.email === "object" && "address" in user.email) {
+        return user.email.address as string;
+      }
+      return String(user.email);
     }
     if (activeWallet?.address) {
-      return truncateAddress(activeWallet.address.toString());
+      return truncateAddress(activeWallet.address);
     }
     return "Connected User";
   };
@@ -41,109 +37,62 @@ const ConnectWallet = () => {
     try {
       await login();
     } catch (err: unknown) {
-      // Handle different types of errors
       const error = err as { message?: string };
-      if (error.message?.includes("Proposal expired")) {
-        setError("Wallet connection timed out. Please try again.");
-      } else {
-        setError("Failed to connect. Please try again.");
-      }
+      setError(
+        error.message?.includes("Proposal expired")
+          ? "Connection timed out. Please try again."
+          : "Failed to connect. Please try again."
+      );
       console.error("Login error:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const getCurrentChainName = (): string => {
-    if (!activeWallet?.chainId) return "Not Connected";
-
-    const chainMap: Record<number, string> = {
-      [base.id]: "Base",
-      [polygon.id]: "Polygon",
-      [optimism.id]: "Optimism",
-      [arbitrum.id]: "Arbitrum",
-    };
-
-    return chainMap[activeWallet.chainId] || "Unknown Chain";
-  };
-
   if (!ready) {
-    return <div className="animate-pulse">Loading authentication...</div>;
+    return (
+      <div className="flex items-center justify-center p-6">
+        <div className="animate-pulse-sharp text-accent-gray-400 font-body">
+          Loading authentication...
+        </div>
+      </div>
+    );
   }
 
   if (authenticated) {
     return (
-      <div className="flex flex-col gap-4 items-center p-4 border rounded-lg shadow-sm">
-        <div className="text-sm font-medium">
-          Connected as: {getDisplayIdentifier()}
-        </div>
-
-        <div className="flex flex-col gap-2 w-full">
-          <div className="text-xs text-gray-600">
-            Current Network: {getCurrentChainName()}
+      <div className="max-w-xs mx-auto flex flex-col items-center gap-2">
+        <div className="w-full flex items-center justify-between bg-white/80 backdrop-blur-sm rounded-xl px-4 py-3 border border-transparent transition-all duration-300 hover:shadow-sharp">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+            <span className="font-body text-accent-gray-800 text-sm">
+              {getDisplayIdentifier()}
+            </span>
           </div>
-
-          <div className="flex gap-2 flex-wrap justify-center">
-            {[base, polygon, optimism, arbitrum].map((chain) => (
-              <button
-                key={chain.id}
-                onClick={async () => {
-                  try {
-                    if (activeWallet) {
-                      await activeWallet.switchChain(chain.id);
-                    }
-                  } catch (error) {
-                    setError(`Failed to switch to ${chain.name}`);
-                  }
-                }}
-                disabled={activeWallet?.chainId === chain.id}
-                className={`
-                  px-3 py-1 text-xs rounded-full
-                  ${
-                    activeWallet?.chainId === chain.id
-                      ? "bg-secondary text-white"
-                      : "bg-gray-100 hover:bg-gray-200"
-                  }
-                `}
-              >
-                {chain.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex gap-2">
-          <button
-            onClick={() => linkWallet()}
-            className="bg-secondary/80 text-font px-4 py-2 rounded-lg hover:bg-opacity-90"
-          >
-            Link Another Wallet
-          </button>
-
           <button
             onClick={async () => {
               try {
                 setIsLoading(true);
                 await logout();
-                setSuccessMessage("Successfully logged out");
               } catch (error) {
-                setError("Failed to log out");
+                console.error("Logout error:", error);
               } finally {
                 setIsLoading(false);
               }
             }}
             disabled={isLoading}
             className={`
-              bg-secondary text-font px-4 py-2 rounded-lg
+              text-sm font-body px-3 py-1 rounded-lg
+              bg-secondary text-white
               transition-all duration-200
               ${
                 isLoading
                   ? "opacity-50 cursor-not-allowed"
-                  : "hover:bg-opacity-90"
+                  : "hover:bg-accent-red-600"
               }
             `}
           >
-            {isLoading ? "Signing Out..." : "SIGN OUT"}
+            {isLoading ? "..." : "Sign Out"}
           </button>
         </div>
       </div>
@@ -151,44 +100,45 @@ const ConnectWallet = () => {
   }
 
   return (
-    <div className="flex flex-col gap-4 items-center max-w-sm mx-auto p-6">
-      {error && (
-        <div className="w-full text-red-500 text-sm text-center bg-red-50 p-2 rounded">
-          {error}
-        </div>
-      )}
+    <div className="max-w-md mx-auto p-6">
+      <div className="bg-white/80 backdrop-blur-sm border border-transparent rounded-xl p-6 shadow-aggressive hover:shadow-sharp transition-all duration-300">
+        {error && (
+          <div className="mb-4 p-3 bg-accent-red-100 border border-accent-red-200 rounded-lg">
+            <p className="text-accent-red-600 text-sm font-body text-center">
+              {error}
+            </p>
+          </div>
+        )}
 
-      {successMessage && (
-        <div className="w-full text-green-500 text-sm text-center bg-green-50 p-2 rounded">
-          {successMessage}
-        </div>
-      )}
-
-      <button
-        onClick={handleLogin}
-        disabled={isLoading}
-        className={`
-          w-full bg-secondary text-font px-4 py-2 rounded-lg 
-          transition-all duration-200
-          ${isLoading ? "opacity-50 cursor-not-allowed" : "hover:bg-opacity-90"}
-        `}
-      >
-        {isLoading ? "Connecting..." : "Login with Email or Social"}
-      </button>
-
-      {error && (
         <button
-          onClick={() => setError(null)}
-          className="text-sm text-gray-500 hover:text-gray-700"
+          onClick={handleLogin}
+          disabled={isLoading}
+          className={`
+            w-full bg-secondary text-font px-6 py-4 rounded-lg 
+            font-heading tracking-tighter italic
+            transition-all duration-200 
+            ${
+              isLoading
+                ? "opacity-50 cursor-not-allowed"
+                : "hover:bg-accent-red-600 hover:shadow-sharp"
+            }
+          `}
         >
-          Try Again
+          {isLoading ? (
+            <span className="flex items-center justify-center gap-2">
+              <span className="animate-spin rounded-full h-4 w-4 border-2 border-font border-t-transparent" />
+              Connecting...
+            </span>
+          ) : (
+            "SIGN IN"
+          )}
         </button>
-      )}
+      </div>
     </div>
   );
 };
 
-const truncateAddress = (address: string) => {
+const truncateAddress = (address: string): string => {
   if (!address) return "";
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 };
