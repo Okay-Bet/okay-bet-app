@@ -1,191 +1,38 @@
 import React, { useState, useEffect } from "react";
 import { useBetSlip } from "../../app/context/BetSlipContext";
 import { useOrder } from "../../hooks/order/useOrder";
-import {
-  Bet,
-  LimitlessBet,
-  PolymarketBet,
-  OrderBookData,
-  OrderQuote,
-  OrderBookResponse,
-  LimitlessOrder,
-  OrderRequest,
-  MarketInfo,
-} from "../../components/types";
+import { useQuote } from "../../hooks/quote/useQuote";
+import { BetSlipQuoteSection } from "./BetSlipQuoteSection";
+import { LimitlessBet, OrderRequest } from "../types";
 
-// Constants
-const FASTAPI_BASE_URL =
-  process.env.NEXT_PUBLIC_FASTAPI_BASE_URL || "http://157.245.87.57:8000";
 const MIN_TOKENS = 1.0;
-const API_URL =
-  process.env.NEXT_PUBLIC_LIMITLESS_API_URL || "https://api.limitless.exchange";
 
 export const BetSlip: React.FC = () => {
-  // Hook integrations
   const { bet, removeBet, clearBets } = useBetSlip();
   const { submitOrder, status, approvalStep, isLoading } = useOrder();
-  const [orderBookData, setOrderBookData] = useState<OrderBookData | null>(
-    null
-  );
-
-  // Local state management
   const [amount, setAmount] = useState<string>("");
-  const [quote, setQuote] = useState<OrderQuote | null>(null);
-  const [isQuoting, setIsQuoting] = useState(false);
   const [transactionStatus, setTransactionStatus] = useState<string>("");
+  
+  const { quote, isQuoting } = useQuote(bet, amount);
 
-  // Effect to handle transaction status messages
-  useEffect(() => {
-    if (status.state === "complete") {
-      setTransactionStatus("Order completed successfully!");
-      // Wait for completion animation and then refresh
-      const timeoutId = setTimeout(() => {
-        clearBets();
-        setAmount("");
-        setQuote(null);
-        setTransactionStatus("");
-        // Refresh the entire page
-        window.location.reload();
-      }, 3000); // Matches the animation duration
-      return () => clearTimeout(timeoutId);
-    } else if (approvalStep.status === "approving") {
-      setTransactionStatus("Requesting USDC approval...");
-    } else if (approvalStep.status === "pending") {
-      setTransactionStatus("Waiting for approval confirmation...");
-    } else if (status.state === "submitting_order") {
-      setTransactionStatus("Placing your order...");
-    } else if (status.state === "error") {
-      setTransactionStatus(`Error: ${status.error || "Transaction failed"}`);
-    }
-  }, [approvalStep, status, clearBets]);
-
-  // Event handlers
+  // Handle amount input changes
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    if (
-      value === "" ||
-      (/^\d*\.?\d*$/.test(value) && !isNaN(parseFloat(value)))
-    ) {
-      console.log("Setting new amount:", value);
+    if (value === "" || (/^\d*\.?\d*$/.test(value) && !isNaN(parseFloat(value)))) {
       setAmount(value);
-
-      // Log the current bet state
-      if (bet) {
-        console.log("Current bet:", {
-          provider: bet.provider,
-          position: bet.position,
-          marketSlug: (bet as LimitlessBet).marketSlug,
-        });
-      }
     }
   };
 
-  const calculateQuoteFromOrderBook = (
-    amount: number,
-    position: "YES" | "NO",
-    orderBookResponse: OrderBookResponse
-  ): OrderQuote | null => {
-    try {
-      const orderBook = orderBookResponse.orderbook;
-      const marketInfo = orderBookResponse.market_info;
-      
-      // Use asks for YES positions and bids for NO positions
-      const orders = position === "YES" ? orderBook.asks : orderBook.bids;
-      const price = position === "YES" ? marketInfo.best_ask_price : marketInfo.best_bid_price;
-      
-      // Calculate number of tokens we can buy with the amount
-      const tokenAmount = amount / price;
-      
-      // Calculate total cost (should equal input amount)
-      const estimatedTotal = amount;
-      
-      // Calculate price impact
-      const priceImpact = Math.abs((orderBook.lastTradePrice - price) / orderBook.lastTradePrice);
-      
-      return {
-        tokenAmount: tokenAmount,
-        estimatedTotal: estimatedTotal,
-        priceImpact: priceImpact,
-        averagePrice: price,
-        potentialPayout: tokenAmount // For YES positions, payout equals tokens
-      };
-    } catch (error) {
-      console.error("Error calculating quote:", error);
-      return null;
-    }
-  };
-
-  useEffect(() => {
-    const getQuote = async () => {
-      console.log("Quote effect triggered with:", { amount, betProvider: bet?.provider });
-      
-      if (!bet || !amount || amount === "" || parseFloat(amount) <= 0 || bet.provider !== "LIMITLESS") {
-        setQuote(null);
-        setIsQuoting(false);
-        return;
-      }
-  
-      setIsQuoting(true);
-      const limitlessBet = bet as LimitlessBet;
-      
-      try {
-        const response = await fetch(
-          `${FASTAPI_BASE_URL}/api/v1/limitless/orders/orderbook/${limitlessBet.marketSlug}`
-        );
-  
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-  
-        const data: OrderBookResponse = await response.json();
-        console.log("Received orderbook:", data);
-  
-        const quoteResult = calculateQuoteFromOrderBook(
-          parseFloat(amount),
-          limitlessBet.position,
-          data
-        );
-  
-        console.log("Calculated quote result:", quoteResult);
-        
-        if (quoteResult) {
-          setQuote(quoteResult);
-        }
-      } catch (error) {
-        console.error("Error in quote calculation:", error);
-        setQuote(null);
-      } finally {
-        setIsQuoting(false);
-      }
-    };
-  
-    getQuote();
-  }, [amount, bet]);
-
+  // Handle order placement
   const handlePlaceOrder = async () => {
     if (!bet) return;
 
-    if (bet.provider === "POLYMARKET") {
-      const polymarketUrl = `https://polymarket.com/event/${bet.slug}`;
-      window.open(polymarketUrl, "_blank");
+    if (bet.provider === "POLYMARKET" || bet.provider === "KALSHI") {
+      const url = bet.provider === "POLYMARKET" 
+        ? `https://polymarket.com/event/${bet.slug}`
+        : `https://kalshi.com/markets/${bet.ticker.split("-")[0]}`;
+      window.open(url, "_blank");
       clearBets();
-      return;
-    }
-
-    if (bet.provider === "KALSHI") {
-      // Split the ticker at the first dash and take the first part
-      const baseTickerPart = bet.ticker.split("-")[0];
-      const kalshiUrl = `https://kalshi.com/markets/${baseTickerPart}`;
-      window.open(kalshiUrl, "_blank");
-      clearBets();
-      return;
-    }
-
-    // At this point, we know it's a Limitless bet
-    const limitlessBet = bet as LimitlessBet;
-
-    if (!quote) {
-      console.error("Missing quote data");
       return;
     }
 
@@ -193,19 +40,18 @@ export const BetSlip: React.FC = () => {
       try {
         const orderRequest: OrderRequest = {
           marketSlug: bet.marketSlug,
-          side: bet.position === "YES" ? 0 : 1, 
+          side: bet.position === "YES" ? 0 : 1,
           orderType: "GTC",
           price: bet.position === "YES" ? quote.averagePrice : 1 - quote.averagePrice,
           amount: parseFloat(amount),
         };
-    
         await submitOrder(orderRequest);
       } catch (err) {
         console.error("Order placement error:", err);
         setTransactionStatus("Failed to place order. Please try again.");
       }
-    };
-  }
+    }
+  };
 
   const getButtonClasses = () => {
     const baseClasses =
