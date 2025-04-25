@@ -13,6 +13,7 @@ export interface BaseBet {
 export interface LimitlessBet extends BaseBet {
   provider: "LIMITLESS";
   tokenId: string;
+  marketSlug: string;
 }
 
 // Polymarket specific bet interface
@@ -47,8 +48,13 @@ export const BetSlipProvider: React.FC<{ children: React.ReactNode }> = ({
   const addBet = useCallback((newBet: Bet) => {
     // Provider-specific validation
     if (newBet.provider === "LIMITLESS") {
-      if (!newBet.tokenId || !newBet.tokenId.startsWith("0x")) {
-        console.error("Invalid tokenId (FPMM address):", newBet.tokenId);
+      const limitlessBet = newBet as LimitlessBet;
+      if (!limitlessBet.tokenId || !limitlessBet.tokenId.startsWith("0x")) {
+        console.error("Invalid tokenId (FPMM address):", limitlessBet.tokenId);
+        return;
+      }
+      if (!limitlessBet.marketSlug) {
+        console.error("Missing market slug for Limitless bet");
         return;
       }
     } else if (newBet.provider === "POLYMARKET") {

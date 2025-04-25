@@ -99,12 +99,33 @@ class MarketMatcher:
                 
         return filtered_matches
 
+    def get_admin_confirmation(self, markets: List[Market]) -> bool:
+        """Get admin confirmation for a group of markets."""
+        print("\n" + "="*80)
+        print("Please review the following market group:")
+        print("="*80)
+        
+        for idx, market in enumerate(markets, 1):
+            print(f"\nMarket {idx} ({market.platform}):")
+            print(f"Question: {market.question}")
+            print(f"Description: {market.description[:200]}..." if len(market.description) > 200 else f"Description: {market.description}")
+            print(f"End Date: {market.end_date}")
+            print(f"Volume: {market.volume}")
+            print("-"*80)
+
+        while True:
+            response = input("\nAre these markets equivalent? (y/n): ").lower().strip()
+            if response in ['y', 'n']:
+                return response == 'y'
+            print("Please enter 'y' for yes or 'n' for no.")
+
     def group_markets(self,
                      matches: List[Tuple[Market, Market, float]],
                      min_similarity: float = 0.7) -> List[Dict]:
-        """Create market groups from matches."""
+        """Create market groups from matches with admin confirmation."""
         market_groups = defaultdict(list)
         processed_markets = set()
+        confirmed_groups = []
         
         print("\nGrouping markets:")
         for source_market, target_market, similarity in matches:
@@ -123,28 +144,33 @@ class MarketMatcher:
             
             if group_key is None:
                 group_key = f"group_{len(market_groups)}"
-                print(f"\nCreating new group {group_key}:")
+                print(f"\nPotential new group {group_key}:")
             else:
-                print(f"\nAdding to existing group {group_key}:")
+                print(f"\nPotential addition to existing group {group_key}:")
             
-            # Add both markets if not already in group
-            if source_market.id not in [m.id for m in market_groups[group_key]]:
-                print(f"Adding {source_market.platform} market: {source_market.question}")
-                market_groups[group_key].append(source_market)
-            if target_market.id not in [m.id for m in market_groups[group_key]]:
-                print(f"Adding {target_market.platform} market: {target_market.question}")
-                market_groups[group_key].append(target_market)
-                
-            processed_markets.add(source_market.id)
-            processed_markets.add(target_market.id)
+            # Create temporary group for confirmation
+            temp_group = market_groups[group_key].copy()
+            if source_market.id not in [m.id for m in temp_group]:
+                temp_group.append(source_market)
+            if target_market.id not in [m.id for m in temp_group]:
+                temp_group.append(target_market)
 
-        # Convert to list of groups
+            # Get admin confirmation for the group
+            if self.get_admin_confirmation(temp_group):
+                # Only update the actual group if confirmed
+                market_groups[group_key] = temp_group
+                processed_markets.add(source_market.id)
+                processed_markets.add(target_market.id)
+                print("Group confirmed by admin.")
+            else:
+                print("Group rejected by admin.")
+                if not market_groups[group_key]:
+                    del market_groups[group_key]
+
+        # Convert confirmed groups to final format
         final_groups = []
         for key, markets in market_groups.items():
-            print(f"\nFinal group {key}:")
-            print("Markets in group:")
-            for m in markets:
-                print(f"- {m.platform}: {m.question}")
+            print(f"\nProcessing confirmed group {key}:")
             
             group_data = {
                 "markets": [
@@ -174,9 +200,16 @@ class MarketMatcher:
             poly_markets = self.db.fetch_active_markets("Polymarket")
             kalshi_markets = self.db.fetch_active_markets("Kalshi")
 
-            print(f"Processing {len(limitless_markets)} Limitless markets...")
-            print(f"Found {len(poly_markets)} Polymarket markets")
-            print(f"Found {len(kalshi_markets)} Kalshi markets")
+            print("\nMarket counts:")
+            print(f"Limitless: {len(limitless_markets)} markets")
+            print(f"Polymarket: {len(poly_markets)} markets")
+            print(f"Kalshi: {len(kalshi_markets)} markets")
+            
+            proceed = input("\nProceed with market matching? (y/n): ").lower().strip()
+            if proceed != 'y':
+                print("Market matching cancelled by admin.")
+                return
+
             
             # Get initial matches for each platform pair
             limitless_poly_matches = self.get_initial_matches(
@@ -252,7 +285,16 @@ class MarketMatcher:
 
 def main():
     matcher = MarketMatcher()
-    matcher.process_markets(similarity_threshold=0.7)
+    print("Market Matcher Admin Interface")
+    print("="*30)
+    print("This script will help you review and confirm market matches.")
+    print("You will be asked to review each potential market group.")
+    print("="*30)
+    
+    threshold = input("Enter similarity threshold (default 0.7): ").strip()
+    threshold = float(threshold) if threshold else 0.7
+    
+    matcher.process_markets(similarity_threshold=threshold)
 
 if __name__ == "__main__":
     main()

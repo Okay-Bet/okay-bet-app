@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from "react";
 import { usePositions } from "../../hooks/usePositions";
-import { useRedeemPosition, RedeemStatus } from "../../hooks/useRedeemPosition";
-import { useActiveAccount } from "thirdweb/react";
+// import { useRedeemPosition, RedeemStatus } from "../../hooks/useRedeemPosition";
+import { useWallet } from "../../app/context/WalletContext";
 import { ChevronDown, ChevronUp, Wallet } from "lucide-react";
 import PositionCard from "./PositionCard";
 import { Position, PositionCardProps } from "../types";
 
+// Type definitions remain unchanged
 type TabType = "active" | "resolved";
 type ResolvedTabType = "winning" | "losing";
 
@@ -13,6 +14,7 @@ type ResolvedPosition = Position & { position_result: "won" | "lost" };
 type WinningPosition = Position & { position_result: "won" };
 type LosingPosition = Position & { position_result: "lost" };
 
+// Helper functions for position types remain unchanged
 const isWinningPosition = (
   position: ResolvedPosition
 ): position is WinningPosition => {
@@ -33,6 +35,7 @@ const isResolvedPosition = (
   );
 };
 
+// Position card props transformation remains unchanged
 const toPositionCardProps = (
   position: Position
 ): PositionCardProps["position"] => {
@@ -60,7 +63,7 @@ const toPositionCardProps = (
   };
 };
 
-const UserPositions: React.FC = () => {
+export const UserPositions: React.FC = () => {
   const {
     positions,
     loading,
@@ -70,16 +73,18 @@ const UserPositions: React.FC = () => {
     getMarketResult,
     refreshPositions,
   } = usePositions();
-  const account = useActiveAccount();
+  
+  const { address, isConnected: isWalletConnected } = useWallet();
   const [activeTab, setActiveTab] = useState<TabType>("active");
   const [resolvedTab, setResolvedTab] = useState<ResolvedTabType>("winning");
   const [isComponentExpanded, setIsComponentExpanded] = useState(true);
 
-  const { redeemPosition, status: redeemStatus } = useRedeemPosition(() => {
-    // Callback that runs after successful redemption
-    refreshPositions();
-  });
+  // COMMENTED OUT: Redeem position hook will be implemented later
+  // const { redeemPosition, status: redeemStatus } = useRedeemPosition(() => {
+  //   refreshPositions();
+  // });
 
+  // Position sorting and categorization remains unchanged
   const {
     activePositions,
     resolvedPositions,
@@ -120,37 +125,15 @@ const UserPositions: React.FC = () => {
     };
   }, [positions, positionValues]);
 
+  // COMMENTED OUT: Redeem functionality will be implemented later
+  // Placeholder handleRedeem function
   const handleRedeem = async (
     tokenId: string,
     isYesToken: boolean,
     conditionId: string,
     parentCollectionId: string
   ): Promise<void> => {
-    if (!account?.address) {
-      console.error("Wallet not connected");
-      return;
-    }
-
-    try {
-      const formattedTokenId = tokenId.startsWith("0x")
-        ? tokenId
-        : `0x${tokenId}`;
-      const formattedConditionId = conditionId.startsWith("0x")
-        ? conditionId
-        : `0x${conditionId}`;
-      const formattedParentCollectionId = parentCollectionId.startsWith("0x")
-        ? parentCollectionId
-        : `0x${parentCollectionId}`;
-
-      await redeemPosition({
-        token_id: formattedTokenId as `0x${string}`,
-        is_yes_token: isYesToken,
-        condition_id: formattedConditionId as `0x${string}`,
-        parent_collection_id: formattedParentCollectionId as `0x${string}`,
-      });
-    } catch (error) {
-      console.error("Failed to redeem position:", error);
-    }
+    console.log("Redeem functionality temporarily disabled");
   };
 
   const renderPositions = (positions: Position[]) => {
@@ -161,9 +144,10 @@ const UserPositions: React.FC = () => {
     }
 
     return positions.map((position) => {
-      const isRedeeming =
-        redeemStatus.state === "redeeming" &&
-        redeemStatus.tokenId === position.token_id;
+      // COMMENTED OUT: Redeem status checking will be implemented later
+      // const isRedeeming =
+      //   redeemStatus.state === "redeeming" &&
+      //   redeemStatus.tokenId === position.token_id;
 
       const positionCardProps: PositionCardProps = {
         position: toPositionCardProps(position),
@@ -171,19 +155,17 @@ const UserPositions: React.FC = () => {
         positionOutcome: getPositionOutcome(position),
         marketResult: getMarketResult(position),
         onRedeem: handleRedeem,
-        canRedeem:
-          isResolvedPosition(position) &&
-          position.position_result === "won" &&
-          !position.isRedeemed &&
-          position.current_balance > 0,
-        isRedeeming,
+        // COMMENTED OUT: Redeem functionality will be implemented later
+        canRedeem: false, // Temporarily disabled
+        isRedeeming: false, // Temporarily disabled
       };
 
       return <PositionCard key={position.token_id} {...positionCardProps} />;
     });
   };
 
-  if (!isConnected) {
+  // Wallet connection check
+  if (!isWalletConnected) {
     return (
       <div className="rounded-lg bg-gradient-to-br from-white to-gray-200 p-1 border border-gray-200/80">
         <div className="bg-white rounded-lg p-8">
@@ -199,6 +181,7 @@ const UserPositions: React.FC = () => {
     );
   }
 
+  // Loading state
   if (loading) {
     return (
       <div className="rounded-lg bg-gradient-to-br from-white to-gray-200 p-1 border border-gray-200/80">
@@ -209,9 +192,11 @@ const UserPositions: React.FC = () => {
     );
   }
 
+  // Main render
   return (
     <div className="bg-gradient-to-br from-white to-gray-200 rounded-lg shadow-md border border-gray-200/80 mb-5">
       <div className="rounded-lg overflow-hidden">
+        {/* Header section */}
         <div
           className="px-8 py-6 cursor-pointer bg-gradient-to-r from-gray-100 to-white hover:from-white hover:to-gray-100 
                      transition-all duration-300 border-b border-gray-200"
@@ -247,8 +232,10 @@ const UserPositions: React.FC = () => {
           </div>
         </div>
 
+        {/* Expanded content */}
         {isComponentExpanded && (
           <div>
+            {/* Statistics cards */}
             <div className="p-6 bg-white">
               <div className="grid grid-cols-2 gap-6">
                 <div
@@ -281,6 +268,7 @@ const UserPositions: React.FC = () => {
               </div>
             </div>
 
+            {/* Tab navigation */}
             <div className="border-t border-gray-200 bg-white">
               <div className="px-6 py-4 flex justify-center space-x-6">
                 <button
@@ -306,6 +294,7 @@ const UserPositions: React.FC = () => {
               </div>
             </div>
 
+            {/* Positions list */}
             <div className="max-h-[32rem] overflow-y-auto px-6 pb-6 bg-white">
               {activeTab === "active" && (
                 <div className="space-y-4 mt-4">

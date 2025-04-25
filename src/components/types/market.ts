@@ -40,6 +40,7 @@ export interface BaseMarket {
 export interface LimitlessMarket extends BaseMarket {
   provider: "LIMITLESS";
   conditionId: string;
+  slug: string;
 }
 
 export interface PolymarketMarket extends BaseMarket {
@@ -146,14 +147,25 @@ export interface GroupedMarketIds {
   }[];
 }
 
+export interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  itemsPerPage: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
 export interface GroupedMarketsResponse {
   success: boolean;
   data: GroupedMarketCard[];
+  pagination?: PaginationInfo;
   error?: string;
 }
 
 export interface GroupedMarketCard {
   id: string;
+  title: string;
   limitlessMarkets: {
     market: LimitlessMarket;
     similarity: number | null;
@@ -201,3 +213,9 @@ export interface GroupedMarketsResponse {
   data: GroupedMarketCard[];
   error?: string;
 }
+
+export const MARKET_PROVIDERS = {
+  LIMITLESS: "LIMITLESS",
+  POLYMARKET: "POLYMARKET",
+  KALSHI: "KALSHI"
+} as const;

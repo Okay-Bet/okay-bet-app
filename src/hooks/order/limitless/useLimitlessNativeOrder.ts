@@ -1,83 +1,120 @@
-// hooks/limitless/useLimitlessNativeOrder.ts
-import { useState, useCallback } from "react";
-import { useActiveAccount, useSendAndConfirmTransaction } from "thirdweb/react";
-import { getContract, prepareContractCall } from "thirdweb";
-import { base } from "thirdweb/chains";
-import { OrderRequest, OrderStatus } from "../../../components/types";
-import { client } from "../../../app/client";
-import { useUSDCApproval } from "../useUSDCApproval";
+// // hooks/limitless/useLimitlessNativeOrder.ts
+// import { useState, useCallback } from "react";
+// import { OrderRequest, OrderStatus, UnsignedOrderResponse } from "../../../components/types";
+// import { useUSDCApproval } from "../useUSDCApproval";
 
-export const useLimitlessNativeOrder = () => {
-  const [status, setStatus] = useState<OrderStatus>({ state: "idle" });
-  const account = useActiveAccount();
-  const { mutateAsync: sendAndConfirmTx } = useSendAndConfirmTransaction();
-  const { handleUSDCApproval, approvalStep } = useUSDCApproval();
+// const FASTAPI_BASE_URL = process.env.NEXT_PUBLIC_FASTAPI_BASE_URL || "http://157.245.87.57:8000";
 
-  const submitOrder = useCallback(
-    async (orderRequest: OrderRequest) => {
-      if (!account) {
-        throw new Error("Wallet not connected");
-      }
+// export const useLimitlessNativeOrder = () => {
+//   const [status, setStatus] = useState<OrderStatus>({ state: "idle" });
+//   const { handleUSDCApproval, approvalStep } = useUSDCApproval();
 
-      setStatus({ state: "preparing_transfer" });
+//   const prepareAndSignOrder = async (orderRequest: OrderRequest) => {
+//     try {
+//       // Prepare order
+//       const response = await fetch(`${FASTAPI_BASE_URL}/api/v1/limitless/orders/prepare`, {
+//         method: 'POST',
+//         headers: {
+//           'Content-Type': 'application/json',
+//         },
+//         body: JSON.stringify(orderRequest),
+//       });
 
-      try {
-        // Step 1: USDC Approval
-        await handleUSDCApproval(
-          orderRequest.tokenId, // Market contract as spender
-          orderRequest.amount // Amount in USDC base units
-        );
+//       if (!response.ok) {
+//         throw new Error(`Failed to prepare order: ${response.statusText}`);
+//       }
 
-        // Step 2: Execute Market Order
-        const marketContract = getContract({
-          client,
-          chain: base,
-          address: orderRequest.tokenId,
-        });
+//       const preparedOrder: UnsignedOrderResponse = await response.json();
 
-        const transaction = prepareContractCall({
-          contract: marketContract,
-          method:
-            "function buy(uint256 investmentAmount, uint256 outcomeIndex, uint256 minOutcomeTokensToBuy)",
-          params: [
-            BigInt(orderRequest.amount),
-            BigInt(orderRequest.isYesToken ? 0 : 1),
-            BigInt(Math.floor((orderRequest.estimatedTokens || 0) * 0.98)),
-          ],
-        });
+//       // Sign the order
+//     //   const signature = await signTypedData({
+//     //     // Define the EIP-712 type data structure for the order
+//     //     domain: {
+//     //       name: 'Limitless',
+//     //       version: '1',
+//     //       chainId: 8453, // Base chain ID
+//     //       verifyingContract: '0x...' // Limitless contract address
+//     //     },
+//     //     types: {
+//     //       Order: [
+//     //         { name: 'salt', type: 'uint256' },
+//     //         { name: 'maker', type: 'address' },
+//     //         { name: 'taker', type: 'address' },
+//     //         { name: 'tokenId', type: 'uint256' },
+//     //         { name: 'makerAmount', type: 'uint256' },
+//     //         { name: 'takerAmount', type: 'uint256' },
+//     //         { name: 'expiration', type: 'uint256' },
+//     //         { name: 'nonce', type: 'uint256' },
+//     //         { name: 'feeRateBps', type: 'uint256' },
+//     //         { name: 'side', type: 'uint8' },
+//     //       ],
+//     //     },
+//     //     value: preparedOrder.unsignedOrder.order,
+//     //   });
 
-        setStatus({ state: "submitting_order" });
+//     //   return {
+//     //     signature,
+//     //     order: preparedOrder.unsignedOrder.order,
+//     //   };
+//     // } catch (error) {
+//     //   console.error('Error preparing and signing order:', error);
+//     //   throw error;
+//     // }
+//   };
 
-        const receipt = await sendAndConfirmTx(transaction);
+//   const submitOrder = useCallback(
+//     // async (orderRequest: OrderRequest) => {
+//     //   if (!account) {
+//     //     throw new Error("Wallet not connected");
+//     //   }
 
-        setStatus({
-          state: "complete",
-          result: receipt,
-        });
 
-        // Reset status after 3 seconds
-        setTimeout(() => {
-          setStatus({ state: "idle" });
-        }, 2000);
+//     //   try {
+//     //     // Step 1: USDC Approval
+        
 
-        return receipt;
-      } catch (error) {
-        console.error("Order process failed:", error);
-        const errorMessage =
-          error instanceof Error ? error.message : "Transaction failed";
-        setStatus({
-          state: "error",
-          error: errorMessage,
-        });
-        throw error;
-      }
-    },
-    [account, sendAndConfirmTx, handleUSDCApproval]
-  );
+//     //     // Step 2: Execute Market Order
+//     //     const { signature, order } = await prepareAndSignOrder(orderRequest);
 
-  return {
-    submitOrder,
-    status,
-    approvalStep,
-  };
-};
+//     //     // Step 3: Submit the signed order
+//     //     const submitResponse = await fetch(`${FASTAPI_BASE_URL}/api/v1/limitless/orders/submit`, {
+//     //       method: 'POST',
+//     //       headers: {
+//     //         'Content-Type': 'application/json',
+//     //       },
+//     //       body: JSON.stringify({
+//     //         order,
+//     //         signature,
+//     //         marketSlug: orderRequest.marketSlug,
+//     //       }),
+//     //     });
+
+//     //     if (!submitResponse.ok) {
+//     //       throw new Error(`Failed to submit order: ${submitResponse.statusText}`);
+//     //     }
+
+//     //     setStatus({ state: "complete" });
+
+//     //     // Reset status after 3 seconds
+//     //     setTimeout(() => {
+//     //       setStatus({ state: "idle" });
+//     //     }, 2000);
+
+//     //   } catch (error) {
+//     //     console.error("Order process failed:", error);
+//     //     setStatus({
+//     //       state: "error",
+//     //       error: error instanceof Error ? error.message : "Transaction failed",
+//     //     });
+//     //     throw error;
+//     //   }
+//     // },
+//     // [account, handleUSDCApproval]
+//   );
+
+//   return {
+//     submitOrder,
+//     status,
+//     approvalStep,
+//   };
+// };

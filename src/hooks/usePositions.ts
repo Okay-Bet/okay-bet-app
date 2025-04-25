@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { useActiveAccount } from "thirdweb/react";
-import { createPublicClient, http, parseAbi } from "viem";
-import { base } from "viem/chains";
+import { useWallet } from "../app/context/WalletContext";
+import {  parseAbi } from "viem";
 import { Position, PositionValues } from "../components/types";
 
 interface PositionsApiResponse {
@@ -14,13 +13,10 @@ const FPMM_ABI = parseAbi([
   "function calcSellAmount(uint256 returnAmount, uint256 outcomeIndex) view returns (uint256 outcomeTokenSellAmount)",
 ]);
 
-const publicClient = createPublicClient({
-  chain: base,
-  transport: http(),
-});
+
 
 export function usePositions() {
-  const account = useActiveAccount();
+  const { address, isConnected, publicClient } = useWallet();
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -104,13 +100,13 @@ export function usePositions() {
 
   useEffect(() => {
     const fetchPositions = async () => {
-      if (!account?.address) return;
+      if (!address || !isConnected) return;
 
       setLoading(true);
       setError(null);
 
       try {
-        const response = await fetch(`/api/positions/${account.address}`);
+        const response = await fetch(`/api/positions/${address}`);
 
         if (!response.ok) {
           const errorData = await response.json();
@@ -180,7 +176,8 @@ export function usePositions() {
     };
 
     fetchPositions();
-  }, [account?.address, refreshTrigger]);
+  }, [address, isConnected, refreshTrigger]);
+
 
   const refreshPositions = () => {
     setRefreshTrigger(prev => prev + 1);
@@ -196,7 +193,7 @@ export function usePositions() {
     positions,
     loading,
     error,
-    isConnected: !!account?.address,
+    isConnected,
     totalValue,
     positionValues,
     isMarketResolved,

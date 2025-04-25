@@ -123,59 +123,58 @@ export async function fetchMarketByConditionId(
   }
 }
 
-export const fetchPolymarketData = async (
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 2000; // 2 seconds
+
+export async function fetchPolymarketData(
   conditionIds: string[],
-): Promise<PolymarketMarket[]> => {
-  try {
-    const conditionIdsParam = conditionIds
-      .map((id) => `condition_ids=${id}`)
-      .join("&");
-    const url = `${GAMMA_API_URL}/markets?${conditionIdsParam}`;
+): Promise<PolymarketMarket[]> {
+  let retries = 0;
+  
+  while (retries < MAX_RETRIES) {
+    try {
+      const conditionIdsParam = conditionIds
+        .map((id) => `condition_ids=${id}`)
+        .join("&");
+      const url = `${GAMMA_API_URL}/markets?${conditionIdsParam}`;
 
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Polymarket API Error:", {
-        status: response.status,
-        statusText: response.statusText,
-        body: errorText,
-        url,
-        conditionIds,
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
       });
-      throw new Error(
-        `Failed to fetch Polymarket data: ${response.status} - ${errorText}`
-      );
+
+      if (response.status === 429) {
+        // Rate limited - wait and retry
+        retries++;
+        await delay(RETRY_DELAY * retries);
+        continue;
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch Polymarket data: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+      return data.map(transformMarket).filter(Boolean);
+
+    } catch (error) {
+      if (retries >= MAX_RETRIES - 1) {
+        console.error("Error fetching Polymarket data:", error);
+        return [];
+      }
+      retries++;
+      await delay(RETRY_DELAY * retries);
     }
-
-    const data = await response.json();
-
-    // Check if data exists and is in the expected format
-    if (!data || !Array.isArray(data)) {
-      console.error("Unexpected API response structure:", data);
-      return [];
-    }
-
-    // Safely map over the data
-    const transformedMarkets = data
-      .map((market) => {
-        try {
-          return transformMarket(market);
-        } catch (error) {
-          console.error(`Error transforming market:`, error, market);
-          return null;
-        }
-      })
-      .filter((market): market is PolymarketMarket => market !== null);
-
-    return transformedMarkets;
-  } catch (error) {
-    console.error("Error fetching Polymarket data:", error);
-    return [];
   }
-};
+
+  return [];
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+

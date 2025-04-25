@@ -1,16 +1,15 @@
 // src/types/order.ts
+import { OrderStatus } from "./orderbook";
 import { ValidationResult } from "./validation";
 
 export type OrderSide = "BUY" | "SELL";
 
 export interface OrderRequest {
-  tokenId: string;
+  marketSlug: string;
+  side: number; 
+  orderType: string; 
   price: number;
   amount: number;
-  side: OrderSide;
-  isYesToken: boolean;
-  estimatedTokens?: number;
-  priceImpact?: number;
 }
 
 export interface OrderPayload {
@@ -38,25 +37,6 @@ export interface BridgeProgress {
   estimatedTimeRemaining?: number;
 }
 
-// Combined order status that works with both bridging and regular order flow
-export type OrderStatus =
-  | { state: "idle" }
-  | { state: "validating" }
-  | { state: "validated"; data: ValidationResult }
-  | {
-      state: "preparing_transfer";
-      bridgeDetails?: BridgeDetails;
-    }
-  | { state: "awaiting_signature" }
-  | {
-      state: "confirming_transfer";
-      txHash: string;
-      bridgeStatus?: BridgeProgress;
-    }
-  | { state: "submitting_order" }
-  | { state: "complete"; result: any }
-  | { state: "error"; error: string; bridgeError?: boolean };
-
 // Hook return type for useOrder
 export interface OrderHook {
   submitOrder: (order: OrderRequest) => Promise<void>;
@@ -77,4 +57,28 @@ export interface UseLimitlessOrderReturn {
   isLoading: boolean;
   error: string | null;
   bridgeStep: BridgeStep;
+}
+
+export interface UnsignedOrder {
+  salt: number;
+  maker: string;
+  signer: string;
+  taker: string;
+  tokenId: string;
+  makerAmount: string;
+  takerAmount: string;
+  expiration: number;
+  nonce: number;
+  price: number;
+  feeRateBps: number;
+  side: number;
+}
+
+export interface UnsignedOrderResponse {
+  status: string;
+  unsignedOrder: {
+    order: UnsignedOrder;
+    orderType: string;
+    marketSlug: string;
+  };
 }

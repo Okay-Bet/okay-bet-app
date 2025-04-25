@@ -14,13 +14,10 @@ import { LimitlessAPIMarket, transformMarket, fetchMarketsByIds } from "./utils"
 const LIMITLESS_API_URL = "https://api.limitless.exchange";
 const MAX_RESULTS = 20;
 
-
-
 interface LimitlessAPIResponse {
   data: LimitlessAPIMarket[];
   totalMarketsCount: number;
 }
-
 
 export async function POST(request: Request) {
   try {
@@ -50,8 +47,16 @@ export async function POST(request: Request) {
         apiResponse.data,
         body.searchParams
       );
-      const transformedMarkets = filteredMarkets.map(transformMarket);
-      const events = transformedMarkets.map(transformToEvent);
+      
+      // Wait for all markets to be transformed
+      const transformedMarkets = await Promise.all(
+        filteredMarkets.map(market => transformMarket(market.id))
+      );
+      
+      // Filter out null values and then map to events
+      const events = transformedMarkets
+        .filter((market): market is LimitlessMarket => market !== null)
+        .map(transformToEvent);
 
       return NextResponse.json({
         events,
@@ -114,7 +119,7 @@ const filterMarkets = (
       terms.some(
         (term) =>
           market.title.toLowerCase().includes(term) ||
-          market.description.toLowerCase().includes(term)
+          market.description?.toLowerCase().includes(term)
       )
     );
   }
