@@ -147,9 +147,19 @@ export interface GroupedMarketIds {
   }[];
 }
 
+export interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  itemsPerPage: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
 export interface GroupedMarketsResponse {
   success: boolean;
   data: GroupedMarketCard[];
+  pagination?: PaginationInfo;
   error?: string;
 }
 

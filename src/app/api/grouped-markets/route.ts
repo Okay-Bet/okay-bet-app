@@ -48,9 +48,17 @@ async function fetchMarketsInBatches<T>(
       results.push(...batchResults);
       // Add delay between batches
       await delay(BATCH_DELAY);
-    } catch (error) {
+    } catch (error: unknown) { // Explicitly type error as unknown
       console.error(`Batch fetch error:`, error);
-      if (error.message?.includes('429')) {
+      
+      // Type guard to check if error is an object with a message property
+      if (
+        error && 
+        typeof error === 'object' && 
+        'message' in error && 
+        typeof error.message === 'string' && 
+        error.message.includes('429')
+      ) {
         // If we hit rate limit, add longer delay
         await delay(BATCH_DELAY * 2);
       }
@@ -79,7 +87,7 @@ async function fetchGroupedMarketsFromAPI(): Promise<GroupedMarketCard[]> {
   }
 }
 
-async function processMarketData(rawData: GroupedMarketData[]): Promise<GroupedMarketData[]> {
+async function processMarketData(rawData: GroupedMarketCard[]): Promise<GroupedMarketCard[]> {
   // Process smaller chunks of groups at a time
   const results = [];
   const chunkSize = 5;
@@ -90,14 +98,14 @@ async function processMarketData(rawData: GroupedMarketData[]): Promise<GroupedM
     const processedChunk = await Promise.all(chunk.map(async (group) => {
       try {
         const [limitlessMarkets, polymarketMarkets, kalshiMarkets] = await Promise.all([
-          group.market_ids?.limitless?.length 
-            ? fetchMarketsInBatches(group.market_ids.limitless, fetchMarketsByIds)
+          group.metrics.platforms.limitless?.markets?.map(m => m.id).length 
+            ? fetchMarketsInBatches(group.metrics.platforms.limitless.markets.map(m => m.id), fetchMarketsByIds)
             : Promise.resolve([]),
-          group.market_ids?.polymarket?.length
-            ? fetchMarketsInBatches(group.market_ids.polymarket, fetchPolymarketData)
+          group.metrics.platforms.polymarket?.markets?.map(m => m.id).length
+            ? fetchMarketsInBatches(group.metrics.platforms.polymarket.markets.map(m => m.id), fetchPolymarketData)
             : Promise.resolve([]),
-          group.market_ids?.kalshi?.length
-            ? fetchMarketsInBatches(group.market_ids.kalshi, fetchKalshiMarkets)
+          group.metrics.platforms.kalshi?.markets?.map(m => m.id).length
+            ? fetchMarketsInBatches(group.metrics.platforms.kalshi.markets.map(m => m.id), fetchKalshiMarkets)
             : Promise.resolve([]),
         ]);
 
@@ -119,7 +127,6 @@ async function processMarketData(rawData: GroupedMarketData[]): Promise<GroupedM
     }));
 
     results.push(...processedChunk);
-    // Add delay between chunks
     await delay(BATCH_DELAY);
   }
 
@@ -159,7 +166,6 @@ export async function GET(request: Request) {
 
     // Check cache first
     if (marketCache && Date.now() - marketCache.timestamp < CACHE_DURATION) {
-      console.log('Serving from cache');
       const paginatedData = paginateData(marketCache.data, page, limit);
       return NextResponse.json({
         success: true,
@@ -169,7 +175,6 @@ export async function GET(request: Request) {
     }
 
     // Fetch new data only if cache is invalid
-    console.log('Fetching fresh data');
     const rawData = await fetchGroupedMarketsFromAPI();
     const processedData = await processMarketData(rawData);
 

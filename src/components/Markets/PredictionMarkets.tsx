@@ -34,15 +34,6 @@ const PredictionMarkets = () => {
     loadMore 
   } = useGroupedMarkets();
 
-  // Debug mount and updates
-  useEffect(() => {
-    console.log('Markets state:', {
-      marketCount: groupedMarkets.length,
-      loading,
-      error,
-      hasMore
-    });
-  }, [groupedMarkets, loading, error, hasMore]);
 
   if (loading && groupedMarkets.length === 0) {
     return <LoadingSpinner />;
