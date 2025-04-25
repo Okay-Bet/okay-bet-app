@@ -155,6 +155,7 @@ export interface GroupedMarketsResponse {
 
 export interface GroupedMarketCard {
   id: string;
+  title: string;
   limitlessMarkets: {
     market: LimitlessMarket;
     similarity: number | null;

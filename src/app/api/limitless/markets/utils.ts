@@ -79,7 +79,6 @@ const cleanMarkdownText = (text: string): string => {
 
 async function fetchFastAPIMarketData(marketId: string): Promise<LimitlessAPIMarket | null> {
   try {
-    console.log(`Fetching from FastAPI: ${FASTAPI_URL}/markets/${marketId}`);
     const response = await fetch(`${FASTAPI_URL}/markets/${marketId}`, {
       method: 'GET',
       headers: {
@@ -97,7 +96,6 @@ async function fetchFastAPIMarketData(marketId: string): Promise<LimitlessAPIMar
     }
 
     const data: MarketResponse = await response.json();
-    console.log("FastAPI Raw Response:", JSON.stringify(data, null, 2));
     return data.market;
   } catch (error) {
     console.error(`Error fetching from FastAPI:`, error);
@@ -107,7 +105,6 @@ async function fetchFastAPIMarketData(marketId: string): Promise<LimitlessAPIMar
 
 function validateMarketData(market: LimitlessMarket): boolean {
   if (!market.id || !market.question) {
-    console.log("Missing required fields:", { id: market.id, question: market.question });
     return false;
   }
   return true;
@@ -121,7 +118,6 @@ function formatNumber(value: number | string | null | undefined, decimals: numbe
 
 export const transformMarket = async (marketId: string): Promise<LimitlessMarket | null> => {
   try {
-    console.log(`Transforming market ${marketId}`);
     
     const fastAPIData = await fetchFastAPIMarketData(marketId);
 
@@ -178,7 +174,6 @@ export const transformMarket = async (marketId: string): Promise<LimitlessMarket
       return null;
     }
 
-    console.log("Transformed market:", market);
     return market;
 
   } catch (error) {
@@ -188,7 +183,6 @@ export const transformMarket = async (marketId: string): Promise<LimitlessMarket
 };
 
 export async function fetchMarketsByIds(addresses: string[]): Promise<LimitlessMarket[]> {
-  console.log("Fetching markets for addresses:", addresses);
   
   try {
     const marketPromises = addresses.map(address => transformMarket(address));
@@ -201,7 +195,6 @@ export async function fetchMarketsByIds(addresses: string[]): Promise<LimitlessM
       return validateMarketData(market);
     });
 
-    console.log(`Successfully processed ${validMarkets.length} out of ${addresses.length} markets`);
     return validMarkets;
   } catch (error) {
     console.error("Error fetching markets:", error);
@@ -211,7 +204,6 @@ export async function fetchMarketsByIds(addresses: string[]): Promise<LimitlessM
 
 export async function fetchMarketById(address: string): Promise<LimitlessMarket | null> {
   try {
-    console.log(`Fetching single market: ${address}`);
     return await transformMarket(address);
   } catch (error) {
     console.error(`Error fetching market ${address}:`, error);
