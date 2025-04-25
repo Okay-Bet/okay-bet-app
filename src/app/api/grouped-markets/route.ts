@@ -1,90 +1,77 @@
 // src/app/api/grouped-markets/route.ts
 import { NextResponse } from "next/server";
-import type {
+import type { 
+  GroupedMarketCard,
+  GroupedMarketsResponse,
   LimitlessMarket,
   PolymarketMarket,
-  KalshiMarket,
-} from "@/components/types";
+  KalshiMarket
+} from "@/components/types/market";
 import { fetchMarketsByIds } from "@/app/api/limitless/markets/utils";
 import { fetchPolymarketData } from "@/app/api/markets/utils";
 import { fetchKalshiMarkets } from "@/app/api/kalshi/utils";
 
-// Define interface for the new database schema
-interface GroupedMarket {
-  id: string;
-  title: string;
-  final_end_date: string;
-  created_at: string;
-  updated_at: string;
-  market_ids: {
-    kalshi: string[];
-    polymarket: string[];
-    limitless?: string[];
-  };
-  platforms: {
-    kalshi: {
-      markets: Array<{
-        id: string;
-        volume: number;
-        liquidity: number;
-        openInterest: number;
-      }>;
-    };
-    polymarket: {
-      markets: Array<{
-        id: string;
-        volume: number;
-        liquidity: number;
-      }>;
-    };
-    limitless: {
-      markets: Array<{
-        id: string;
-        volume: number;
-        liquidity?: number;
-        openInterest?: number;
-      }>;
-    };
-  };
-  metrics: {
-    platforms: {
-      kalshi: {
-        markets: Array<{
-          id: string;
-          volume: number;
-          liquidity: number;
-          openInterest: number;
-        }>;
-      };
-      polymarket: {
-        markets: Array<{
-          id: string;
-          volume: number;
-          liquidity: number;
-        }>;
-      };
-      limitless: {
-        markets: Array<{
-          id: string;
-          volume: number;
-          liquidity?: number;
-          openInterest?: number;
-        }>;
-      };
-    };
-  };
+// Cache configuration
+const CACHE_DURATION = 60000; // Increased to 60 seconds
+const BATCH_SIZE = 3; // Process 5 markets at a time
+const BATCH_DELAY = 1000; // 1 second delay between batches
+const FASTAPI_BASE_URL = process.env.FASTAPI_BASE_URL || 'http://localhost:8000';
+
+// Strongly typed cache
+interface CacheEntry {
+  data: GroupedMarketCard[];
+  timestamp: number;
 }
 
-const FASTAPI_BASE_URL = process.env.FASTAPI_BASE_URL || 'http://localhost:8000';
-const DEFAULT_PAGE_SIZE = 10;
-const DEFAULT_PAGE = 1;
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function fetchGroupedMarkets(): Promise<GroupedMarket[]> {
+
+let marketCache: CacheEntry | null = null;
+
+// Rate-limited batch processing
+async function fetchMarketsInBatches<T>(
+  ids: string[],
+  fetchFn: (batchIds: string[]) => Promise<T[]>
+): Promise<T[]> {
+  const uniqueIds = Array.from(new Set(ids)); // Deduplicate IDs
+  const batches = [];
+  
+  // Create smaller batches
+  for (let i = 0; i < uniqueIds.length; i += BATCH_SIZE) {
+    batches.push(uniqueIds.slice(i, i + BATCH_SIZE));
+  }
+
+  const results = [];
+  for (const batch of batches) {
+    try {
+      const batchResults = await fetchFn(batch);
+      results.push(...batchResults);
+      // Add delay between batches
+      await delay(BATCH_DELAY);
+    } catch (error) {
+      console.error(`Batch fetch error:`, error);
+      if (error.message?.includes('429')) {
+        // If we hit rate limit, add longer delay
+        await delay(BATCH_DELAY * 2);
+      }
+    }
+  }
+
+  return results;
+}
+
+async function fetchGroupedMarketsFromAPI(): Promise<GroupedMarketCard[]> {
   try {
-    const response = await fetch(`${FASTAPI_BASE_URL}/api/v1/grouped-markets/groups/markets`);
+    const response = await fetch(`${FASTAPI_BASE_URL}/api/v1/grouped-markets/groups/markets`, {
+      headers: {
+        'Cache-Control': 'no-cache'
+      }
+    });
+    
     if (!response.ok) {
       throw new Error(`Failed to fetch grouped markets: ${response.status}`);
     }
+    
     return await response.json();
   } catch (error) {
     console.error("Error fetching grouped markets:", error);
@@ -92,104 +79,136 @@ async function fetchGroupedMarkets(): Promise<GroupedMarket[]> {
   }
 }
 
+async function processMarketData(rawData: GroupedMarketData[]): Promise<GroupedMarketData[]> {
+  // Process smaller chunks of groups at a time
+  const results = [];
+  const chunkSize = 5;
+  
+  for (let i = 0; i < rawData.length; i += chunkSize) {
+    const chunk = rawData.slice(i, i + chunkSize);
+    
+    const processedChunk = await Promise.all(chunk.map(async (group) => {
+      try {
+        const [limitlessMarkets, polymarketMarkets, kalshiMarkets] = await Promise.all([
+          group.market_ids?.limitless?.length 
+            ? fetchMarketsInBatches(group.market_ids.limitless, fetchMarketsByIds)
+            : Promise.resolve([]),
+          group.market_ids?.polymarket?.length
+            ? fetchMarketsInBatches(group.market_ids.polymarket, fetchPolymarketData)
+            : Promise.resolve([]),
+          group.market_ids?.kalshi?.length
+            ? fetchMarketsInBatches(group.market_ids.kalshi, fetchKalshiMarkets)
+            : Promise.resolve([]),
+        ]);
+
+        return {
+          ...group,
+          limitlessMarkets: limitlessMarkets.map(market => ({ market, similarity: 1 })),
+          polymarketMarkets: polymarketMarkets.map(market => ({ market, similarity: 1 })),
+          kalshiMarkets: kalshiMarkets.map(market => ({ market, similarity: 1 })),
+          metrics: {
+            totalVolume: calculateTotalVolume(limitlessMarkets, polymarketMarkets, kalshiMarkets),
+            highestLiquidity: calculateHighestLiquidity(limitlessMarkets, polymarketMarkets, kalshiMarkets),
+            platforms: group.metrics.platforms
+          }
+        };
+      } catch (error) {
+        console.error(`Error processing group ${group.id}:`, error);
+        return group;
+      }
+    }));
+
+    results.push(...processedChunk);
+    // Add delay between chunks
+    await delay(BATCH_DELAY);
+  }
+
+  return results;
+}
+
+function calculateTotalVolume(
+  limitlessMarkets: LimitlessMarket[],
+  polymarketMarkets: PolymarketMarket[],
+  kalshiMarkets: KalshiMarket[]
+): number {
+  return (
+    limitlessMarkets.reduce((sum, m) => sum + parseFloat(m.metrics.volumeRaw || '0'), 0) +
+    polymarketMarkets.reduce((sum, m) => sum + parseFloat(m.metrics.volumeRaw || '0'), 0) +
+    kalshiMarkets.reduce((sum, m) => sum + parseFloat(m.metrics.volumeRaw || '0'), 0)
+  );
+}
+
+function calculateHighestLiquidity(
+  limitlessMarkets: LimitlessMarket[],
+  polymarketMarkets: PolymarketMarket[],
+  kalshiMarkets: KalshiMarket[]
+): number {
+  const allLiquidities = [
+    ...limitlessMarkets.map(m => parseFloat(m.metrics.liquidityRaw || '0')),
+    ...polymarketMarkets.map(m => parseFloat(m.metrics.liquidityRaw || '0')),
+    ...kalshiMarkets.map(m => parseFloat(m.metrics.liquidityRaw || '0'))
+  ];
+  return Math.max(0, ...allLiquidities);
+}
+
 export async function GET(request: Request) {
   try {
-    // Parse URL to get query parameters
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || DEFAULT_PAGE.toString());
-    const limit = parseInt(searchParams.get('limit') || DEFAULT_PAGE_SIZE.toString());
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
 
-    // Fetch all grouped markets
-    const allGroupedMarkets = await fetchGroupedMarkets();
+    // Check cache first
+    if (marketCache && Date.now() - marketCache.timestamp < CACHE_DURATION) {
+      console.log('Serving from cache');
+      const paginatedData = paginateData(marketCache.data, page, limit);
+      return NextResponse.json({
+        success: true,
+        data: paginatedData.items,
+        pagination: paginatedData.pagination
+      } satisfies GroupedMarketsResponse);
+    }
 
-    // Calculate pagination
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedMarkets = allGroupedMarkets.slice(startIndex, endIndex);
-    const totalPages = Math.ceil(allGroupedMarkets.length / limit);
+    // Fetch new data only if cache is invalid
+    console.log('Fetching fresh data');
+    const rawData = await fetchGroupedMarketsFromAPI();
+    const processedData = await processMarketData(rawData);
 
-    // Process only the paginated subset
-    const marketFetchPromises = paginatedMarkets.map(async (group) => {
-      const [limitlessMarkets, polymarketMarkets, kalshiMarkets] = await Promise.all([
-        group.market_ids.limitless?.length 
-          ? fetchMarketsByIds(group.market_ids.limitless)
-          : Promise.resolve([]),
-        group.market_ids.polymarket?.length 
-          ? fetchPolymarketData(group.market_ids.polymarket)
-          : Promise.resolve([]),
-        group.market_ids.kalshi?.length 
-          ? fetchKalshiMarkets(group.market_ids.kalshi)
-          : Promise.resolve([]),
-      ]);
+    // Update cache
+    marketCache = {
+      data: processedData,
+      timestamp: Date.now()
+    };
 
-      // Create maps for quick lookup
-      const marketMaps = {
-        limitless: new Map(limitlessMarkets.map(m => [m.id, m])),
-        polymarket: new Map(polymarketMarkets.map(m => [m.id, m])),
-        kalshi: new Map(kalshiMarkets.map(m => [m.id, m])),
-      };
-
-      // Process markets for each platform
-      const processedMarkets = {
-        limitlessMarkets: group.platforms.limitless.markets.map(m => ({
-          market: marketMaps.limitless.get(m.id)!,
-          similarity: 1,
-        })).filter(m => m.market),
-        polymarketMarkets: group.platforms.polymarket.markets.map(m => ({
-          market: marketMaps.polymarket.get(m.id)!,
-          similarity: 1,
-        })).filter(m => m.market),
-        kalshiMarkets: group.platforms.kalshi.markets.map(m => ({
-          market: marketMaps.kalshi.get(m.id)!,
-          similarity: 1,
-        })).filter(m => m.market),
-      };
-
-      return {
-        id: group.id,
-        title: group.title,
-        final_end_date: group.final_end_date,
-        created_at: group.created_at,
-        updated_at: group.updated_at,
-        ...processedMarkets,
-        metrics: {
-          totalVolume: 
-            group.platforms.kalshi.markets.reduce((sum, m) => sum + (m.volume || 0), 0) +
-            group.platforms.polymarket.markets.reduce((sum, m) => sum + (m.volume || 0), 0) +
-            group.platforms.limitless.markets.reduce((sum, m) => sum + (m.volume || 0), 0),
-          highestLiquidity: Math.max(
-            ...group.platforms.kalshi.markets.map(m => Math.max(m.liquidity || 0, m.openInterest || 0)),
-            ...group.platforms.polymarket.markets.map(m => m.liquidity || 0),
-            ...group.platforms.limitless.markets.map(m => m.liquidity || m.openInterest || 0)
-          ),
-          platforms: group.platforms,
-        },
-      };
-    });
-
-    const processedGroupedMarkets = await Promise.all(marketFetchPromises);
-
+    const paginatedData = paginateData(processedData, page, limit);
     return NextResponse.json({
       success: true,
-      data: processedGroupedMarkets,
-      pagination: {
-        currentPage: page,
-        totalPages,
-        totalItems: allGroupedMarkets.length,
-        itemsPerPage: limit,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
-      }
-    });
+      data: paginatedData.items,
+      pagination: paginatedData.pagination
+    } satisfies GroupedMarketsResponse);
+
   } catch (error) {
-    console.error("Error processing grouped markets:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        data: [],
-        error: error instanceof Error ? error.message : "Failed to fetch grouped markets",
-      },
-      { status: 500 }
-    );
+    console.error("Error in grouped markets API:", error);
+    return NextResponse.json({
+      success: false,
+      data: [],
+      error: error instanceof Error ? error.message : "An unexpected error occurred"
+    } satisfies GroupedMarketsResponse, { status: 500 });
   }
+}
+
+function paginateData(data: GroupedMarketCard[], page: number, limit: number) {
+  const startIndex = (page - 1) * limit;
+  const endIndex = startIndex + limit;
+  
+  return {
+    items: data.slice(startIndex, endIndex),
+    pagination: {
+      currentPage: page,
+      totalPages: Math.ceil(data.length / limit),
+      totalItems: data.length,
+      itemsPerPage: limit,
+      hasNextPage: endIndex < data.length,
+      hasPreviousPage: page > 1,
+    }
+  };
 }

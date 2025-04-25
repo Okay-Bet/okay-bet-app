@@ -1,6 +1,5 @@
 // src/hooks/useGroupedMarkets.ts
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useBetSlip } from "../app/context/BetSlipContext";
 import type {
   GroupedMarketCard,
@@ -58,197 +57,168 @@ export function useGroupedMarkets(): UseGroupedMarketsReturn {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const ITEMS_PER_PAGE = 20;
+
+  const fetchInProgress = useRef(false);
+  const ITEMS_PER_PAGE = 10;
 
   const { addBet } = useBetSlip();
 
-  const fetchGroupedMarkets = async (
-    pageNum: number,
-    isLoadingMore = false
-  ) => {
-    try {
-      if (isLoadingMore) {
-        setIsFetchingMore(true);
-      } else {
-        setLoading(true);
+  const fetchGroupedMarkets = useCallback(
+    async (pageNum: number, isLoadingMore = false) => {
+      // Prevent multiple concurrent fetches
+      if (fetchInProgress.current) {
+        return;
       }
 
-      const response = await fetch(
-        `/api/grouped-markets?page=${pageNum}&limit=${ITEMS_PER_PAGE}`
-      );
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || "Failed to fetch grouped markets");
-      }
-
-      // Log the raw data structure to understand what we're receiving
-      console.log("Raw API response:", data);
-
-      // Process the data with more flexible validation
-      const processedData = data.data
-        .map((market: GroupedMarketCard) => {
-          // Ensure default values for missing fields
-          return {
-            id: market.id || `temp-${Math.random()}`,
-            question: market.question || "Untitled Market",
-            prices: market.prices || { yes: { ask: 0 }, no: { ask: 0 } },
-            ...market, // Keep all other existing properties
-          };
-        })
-        .filter((market: GroupedMarketCard) => {
-          // Basic validation to ensure we at least have an ID
-          return market.id != null;
-        });
-
-      setGroupedMarkets((prev) => {
-        if (pageNum === 1) {
-          return processedData;
+      try {
+        fetchInProgress.current = true;
+        if (isLoadingMore) {
+          setIsFetchingMore(true);
+        } else {
+          setLoading(true);
         }
 
-        // Create a map of existing markets
-        const existingMarketsMap = new Map(
-          prev.map((market) => [market.id, market])
+        const response = await fetch(
+          `/api/grouped-markets?page=${pageNum}&limit=${ITEMS_PER_PAGE}`
         );
 
-        // Update existing markets and add new ones
-        processedData.forEach((market) => {
-          const existing = existingMarketsMap.get(market.id);
-          existingMarketsMap.set(market.id, {
-            ...existing, // Keep existing data
-            ...market, // Override with new data
-            // Ensure prices exist
-            prices: market.prices ||
-              existing?.prices || { yes: { ask: 0 }, no: { ask: 0 } },
+        if (!response.ok) {
+          throw new Error(`Failed to fetch markets: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || "Failed to fetch grouped markets");
+        }
+
+        setGroupedMarkets((prev) => {
+          if (pageNum === 1) {
+            return data.data;
+          }
+          // Create a map of existing markets to avoid duplicates
+          const existingMarketsMap = new Map(
+            prev.map((market) => [market.id, market])
+          );
+
+          // Update existing markets and add new ones
+          data.data.forEach((market: GroupedMarketCard) => {
+            existingMarketsMap.set(market.id, market);
           });
+
+          return Array.from(existingMarketsMap.values());
         });
 
-        return Array.from(existingMarketsMap.values());
-      });
+        setHasMore(data.data.length === ITEMS_PER_PAGE);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching markets:", err);
+        setError(err instanceof Error ? err.message : "An error occurred");
+      } finally {
+        setLoading(false);
+        setIsFetchingMore(false);
+        fetchInProgress.current = false;
+      }
+    },
+    []
+  );
 
-      setHasMore(processedData.length === ITEMS_PER_PAGE);
-    } catch (err) {
-      console.error("Error fetching markets:", err);
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setLoading(false);
-      setIsFetchingMore(false);
-    }
-  };
-
+  // Initial fetch only
   useEffect(() => {
     fetchGroupedMarkets(1);
-  }, []);
+    return () => {
+      fetchInProgress.current = false;
+    };
+  }, [fetchGroupedMarkets]);
 
-  const loadMore = () => {
-    if (!loading && !isFetchingMore && hasMore) {
+  const loadMore = useCallback(() => {
+    if (!loading && !isFetchingMore && hasMore && !fetchInProgress.current) {
       const nextPage = page + 1;
       setPage(nextPage);
       fetchGroupedMarkets(nextPage, true);
     }
-  };
+  }, [loading, isFetchingMore, hasMore, page, fetchGroupedMarkets]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      setGroupedMarkets([]);
-      setPage(1);
-      setHasMore(true);
-    };
-  }, []);
+  const handleBetClick = useCallback(
+    (market: LimitlessMarket, position: "YES" | "NO") => {
+      const priceToUse = getMarketPrice(
+        market,
+        position.toLowerCase() as "yes" | "no"
+      );
 
-  // Refresh data periodically
-  useEffect(() => {
-    const refreshInterval = setInterval(() => {
-      if (!loading && !isFetchingMore) {
-        Promise.all(
-          Array.from({ length: page }, (_, i) => i + 1).map((pageNum) =>
-            fetchGroupedMarkets(pageNum, true)
-          )
-        );
+      if (!priceToUse || priceToUse <= 0 || priceToUse > 1) {
+        console.error(`Invalid price for ${position}:`, priceToUse);
+        return;
       }
-    }, 30000); // Refresh every 30 seconds
 
-    return () => clearInterval(refreshInterval);
-  }, [page, loading, isFetchingMore]);
+      const bet: LimitlessBet = {
+        marketId: market.id,
+        eventTitle: market.question,
+        marketQuestion: market.question,
+        position,
+        price: priceToUse,
+        tokenId: market.id,
+        provider: "LIMITLESS",
+        marketSlug: market.slug,
+      };
 
-  const handleBetClick = (market: LimitlessMarket, position: "YES" | "NO") => {
-    const priceToUse = getMarketPrice(
-      market,
-      position.toLowerCase() as "yes" | "no"
-    );
+      addBet(bet);
+    },
+    [addBet]
+  );
 
-    if (!priceToUse || priceToUse <= 0 || priceToUse > 1) {
-      console.error(`Invalid price for ${position}:`, priceToUse);
-      return;
-    }
+  const handlePolymarketBetClick = useCallback(
+    (market: PolymarketMarket, position: "YES" | "NO") => {
+      const priceToUse = getMarketPrice(
+        market,
+        position.toLowerCase() as "yes" | "no"
+      );
 
-    const bet: LimitlessBet = {
-      marketId: market.id,
-      eventTitle: market.question,
-      marketQuestion: market.question,
-      position,
-      price: priceToUse,
-      tokenId: market.id,
-      provider: "LIMITLESS",
-      marketSlug: market.slug,
-    };
+      if (!priceToUse) return;
 
-    addBet(bet);
-  };
+      const bet: PolymarketBet = {
+        marketId: market.id,
+        eventTitle: market.question,
+        marketQuestion: market.question,
+        position,
+        price: priceToUse,
+        provider: "POLYMARKET",
+        slug: market.slug,
+      };
 
-  const handlePolymarketBetClick = (
-    market: PolymarketMarket,
-    position: "YES" | "NO"
-  ) => {
-    const priceToUse = getMarketPrice(
-      market,
-      position.toLowerCase() as "yes" | "no"
-    );
+      addBet(bet);
+    },
+    [addBet]
+  );
 
-    if (!priceToUse) return;
+  const handleKalshiBetClick = useCallback(
+    (market: KalshiMarket, position: "YES" | "NO") => {
+      const priceToUse = getMarketPrice(
+        market,
+        position.toLowerCase() as "yes" | "no"
+      );
 
-    const bet: PolymarketBet = {
-      marketId: market.id,
-      eventTitle: market.question,
-      marketQuestion: market.question,
-      position,
-      price: priceToUse,
-      provider: "POLYMARKET",
-      slug: market.slug,
-    };
+      if (!priceToUse || priceToUse <= 0 || priceToUse > 1) {
+        console.error("Invalid price for Kalshi market:", priceToUse);
+        return;
+      }
 
-    addBet(bet);
-  };
+      const bet: KalshiBet = {
+        marketId: market.id,
+        eventTitle: market.question,
+        marketQuestion: market.question,
+        position,
+        price: priceToUse,
+        provider: "KALSHI",
+        ticker: market.ticker,
+      };
 
-  const handleKalshiBetClick = (
-    market: KalshiMarket,
-    position: "YES" | "NO"
-  ) => {
-    const priceToUse = getMarketPrice(
-      market,
-      position.toLowerCase() as "yes" | "no"
-    );
+      addBet(bet);
+    },
+    [addBet]
+  );
 
-    if (!priceToUse || priceToUse <= 0 || priceToUse > 1) {
-      console.error("Invalid price for Kalshi market:", priceToUse);
-      return;
-    }
-
-    const bet: KalshiBet = {
-      marketId: market.id,
-      eventTitle: market.question,
-      marketQuestion: market.question,
-      position,
-      price: priceToUse,
-      provider: "KALSHI",
-      ticker: market.ticker,
-    };
-
-    addBet(bet);
-  };
-
-  const toggleMarketExpanded = (marketId: string) => {
+  const toggleMarketExpanded = useCallback((marketId: string) => {
     setExpandedMarkets((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(marketId)) {
@@ -258,7 +228,7 @@ export function useGroupedMarkets(): UseGroupedMarketsReturn {
       }
       return newSet;
     });
-  };
+  }, []);
 
   return {
     groupedMarkets,
