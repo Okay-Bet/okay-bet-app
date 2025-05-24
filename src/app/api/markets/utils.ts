@@ -1,8 +1,8 @@
 import type { PolymarketMarket, MarketStatus } from "@/components/types";
 
-const GAMMA_API_URL = "https://gamma-api.polymarket.com";
+const FASTAPI_URL = "http://157.245.87.57:8000/api/v1/polymarket";
 
-export interface GammaAPIMarket {
+interface PolymarketAPIMarket {
   conditionId: string;
   question: string;
   description?: string;
@@ -14,10 +14,10 @@ export interface GammaAPIMarket {
   resolution_source?: string;
   volume: string;
   liquidity: string;
-  endDate: string;           
+  endDate: string;
   endDateIso: string;
-  clobTokenIds: string; // This is now a JSON string
-  outcomePrices: string; // This is now a JSON string
+  clobTokenIds: string;
+  outcomePrices: string;
   tokens: {
     yes: {
       token_id: string;
@@ -30,24 +30,67 @@ export interface GammaAPIMarket {
   };
 }
 
-export const transformMarket = (market: GammaAPIMarket): PolymarketMarket => {
+interface MarketResponse {
+  status: string;
+  market: PolymarketAPIMarket;
+}
+
+async function fetchFastAPIMarketData(marketId: string): Promise<PolymarketAPIMarket | null> {
   try {
-    // Parse the JSON strings
-    const tokenIds = JSON.parse(market.clobTokenIds || '[]');
-    const prices = JSON.parse(market.outcomePrices || '["0", "0"]');
-    const expirationDate = market.endDate || market.endDateIso;
+    const response = await fetch(`${FASTAPI_URL}/markets/${marketId}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache',
+      },
+      cache: 'no-store',
+    });
 
+    if (!response.ok) {
+      console.error(`FastAPI error for Polymarket market: ${response.status}`);
+      return null;
+    }
 
-    return {
-      id: market.conditionId,
+    const data: MarketResponse = await response.json();
+    return data.market;
+  } catch (error) {
+    console.error(`Error fetching Polymarket market from FastAPI:`, error);
+    return null;
+  }
+}
+
+function validateMarketData(market: PolymarketMarket): boolean {
+  return !!(
+    market.id &&
+    market.question &&
+    market.prices?.yes &&
+    market.prices?.no
+  );
+}
+
+const transformMarket = async (marketId: string): Promise<PolymarketMarket | null> => {
+  try {
+    const fastAPIData = await fetchFastAPIMarketData(marketId);
+
+    if (!fastAPIData) {
+      console.error(`No data available for Polymarket market ${marketId}`);
+      return null;
+    }
+
+    // Parse the JSON strings from FastAPI
+    const tokenIds = JSON.parse(fastAPIData.clobTokenIds);
+    const prices = JSON.parse(fastAPIData.outcomePrices);
+
+    const market: PolymarketMarket = {
+      id: fastAPIData.conditionId,
       provider: "POLYMARKET",
-      question: market.question,
-      description: market.description || "",
-      slug: market.events[0]?.slug || "",
-      status: "Open" as MarketStatus,
-      expirationDate: expirationDate, 
+      question: fastAPIData.question,
+      description: fastAPIData.description || "",
+      slug: fastAPIData.events[0]?.slug || "",
+      status: "ACTIVE" as MarketStatus, // You might want to add status to the API response
+      expirationDate: fastAPIData.endDateIso,
       timestamps: {
-        created: new Date().toISOString(),
+        created: new Date().toISOString(), // Consider adding creation date to API
       },
       collateral: {
         address: "",
@@ -55,126 +98,73 @@ export const transformMarket = (market: GammaAPIMarket): PolymarketMarket => {
         decimals: 6,
       },
       metrics: {
-        volume: market.volume,
-        volumeRaw: market.volume,
-        liquidity: market.liquidity,
-        liquidityRaw: market.liquidity,
-        openInterest: "", // Polymarket doesn't provide open interest
-        openInterestRaw: "",
+        volume: fastAPIData.volume,
+        volumeRaw: fastAPIData.volume,
+        liquidity: fastAPIData.liquidity,
+        liquidityRaw: fastAPIData.liquidity,
+        openInterest: "0",
+        openInterestRaw: "0",
       },
       prices: {
-        yes: { 
-          bid: parseFloat(prices[0]) || 0, 
-          ask: parseFloat(prices[0]) || 0 
+        yes: {
+          bid: parseFloat(prices.yes),
+          ask: parseFloat(prices.yes),
         },
-        no: { 
-          bid: parseFloat(prices[1]) || 0, 
-          ask: parseFloat(prices[1]) || 0 
+        no: {
+          bid: parseFloat(prices.no),
+          ask: parseFloat(prices.no),
         },
       },
       contract: {
-        address: market.conditionId,
+        address: fastAPIData.conditionId,
         network: "polygon",
       },
       outcomeTokens: {
-        yes: tokenIds[0] || "",
-        no: tokenIds[1] || "",
+        yes: tokenIds.yes,
+        no: tokenIds.no,
       },
     };
+
+    if (!validateMarketData(market)) {
+      console.error(`Invalid market data for ${marketId}`);
+      return null;
+    }
+
+    return market;
   } catch (error) {
-    console.error("Error transforming market:", error, market);
-    throw error;
+    console.error(`Error transforming Polymarket market ${marketId}:`, error);
+    return null;
   }
 };
 
-export async function fetchMarketsByConditionIds(
-  conditionIds: string[]
-): Promise<PolymarketMarket[]> {
+export async function fetchPolymarketData(addresses: string[]): Promise<PolymarketMarket[]> {
   try {
-    const conditionIdsParam = conditionIds
-      .map((id) => `condition_ids=${id}`)
-      .join("&");
-    const url = `${GAMMA_API_URL}/markets?${conditionIdsParam}`;
-
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch Polymarket markets: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const markets = data.markets || [];
-
-    return markets.map(transformMarket);
+    const marketPromises = addresses.map(address => transformMarket(address));
+    const markets = await Promise.all(marketPromises);
+    
+    return markets.filter((market): market is PolymarketMarket => 
+      market !== null && validateMarketData(market)
+    );
   } catch (error) {
     console.error("Error fetching Polymarket markets:", error);
     return [];
   }
 }
 
+// Keep these for backward compatibility if needed
+export async function fetchMarketsByConditionIds(
+  conditionIds: string[]
+): Promise<PolymarketMarket[]> {
+  return fetchPolymarketData(conditionIds);
+}
+
 export async function fetchMarketByConditionId(
   conditionId: string
 ): Promise<PolymarketMarket | null> {
   try {
-    const markets = await fetchMarketsByConditionIds([conditionId]);
-    return markets[0] || null;
+    return await transformMarket(conditionId);
   } catch (error) {
     console.error(`Error fetching market ${conditionId}:`, error);
     return null;
   }
 }
-
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 2000; // 2 seconds
-
-export async function fetchPolymarketData(
-  conditionIds: string[],
-): Promise<PolymarketMarket[]> {
-  let retries = 0;
-  
-  while (retries < MAX_RETRIES) {
-    try {
-      const conditionIdsParam = conditionIds
-        .map((id) => `condition_ids=${id}`)
-        .join("&");
-      const url = `${GAMMA_API_URL}/markets?${conditionIdsParam}`;
-
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (response.status === 429) {
-        // Rate limited - wait and retry
-        retries++;
-        await delay(RETRY_DELAY * retries);
-        continue;
-      }
-
-      if (!response.ok) {
-        throw new Error(
-          `Failed to fetch Polymarket data: ${response.status}`
-        );
-      }
-
-      const data = await response.json();
-      return data.map(transformMarket).filter(Boolean);
-
-    } catch (error) {
-      if (retries >= MAX_RETRIES - 1) {
-        console.error("Error fetching Polymarket data:", error);
-        return [];
-      }
-      retries++;
-      await delay(RETRY_DELAY * retries);
-    }
-  }
-
-  return [];
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-

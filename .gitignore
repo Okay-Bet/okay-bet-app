@@ -51,3 +51,6 @@ worker-*.js
 .venv/
 __pycache__/
 *.pyc
+
+# Weird files
+e2e.log
