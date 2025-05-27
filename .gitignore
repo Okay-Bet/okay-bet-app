@@ -44,7 +44,7 @@ worker-*.js
 # Prisma
 /prisma/migrations/
 /prisma/*.db
-/prisma/*.db-journal
+/prisma/*.db-journalz
 .env
 
 # Python

@@ -1,7 +1,13 @@
+'use client';
+
 import React, { useCallback } from "react";
+import { usePrivy } from "@privy-io/react-auth";
 import { useGroupedMarkets } from "@/hooks/useGroupedMarkets";
 import { GroupedMarketCard } from "./GroupedMarketCard";
 import { BetSlip } from "../Bet/BetSlip";
+import ConnectWallet from "../User/ConnectWallet";
+import Pitch from "../Landing/Pitch";
+import Testimonials from "../Landing/Testimonials";
 import type { GroupedMarketCard as GroupedMarketCardType } from "@/components/types";
 
 const LoadingSpinner = () => (
@@ -25,8 +31,44 @@ const MarketGrid = React.memo(
 
 MarketGrid.displayName = "MarketGrid";
 
-const PredictionMarkets = () => {
-  const { groupedMarkets, loading, error, hasMore, loadMore, page } = useGroupedMarkets();
+interface PredictionMarketsProps {
+  initialData: {
+    data: GroupedMarketCardType[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      hasNextPage: boolean;
+      hasPreviousPage: boolean;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  } | null;
+}
+
+const PredictionMarkets = ({ initialData }: PredictionMarketsProps) => {
+  const { authenticated, ready } = usePrivy();
+  const { 
+    groupedMarkets, 
+    loading, 
+    error, 
+    hasMore, 
+    loadMore, 
+    page 
+  } = useGroupedMarkets(initialData);
+
+  if (!ready) {
+    return <div>Loading...</div>;
+  }
+
+  if (!authenticated) {
+    return (
+      <>
+        <ConnectWallet />
+        <Pitch />
+        <Testimonials />
+      </>
+    );
+  }
 
   if (error) {
     return (
@@ -38,6 +80,7 @@ const PredictionMarkets = () => {
 
   return (
     <div className="container mx-auto px-4">
+      <ConnectWallet />
       <MarketGrid markets={groupedMarkets} />
       
       <div className="flex justify-center gap-4 my-6">
@@ -69,9 +112,9 @@ const PredictionMarkets = () => {
       </div>
       
       <BetSlip />
+      <Testimonials />
     </div>
   );
 };
 
-// Ensure component is properly memoized
 export default React.memo(PredictionMarkets);

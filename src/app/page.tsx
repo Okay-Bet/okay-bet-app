@@ -1,50 +1,61 @@
-"use client";
-import React from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { Suspense } from "react";
+import { headers } from 'next/headers';
 import Image from "next/image";
-import logo from "../../public/okay_bet.png";
-import Pitch from "../components/Landing/Pitch";
-import ConnectWallet from "../components/User/ConnectWallet";
+import Logo from "@/components/Logo/Logo";
+import PredictionMarkets from "@/components/Markets/PredictionMarkets";
 import { BetSlipProvider } from "./context/BetSlipContext";
-import PredictionMarkets from "../components/Markets/PredictionMarkets";
-import { UserPositions } from "../components/User/UserPositions";
-import Testimonials from "../components/Landing/Testimonials";
+import Providers from "../components/Providers/Providers";
 
-export default function Home() {
-  const { authenticated, ready } = usePrivy();
+async function getInitialMarkets(page: number = 1, limit: number = 10) {
+  try {
+    const headersList = headers();
+    const host = headersList.get('host');
+    
+    // Determine the proper base URL
+    const baseUrl = process.env.NODE_ENV === 'development' 
+      ? 'http://localhost:3000' // Use HTTP for local development
+      : `https://${host}`;
+    
+    const res = await fetch(
+      `${baseUrl}/api/grouped-markets?page=${page}&limit=${limit}`,
+      { 
+        cache: 'no-store',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
-  if (!ready) {
-    return <div>Loading...</div>;
+    if (!res.ok) throw new Error('Failed to fetch markets');
+    return res.json();
+  } catch (error) {
+    console.error('Error fetching initial markets:', error);
+    return null;
   }
+}
+
+export default async function Home({
+  searchParams
+}: {
+  searchParams: { page?: string; limit?: string }
+}) {
+  const page = Number(searchParams.page) || 1;
+  const limit = Number(searchParams.limit) || 10;
+  
+  const initialData = await getInitialMarkets(page, limit);
 
   return (
     <main className="width-full flex-col items-center justify-center">
       <div className="py-6 text-center">
         <div className="m-3">
-          <Image
-            src={logo}
-            alt="Okay Bet Logo"
-            width={350}
-            height={120}
-            className="mx-auto mb-8"
-            onClick={() => window.location.reload()}
-            priority
-          />
+          <Logo />
         </div>
-        <ConnectWallet />
-        {authenticated ? (
-          <div className="w-full">
-            <BetSlipProvider>
-              <main className="mt-8 mb-4">
-                {/* <UserPositions /> */}
-                <PredictionMarkets />
-              </main>
-            </BetSlipProvider>
-            <Testimonials />
-          </div>
-        ) : (
-          <Pitch />
-        )}
+
+        <Suspense fallback={<div>Loading markets...</div>}>
+          <Providers>
+            <PredictionMarkets initialData={initialData} />
+          </Providers>
+        </Suspense>
       </div>
     </main>
   );

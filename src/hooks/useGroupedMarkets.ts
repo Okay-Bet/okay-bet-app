@@ -1,4 +1,3 @@
-// src/hooks/useGroupedMarkets.ts
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useBetSlip } from "../app/context/BetSlipContext";
 import type {
@@ -11,6 +10,20 @@ import type {
   KalshiBet,
 } from "../components/types";
 
+interface PaginationMetadata {
+  currentPage: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  totalItems: number;
+  itemsPerPage: number;
+}
+
+interface InitialData {
+  data: GroupedMarketCard[];
+  pagination: PaginationMetadata;
+}
+
 interface UseGroupedMarketsReturn {
   groupedMarkets: GroupedMarketCard[];
   loading: boolean;
@@ -20,14 +33,8 @@ interface UseGroupedMarketsReturn {
   loadMore: (newPage: number) => void;
   marketActions: {
     handleBetClick: (market: LimitlessMarket, position: "YES" | "NO") => void;
-    handlePolymarketBetClick: (
-      market: PolymarketMarket,
-      position: "YES" | "NO"
-    ) => void;
-    handleKalshiBetClick: (
-      market: KalshiMarket,
-      position: "YES" | "NO"
-    ) => void;
+    handlePolymarketBetClick: (market: PolymarketMarket, position: "YES" | "NO") => void;
+    handleKalshiBetClick: (market: KalshiMarket, position: "YES" | "NO") => void;
     toggleMarketExpanded: (marketId: string) => void;
   };
   marketStates: {
@@ -47,38 +54,32 @@ const getMarketPrice = (
   return market.prices[position]?.ask || 0;
 };
 
-export function useGroupedMarkets(): UseGroupedMarketsReturn {
-  const [groupedMarkets, setGroupedMarkets] = useState<GroupedMarketCard[]>([]);
-  const [loading, setLoading] = useState(true);
+export function useGroupedMarkets(initialData?: InitialData): UseGroupedMarketsReturn {
+  const [groupedMarkets, setGroupedMarkets] = useState<GroupedMarketCard[]>(
+    initialData?.data || []
+  );
+  const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState<string | null>(null);
   const [showMoneyline, setShowMoneyline] = useState(false);
-  const [expandedMarkets, setExpandedMarkets] = useState<Set<string>>(
-    new Set()
-  );
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [expandedMarkets, setExpandedMarkets] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(initialData?.pagination.currentPage || 1);
+  const [hasMore, setHasMore] = useState(initialData?.pagination.hasNextPage || false);
+  
   const loadingRef = useRef(false);
-
   const fetchInProgress = useRef(false);
-  const ITEMS_PER_PAGE = 9;
+  const ITEMS_PER_PAGE = initialData?.pagination.itemsPerPage || 9;
 
   const { addBet } = useBetSlip();
 
-const fetchGroupedMarkets = useCallback(
-    async (pageNum: number, isLoadingMore = false) => {
-      if (loadingRef.current || fetchInProgress.current) {
-        return;
-      }
+  const fetchGroupedMarkets = useCallback(
+    async (pageNum: number) => {
+      if (loadingRef.current || fetchInProgress.current) return;
 
       loadingRef.current = true;
       fetchInProgress.current = true;
 
       try {
         setLoading(true);
-        
-        // Add timestamp to prevent caching
         const timestamp = new Date().getTime();
         const response = await fetch(
           `/api/grouped-markets?page=${pageNum}&limit=${ITEMS_PER_PAGE}&t=${timestamp}`,
@@ -87,7 +88,6 @@ const fetchGroupedMarkets = useCallback(
               "Cache-Control": "no-cache",
               Pragma: "no-cache",
             },
-            // Add credentials if needed
             credentials: 'include'
           }
         );
@@ -97,20 +97,12 @@ const fetchGroupedMarkets = useCallback(
         }
 
         const data = await response.json();
-        
-        // Add debug logging
-        console.log('API Response:', data);
-        console.log('Page:', pageNum);
-        console.log('Markets count:', data.data?.length);
-        console.log('Pagination:', data.pagination);
 
-        // Check if data has the expected structure
         if (!data.data) {
           throw new Error('Invalid data structure received from API');
         }
 
         setGroupedMarkets(data.data);
-        // Update hasMore based on pagination info
         setHasMore(data.pagination?.hasNextPage ?? false);
         setPage(pageNum);
         setError(null);
@@ -123,32 +115,15 @@ const fetchGroupedMarkets = useCallback(
         setLoading(false);
       }
     },
-    []
+    [ITEMS_PER_PAGE]
   );
 
-  // Initial fetch only
+  // Only fetch if no initial data provided
   useEffect(() => {
-    let mounted = true;
-
-    if (mounted) {
+    if (!initialData) {
       fetchGroupedMarkets(1);
     }
-
-    return () => {
-      mounted = false;
-      fetchInProgress.current = false;
-    };
-  }, [fetchGroupedMarkets]);
-
-  const loadMore = useCallback(
-    (newPage: number) => {
-      if (loadingRef.current || fetchInProgress.current) {
-        return;
-      }
-      fetchGroupedMarkets(newPage, false);
-    },
-    [fetchGroupedMarkets]
-  );
+  }, [fetchGroupedMarkets, initialData]);
 
   const handleBetClick = useCallback(
     (market: LimitlessMarket, position: "YES" | "NO") => {
@@ -243,11 +218,11 @@ const fetchGroupedMarkets = useCallback(
 
   return {
     groupedMarkets,
-    loading: loading || isFetchingMore,
+    loading,
     error,
     hasMore,
     page,
-    loadMore,
+    loadMore: fetchGroupedMarkets,
     marketActions: {
       handleBetClick,
       handlePolymarketBetClick,
