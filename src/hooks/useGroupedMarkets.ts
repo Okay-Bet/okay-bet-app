@@ -96,14 +96,18 @@ export function useGroupedMarkets(initialData?: InitialData): UseGroupedMarketsR
           throw new Error(`Failed to fetch markets: ${response.status}`);
         }
 
-        const data = await response.json();
+        const { data, pagination } = await response.json();
 
-        if (!data.data) {
+        if (!data) {
           throw new Error('Invalid data structure received from API');
         }
 
-        setGroupedMarkets(data.data);
-        setHasMore(data.pagination?.hasNextPage ?? false);
+        // For subsequent pages, append the data
+        setGroupedMarkets(prevMarkets => 
+          pageNum === 1 ? data : [...prevMarkets, ...data]
+        );
+        
+        setHasMore(pagination.hasNextPage);
         setPage(pageNum);
         setError(null);
       } catch (err) {

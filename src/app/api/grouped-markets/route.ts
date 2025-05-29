@@ -1,169 +1,245 @@
-// src/app/api/grouped-markets/route.ts
 import { NextResponse } from "next/server";
 import type {
   GroupedMarketCard,
-  GroupedMarketsResponse,
   LimitlessMarket,
   PolymarketMarket,
   KalshiMarket
 } from "@/components/types/market";
-import { fetchMarketsByIds } from "@/app/api/limitless/markets/utils";
-import { fetchPolymarketData } from "@/app/api/markets/utils";
-import { fetchKalshiMarkets } from "@/app/api/kalshi/utils";
+
+const FASTAPI_URL = process.env.FASTAPI_BASE_URL || 'http://localhost:8000';
 
 // Cache configuration
-const CACHE_DURATION = 30000; // Reduced to 30 seconds
-const BATCH_SIZE = 2; // Reduced from 3
-const BATCH_DELAY = 500; // Reduced from 1000ms to 500ms
-const FASTAPI_BASE_URL = process.env.FASTAPI_BASE_URL || 'http://localhost:8000';
+const CACHE_DURATION = 30000;
+let marketCache: { data: GroupedMarketCard[]; timestamp: number } | null = null;
 
-// Strongly typed cache
-interface CacheEntry {
-  data: GroupedMarketCard[];
-  timestamp: number;
+interface MarketMetrics {
+  id: string;
+  volume: number;
+  liquidity: number;
+  openInterest: number;
 }
 
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-let marketCache: CacheEntry | null = null;
-
-// Rate-limited batch processing
-async function fetchMarketsInBatches<T>(
-  ids: string[],
-  fetchFn: (batchIds: string[]) => Promise<T[]>
-): Promise<T[]> {
-  const uniqueIds = Array.from(new Set(ids)); // Deduplicate IDs
-  const batches = [];
-
-  // Create smaller batches
-  for (let i = 0; i < uniqueIds.length; i += BATCH_SIZE) {
-    batches.push(uniqueIds.slice(i, i + BATCH_SIZE));
-  }
-
-  const results = [];
-  for (const batch of batches) {
-    try {
-      const batchResults = await fetchFn(batch);
-      results.push(...batchResults);
-      // Add delay between batches
-      await delay(BATCH_DELAY);
-    } catch (error: unknown) {
-      console.error(`Batch fetch error:`, error);
-      if (
-        error &&
-        typeof error === 'object' &&
-        'message' in error &&
-        typeof error.message === 'string' &&
-        error.message.includes('429')
-      ) {
-        await delay(BATCH_DELAY * 2);
-      }
-    }
-  }
-  return results;
+interface ConsolidatedMarketResponse {
+  id: string;
+  title: string;
+  status: string;
+  metrics: {
+    platforms: {
+      kalshi: { markets: MarketMetrics[] };
+      limitless: { markets: MarketMetrics[] };
+      polymarket: { markets: MarketMetrics[] };
+    };
+    totalVolume: number;
+    highestLiquidity: number;
+  };
+  kalshiMarkets: Record<string, {
+    market_id: string;
+    title: string;
+    status: string;
+    volume: number;
+    liquidity: number;
+    open_interest: number;
+    best_ask_price?: number;
+    best_bid_price?: number;
+    expiration_date: string;
+    event_ticker: string;
+  }> | null;
+  polymarketMarkets: Record<string, {
+    market_id: string;
+    question: string;
+    volume: string | number;
+    liquidity: string | number;
+    end_date: string;
+    no_best_buy_price: number;
+    no_best_sell_price: number;
+    yes_best_buy_price: number;
+    yes_best_sell_price: number;
+  }> | null;
+  limitlessMarkets: Record<string, {
+    id: string;
+    title: string;
+    status: string;
+    volume: number;
+    liquidity: number;
+    expiration_date: string;
+    best_ask_price: number;
+    best_bid_price: number;
+  }> | null;
 }
 
-async function fetchGroupedMarketsFromAPI(): Promise<GroupedMarketCard[]> {
-  try {
-    // Determine proper base URL for FastAPI
-    const apiUrl = process.env.NODE_ENV === 'development'
-      ? 'http://localhost:8000'  // Local FastAPI server
-      : process.env.FASTAPI_BASE_URL;
+function transformKalshiData(data: ConsolidatedMarketResponse['kalshiMarkets'][string]): KalshiMarket {
+  return {
+    id: data.market_id,
+    provider: "KALSHI",
+    question: data.title,
+    description: "",
+    ticker: data.event_ticker,
+    category: data.event_ticker,
+    status: data.status || "ACTIVE",
+    expirationDate: data.expiration_date,
+    timestamps: {
+      created: new Date().toISOString(),
+      updated: new Date().toISOString(),
+    },
+    collateral: {
+      address: "",
+      symbol: "USD",
+      decimals: 2,
+    },
+    metrics: {
+      volume: String(data.volume || 0),
+      volumeRaw: String(data.volume || 0),
+      liquidity: String(data.liquidity || 0),
+      liquidityRaw: String(data.liquidity || 0),
+      openInterest: String(data.open_interest || 0),
+      openInterestRaw: String(data.open_interest || 0),
+    },
+    prices: {
+      yes: {
+        bid: data.best_bid_price,
+        ask: data.best_ask_price,
+      },
+      no: {
+        bid: data.best_bid_price ? (1 - data.best_bid_price) : undefined,
+        ask: data.best_ask_price ? (1 - data.best_ask_price) : undefined,
+      },
+    },
+    contract: {
+      address: data.market_id,
+      network: "kalshi",
+    },
+  };
+}
 
-    if (!apiUrl) {
-      throw new Error('FASTAPI_BASE_URL not configured');
-    }
+function transformPolymarketData(data: ConsolidatedMarketResponse['polymarketMarkets'][string]): PolymarketMarket {
+  return {
+    id: data.market_id,
+    provider: "POLYMARKET",
+    question: data.question,
+    description: "",
+    slug: "",
+    status: "ACTIVE",
+    expirationDate: data.end_date,
+    timestamps: {
+      created: new Date().toISOString(),
+    },
+    collateral: {
+      address: "",
+      symbol: "USDC",
+      decimals: 6,
+    },
+    metrics: {
+      volume: String(data.volume),
+      volumeRaw: String(data.volume),
+      liquidity: String(data.liquidity),
+      liquidityRaw: String(data.liquidity),
+      openInterest: "0",
+      openInterestRaw: "0",
+    },
+    prices: {
+      yes: {
+        bid: data.yes_best_buy_price,
+        ask: data.yes_best_sell_price,
+      },
+      no: {
+        bid: data.no_best_buy_price,
+        ask: data.no_best_sell_price,
+      },
+    },
+    contract: {
+      address: data.market_id,
+      network: "polygon",
+    },
+  };
+}
 
-    const response = await fetch(
-      `${apiUrl}/api/v1/grouped-markets/groups/markets`,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache'
-        },
-        // Add longer timeout for development
-        signal: AbortSignal.timeout(15000), // 15 seconds timeout
-        next: { revalidate: 0 }
-      }
-    );
+function transformLimitlessData(data: ConsolidatedMarketResponse['limitlessMarkets'][string]): LimitlessMarket {
+  return {
+    id: data.id,
+    provider: "LIMITLESS",
+    question: data.title,
+    description: "",
+    status: data.status,
+    slug: "",
+    expirationDate: data.expiration_date,
+    timestamps: {
+      created: new Date().toISOString(),
+      updated: new Date().toISOString(),
+    },
+    collateral: {
+      address: "",
+      symbol: "$",
+      decimals: 18,
+    },
+    metrics: {
+      volume: String(data.volume || 0),
+      volumeRaw: String(data.volume || 0),
+      liquidity: String(data.liquidity || 0),
+      liquidityRaw: String(data.liquidity || 0),
+      openInterest: "0",
+      openInterestRaw: "0",
+    },
+    prices: {
+      yes: {
+        bid: data.best_bid_price,
+        ask: data.best_ask_price,
+      },
+      no: {
+        bid: data.best_bid_price ? 1 - data.best_bid_price : undefined,
+        ask: data.best_ask_price ? 1 - data.best_ask_price : undefined,
+      },
+    },
+    contract: {
+      address: data.id,
+      network: "base",
+    },
+    conditionId: data.id,
+  };
+}
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch grouped markets: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Error fetching grouped markets:", error);
-    // Return empty array instead of throwing
+function transformConsolidatedData(response: { success: boolean, data: ConsolidatedMarketResponse[] } | ConsolidatedMarketResponse[]): GroupedMarketCard[] {
+  // Handle both wrapped and unwrapped responses
+  const data = Array.isArray(response) ? response : response.data;
+  
+  if (!Array.isArray(data)) {
+    console.error("Invalid data structure received:", data);
     return [];
   }
-}
 
-async function processMarketData(rawData: GroupedMarketCard[]): Promise<GroupedMarketCard[]> {
-  const results = [];
-  const chunkSize = 2; // Reduced chunk size
+  return data
+    .filter(item => item.kalshiMarkets || item.polymarketMarkets || item.limitlessMarkets) // Filter out items where all markets are null
+    .map(item => {
+      const limitlessMarkets = item.limitlessMarkets
+        ? Object.values(item.limitlessMarkets).map(market => ({
+            market: transformLimitlessData(market),
+            similarity: 1
+          }))
+        : [];
 
-  for (let i = 0; i < rawData.length; i += chunkSize) {
-    const chunk = rawData.slice(i, i + chunkSize);
-    const processedChunk = await Promise.all(chunk.map(async (group) => {
-      try {
-        const [limitlessMarkets, polymarketMarkets, kalshiMarkets] = await Promise.all([
-          group.metrics.platforms.limitless?.markets?.map(m => m.id).length
-            ? fetchMarketsInBatches(group.metrics.platforms.limitless.markets.map(m => m.id), fetchMarketsByIds)
-            : Promise.resolve([]),
-          group.metrics.platforms.polymarket?.markets?.map(m => m.id).length
-            ? fetchMarketsInBatches(group.metrics.platforms.polymarket.markets.map(m => m.id), fetchPolymarketData)
-            : Promise.resolve([]),
-          group.metrics.platforms.kalshi?.markets?.map(m => m.id).length
-            ? fetchMarketsInBatches(group.metrics.platforms.kalshi.markets.map(m => m.id), fetchKalshiMarkets)
-            : Promise.resolve([]),
-        ]);
+      const polymarketMarkets = item.polymarketMarkets
+        ? Object.values(item.polymarketMarkets).map(market => ({
+            market: transformPolymarketData(market),
+            similarity: 1
+          }))
+        : [];
 
-        return {
-          ...group,
-          limitlessMarkets: limitlessMarkets.map(market => ({ market, similarity: 1 })),
-          polymarketMarkets: polymarketMarkets.map(market => ({ market, similarity: 1 })),
-          kalshiMarkets: kalshiMarkets.map(market => ({ market, similarity: 1 })),
-          metrics: {
-            totalVolume: calculateTotalVolume(limitlessMarkets, polymarketMarkets, kalshiMarkets),
-            highestLiquidity: calculateHighestLiquidity(limitlessMarkets, polymarketMarkets, kalshiMarkets),
-            platforms: group.metrics.platforms
-          }
-        };
-      } catch (error) {
-        console.error(`Error processing group ${group.id}:`, error);
-        return group;
-      }
-    }));
-    results.push(...processedChunk);
-    await delay(BATCH_DELAY);
-  }
-  return results;
-}
+      const kalshiMarkets = item.kalshiMarkets
+        ? Object.values(item.kalshiMarkets).map(market => ({
+            market: transformKalshiData(market),
+            similarity: 1
+          }))
+        : [];
 
-function calculateTotalVolume(
-  limitlessMarkets: LimitlessMarket[],
-  polymarketMarkets: PolymarketMarket[],
-  kalshiMarkets: KalshiMarket[]
-): number {
-  return (
-    limitlessMarkets.reduce((sum, m) => sum + parseFloat(m.metrics.volumeRaw || '0'), 0) +
-    polymarketMarkets.reduce((sum, m) => sum + parseFloat(m.metrics.volumeRaw || '0'), 0) +
-    kalshiMarkets.reduce((sum, m) => sum + parseFloat(m.metrics.volumeRaw || '0'), 0)
-  );
-}
-
-function calculateHighestLiquidity(
-  limitlessMarkets: LimitlessMarket[],
-  polymarketMarkets: PolymarketMarket[],
-  kalshiMarkets: KalshiMarket[]
-): number {
-  const allLiquidities = [
-    ...limitlessMarkets.map(m => parseFloat(m.metrics.liquidityRaw || '0')),
-    ...polymarketMarkets.map(m => parseFloat(m.metrics.liquidityRaw || '0')),
-    ...kalshiMarkets.map(m => parseFloat(m.metrics.liquidityRaw || '0'))
-  ];
-  return Math.max(0, ...allLiquidities);
+      return {
+        id: item.id,
+        title: item.title,
+        status: item.status,
+        metrics: item.metrics,
+        limitlessMarkets,
+        polymarketMarkets,
+        kalshiMarkets
+      };
+    });
 }
 
 export async function GET(request: Request) {
@@ -171,64 +247,68 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
+    const offset = (page - 1) * limit;
 
-    // Check cache first
+    // Check cache
     if (marketCache && Date.now() - marketCache.timestamp < CACHE_DURATION) {
-      const paginatedData = paginateData(marketCache.data, page, limit);
+      const start = (page - 1) * limit;
+      const end = start + limit;
       return NextResponse.json({
         success: true,
-        data: paginatedData.items,
-        pagination: paginatedData.pagination
-      });
-    }
-
-    const rawData = await fetchGroupedMarketsFromAPI();
-    
-    // Handle empty data case
-    if (!rawData.length) {
-      return NextResponse.json({
-        success: true,
-        data: [],
+        data: marketCache.data.slice(start, end),
         pagination: {
           currentPage: page,
-          totalPages: 0,
-          hasNextPage: false,
-          hasPreviousPage: false,
-          totalItems: 0,
-          itemsPerPage: limit
+          totalPages: Math.ceil(marketCache.data.length / limit),
+          totalItems: marketCache.data.length,
+          itemsPerPage: limit,
+          hasNextPage: end < marketCache.data.length,
+          hasPreviousPage: page > 1,
         }
       });
     }
 
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const pageData = rawData.slice(startIndex, endIndex);
-    const processedData = await processMarketData(pageData);
+    const response = await fetch(
+      `${FASTAPI_URL}/api/v1/grouped-markets/fetch_consolidated_markets?limit=${limit}&offset=${offset}`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        },
+        next: { revalidate: 0 }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch consolidated markets: ${response.status}`);
+    }
+
+    const rawData = await response.json();
+
+    const transformedData = transformConsolidatedData(rawData);
 
     // Update cache
     marketCache = {
-      data: processedData,
+      data: transformedData,
       timestamp: Date.now()
     };
 
     return NextResponse.json({
       success: true,
-      data: processedData,
+      data: transformedData,
       pagination: {
         currentPage: page,
-        totalPages: Math.ceil(rawData.length / limit),
-        totalItems: rawData.length,
         itemsPerPage: limit,
-        hasNextPage: endIndex < rawData.length,
-        hasPreviousPage: page > 1,
+        totalItems: transformedData.length * page,
+        totalPages: Math.ceil((transformedData.length * page) / limit),
+        hasNextPage: transformedData.length === limit,
+        hasPreviousPage: page > 1
       }
     });
 
   } catch (error) {
-    console.error("Error in grouped markets API:", error);
-    // Return empty successful response instead of error
+    console.error("Error in consolidated markets API:", error);
     return NextResponse.json({
-      success: true,
+      success: false,
       data: [],
       pagination: {
         currentPage: 1,
@@ -240,20 +320,4 @@ export async function GET(request: Request) {
       }
     });
   }
-}
-
-function paginateData(data: GroupedMarketCard[], page: number, limit: number) {
-  const startIndex = (page - 1) * limit;
-  const endIndex = startIndex + limit;
-  return {
-    items: data.slice(startIndex, endIndex),
-    pagination: {
-      currentPage: page,
-      totalPages: Math.ceil(data.length / limit),
-      totalItems: data.length,
-      itemsPerPage: limit,
-      hasNextPage: endIndex < data.length,
-      hasPreviousPage: page > 1,
-    }
-  };
 }
