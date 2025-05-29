@@ -3,10 +3,13 @@ import type {
   GroupedMarketCard,
   LimitlessMarket,
   PolymarketMarket,
-  KalshiMarket
+  KalshiMarket,
+  PaginationInfo,
+  GroupedMarketsResponse,
 } from "@/components/types/market";
+import { MarketStatus } from "@/components/types/core";
 
-const FASTAPI_URL = process.env.FASTAPI_BASE_URL || 'http://localhost:8000';
+const FASTAPI_URL = process.env.FASTAPI_BASE_URL || "http://localhost:8000";
 
 // Cache configuration
 const CACHE_DURATION = 30000;
@@ -18,6 +21,43 @@ interface MarketMetrics {
   liquidity: number;
   openInterest: number;
 }
+
+// Define the data structures we receive from the API
+type KalshiMarketData = {
+  market_id: string;
+  title: string;
+  status: string;
+  volume: number;
+  liquidity: number;
+  open_interest: number;
+  best_ask_price?: number;
+  best_bid_price?: number;
+  expiration_date: string;
+  event_ticker: string;
+};
+
+type PolymarketData = {
+  market_id: string;
+  question: string;
+  volume: string | number;
+  liquidity: string | number;
+  end_date: string;
+  no_best_buy_price: number;
+  no_best_sell_price: number;
+  yes_best_buy_price: number;
+  yes_best_sell_price: number;
+};
+
+type LimitlessMarketData = {
+  id: string;
+  title: string;
+  status: string;
+  volume: number;
+  liquidity: number;
+  expiration_date: string;
+  best_ask_price: number;
+  best_bid_price: number;
+};
 
 interface ConsolidatedMarketResponse {
   id: string;
@@ -32,42 +72,12 @@ interface ConsolidatedMarketResponse {
     totalVolume: number;
     highestLiquidity: number;
   };
-  kalshiMarkets: Record<string, {
-    market_id: string;
-    title: string;
-    status: string;
-    volume: number;
-    liquidity: number;
-    open_interest: number;
-    best_ask_price?: number;
-    best_bid_price?: number;
-    expiration_date: string;
-    event_ticker: string;
-  }> | null;
-  polymarketMarkets: Record<string, {
-    market_id: string;
-    question: string;
-    volume: string | number;
-    liquidity: string | number;
-    end_date: string;
-    no_best_buy_price: number;
-    no_best_sell_price: number;
-    yes_best_buy_price: number;
-    yes_best_sell_price: number;
-  }> | null;
-  limitlessMarkets: Record<string, {
-    id: string;
-    title: string;
-    status: string;
-    volume: number;
-    liquidity: number;
-    expiration_date: string;
-    best_ask_price: number;
-    best_bid_price: number;
-  }> | null;
+  kalshiMarkets: Record<string, KalshiMarketData> | null;
+  polymarketMarkets: Record<string, PolymarketData> | null;
+  limitlessMarkets: Record<string, LimitlessMarketData> | null;
 }
 
-function transformKalshiData(data: ConsolidatedMarketResponse['kalshiMarkets'][string]): KalshiMarket {
+function transformKalshiData(data: KalshiMarketData): KalshiMarket {
   return {
     id: data.market_id,
     provider: "KALSHI",
@@ -75,7 +85,7 @@ function transformKalshiData(data: ConsolidatedMarketResponse['kalshiMarkets'][s
     description: "",
     ticker: data.event_ticker,
     category: data.event_ticker,
-    status: data.status || "ACTIVE",
+    status: data.status as MarketStatus,
     expirationDate: data.expiration_date,
     timestamps: {
       created: new Date().toISOString(),
@@ -100,18 +110,19 @@ function transformKalshiData(data: ConsolidatedMarketResponse['kalshiMarkets'][s
         ask: data.best_ask_price,
       },
       no: {
-        bid: data.best_bid_price ? (1 - data.best_bid_price) : undefined,
-        ask: data.best_ask_price ? (1 - data.best_ask_price) : undefined,
+        bid: data.best_bid_price ? 1 - data.best_bid_price : undefined,
+        ask: data.best_ask_price ? 1 - data.best_ask_price : undefined,
       },
     },
     contract: {
       address: data.market_id,
       network: "kalshi",
     },
+    openInterest: data.open_interest || 0,
   };
 }
 
-function transformPolymarketData(data: ConsolidatedMarketResponse['polymarketMarkets'][string]): PolymarketMarket {
+function transformPolymarketData(data: PolymarketData): PolymarketMarket {
   return {
     id: data.market_id,
     provider: "POLYMARKET",
@@ -150,16 +161,24 @@ function transformPolymarketData(data: ConsolidatedMarketResponse['polymarketMar
       address: data.market_id,
       network: "polygon",
     },
+    outcomeTokens: {
+      yes: "",
+      no: "",
+    },
+    yesBestAsk: data.yes_best_sell_price,
+    noBestAsk: data.no_best_sell_price,
+    yesBestBid: data.yes_best_buy_price,
+    noBestBid: data.no_best_buy_price,
   };
 }
 
-function transformLimitlessData(data: ConsolidatedMarketResponse['limitlessMarkets'][string]): LimitlessMarket {
+function transformLimitlessData(data: LimitlessMarketData): LimitlessMarket {
   return {
     id: data.id,
     provider: "LIMITLESS",
     question: data.title,
     description: "",
-    status: data.status,
+    status: data.status as MarketStatus,
     slug: "",
     expirationDate: data.expiration_date,
     timestamps: {
@@ -197,36 +216,42 @@ function transformLimitlessData(data: ConsolidatedMarketResponse['limitlessMarke
   };
 }
 
-function transformConsolidatedData(response: { success: boolean, data: ConsolidatedMarketResponse[] } | ConsolidatedMarketResponse[]): GroupedMarketCard[] {
-  // Handle both wrapped and unwrapped responses
+function transformConsolidatedData(
+  response:
+    | { success: boolean; data: ConsolidatedMarketResponse[] }
+    | ConsolidatedMarketResponse[]
+): GroupedMarketCard[] {
   const data = Array.isArray(response) ? response : response.data;
-  
+
   if (!Array.isArray(data)) {
     console.error("Invalid data structure received:", data);
     return [];
   }
 
   return data
-    .filter(item => item.kalshiMarkets || item.polymarketMarkets || item.limitlessMarkets) // Filter out items where all markets are null
-    .map(item => {
+    .filter(
+      (item) =>
+        item.kalshiMarkets || item.polymarketMarkets || item.limitlessMarkets
+    )
+    .map((item) => {
       const limitlessMarkets = item.limitlessMarkets
-        ? Object.values(item.limitlessMarkets).map(market => ({
+        ? Object.values(item.limitlessMarkets).map((market) => ({
             market: transformLimitlessData(market),
-            similarity: 1
+            similarity: 1,
           }))
         : [];
 
       const polymarketMarkets = item.polymarketMarkets
-        ? Object.values(item.polymarketMarkets).map(market => ({
+        ? Object.values(item.polymarketMarkets).map((market) => ({
             market: transformPolymarketData(market),
-            similarity: 1
+            similarity: 1,
           }))
         : [];
 
       const kalshiMarkets = item.kalshiMarkets
-        ? Object.values(item.kalshiMarkets).map(market => ({
+        ? Object.values(item.kalshiMarkets).map((market) => ({
             market: transformKalshiData(market),
-            similarity: 1
+            similarity: 1,
           }))
         : [];
 
@@ -237,19 +262,20 @@ function transformConsolidatedData(response: { success: boolean, data: Consolida
         metrics: item.metrics,
         limitlessMarkets,
         polymarketMarkets,
-        kalshiMarkets
+        kalshiMarkets,
       };
     });
 }
 
-export async function GET(request: Request) {
+export async function GET(
+  request: Request
+): Promise<NextResponse<GroupedMarketsResponse>> {
   try {
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
     const offset = (page - 1) * limit;
 
-    // Check cache
     if (marketCache && Date.now() - marketCache.timestamp < CACHE_DURATION) {
       const start = (page - 1) * limit;
       const end = start + limit;
@@ -263,7 +289,7 @@ export async function GET(request: Request) {
           itemsPerPage: limit,
           hasNextPage: end < marketCache.data.length,
           hasPreviousPage: page > 1,
-        }
+        },
       });
     }
 
@@ -271,25 +297,25 @@ export async function GET(request: Request) {
       `${FASTAPI_URL}/api/v1/grouped-markets/fetch_consolidated_markets?limit=${limit}&offset=${offset}`,
       {
         headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache'
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
         },
-        next: { revalidate: 0 }
+        next: { revalidate: 0 },
       }
     );
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch consolidated markets: ${response.status}`);
+      throw new Error(
+        `Failed to fetch consolidated markets: ${response.status}`
+      );
     }
 
     const rawData = await response.json();
-
     const transformedData = transformConsolidatedData(rawData);
 
-    // Update cache
     marketCache = {
       data: transformedData,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     return NextResponse.json({
@@ -301,10 +327,9 @@ export async function GET(request: Request) {
         totalItems: transformedData.length * page,
         totalPages: Math.ceil((transformedData.length * page) / limit),
         hasNextPage: transformedData.length === limit,
-        hasPreviousPage: page > 1
-      }
+        hasPreviousPage: page > 1,
+      },
     });
-
   } catch (error) {
     console.error("Error in consolidated markets API:", error);
     return NextResponse.json({
@@ -317,7 +342,7 @@ export async function GET(request: Request) {
         itemsPerPage: 10,
         hasNextPage: false,
         hasPreviousPage: false,
-      }
+      },
     });
   }
 }

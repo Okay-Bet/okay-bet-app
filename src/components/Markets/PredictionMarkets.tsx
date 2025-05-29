@@ -32,7 +32,7 @@ const MarketGrid = React.memo(
 MarketGrid.displayName = "MarketGrid";
 
 interface PredictionMarketsProps {
-  initialData: {
+  initialData?: {
     data: GroupedMarketCardType[];
     pagination: {
       currentPage: number;
@@ -42,7 +42,7 @@ interface PredictionMarketsProps {
       totalItems: number;
       itemsPerPage: number;
     };
-  } | null;
+  };
 }
 
 const PredictionMarkets = ({ initialData }: PredictionMarketsProps) => {

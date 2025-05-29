@@ -53,7 +53,9 @@ export default async function Home({
 
         <Suspense fallback={<div>Loading markets...</div>}>
           <Providers>
+            <BetSlipProvider>
             <PredictionMarkets initialData={initialData} />
+            </BetSlipProvider>
           </Providers>
         </Suspense>
       </div>
