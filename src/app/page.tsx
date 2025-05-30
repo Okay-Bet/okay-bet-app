@@ -7,23 +7,21 @@ import Providers from "../components/Providers/Providers";
 
 async function getInitialMarkets(page: number = 1, limit: number = 10) {
   try {
-    const headersList = headers();
-    const host = headersList.get('host');
+    // When using fetch in a Server Component, we need to use the full URL
+    const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
+    const host = headers().get('host') || 'localhost:3000';
+    const url = new URL(`/api/grouped-markets`, `${protocol}://${host}`);
     
-    // Determine the proper base URL
-    const baseUrl = process.env.NODE_ENV === 'development' 
-      ? 'http://localhost:3000' // Use HTTP for local development
-      : `https://${host}`;
-    
-    const res = await fetch(
-      `${baseUrl}/api/grouped-markets?page=${page}&limit=${limit}`,
-      { 
-        cache: 'no-store',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    // Add query parameters
+    url.searchParams.set('page', page.toString());
+    url.searchParams.set('limit', limit.toString());
+
+    const res = await fetch(url, { 
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
     if (!res.ok) throw new Error('Failed to fetch markets');
     return res.json();

@@ -9,11 +9,14 @@ import type {
 } from "@/components/types/market";
 import { MarketStatus } from "@/components/types/core";
 
-const FASTAPI_URL = process.env.FASTAPI_BASE_URL || "http://localhost:8000";
+const FASTAPI_URL = process.env.FASTAPI_BASE_URL;
+if (!FASTAPI_URL) {
+  console.error("FASTAPI_BASE_URL environment variable is not set");
+}
 
-// Cache configuration
-const CACHE_DURATION = 30000;
-let marketCache: { data: GroupedMarketCard[]; timestamp: number } | null = null;
+// // Cache configuration
+// const CACHE_DURATION = 30000;
+// let marketCache: { data: GroupedMarketCard[]; timestamp: number } | null = null;
 
 interface MarketMetrics {
   id: string;
@@ -25,8 +28,8 @@ interface MarketMetrics {
 type KalshiMarketData = {
   market_id: string;
   title: string;
-  description: string; 
-  rules: string; 
+  description: string;
+  rules: string;
   status: string;
   volume: number;
   liquidity: number;
@@ -40,8 +43,8 @@ type KalshiMarketData = {
 type PolymarketData = {
   market_id: string;
   question: string;
-  description: string; 
-  rules: string; 
+  description: string;
+  rules: string;
   volume: string | number;
   liquidity: string | number;
   end_date: string;
@@ -55,8 +58,8 @@ type PolymarketData = {
 type LimitlessMarketData = {
   id: string;
   title: string;
-  description: string; 
-  rules: string; 
+  description: string;
+  rules: string;
   status: string;
   volume: number;
   liquidity: number;
@@ -85,10 +88,10 @@ interface ConsolidatedMarketResponse {
 }
 
 function transformKalshiData(data: KalshiMarketData): KalshiMarket {
-   const description = data.description || '';
-  const rules = data.rules || '';
-  const fullDescription = [description, rules].filter(Boolean).join('\n\n');
-  
+  const description = data.description || "";
+  const rules = data.rules || "";
+  const fullDescription = [description, rules].filter(Boolean).join("\n\n");
+
   return {
     id: data.market_id,
     provider: "KALSHI",
@@ -135,13 +138,17 @@ function transformKalshiData(data: KalshiMarketData): KalshiMarket {
 }
 
 function transformPolymarketData(data: PolymarketData): PolymarketMarket {
-  const description = data.description || '';
-  const rules = data.rules || '';
-  const fullDescription = [description, rules].filter(Boolean).join('\n\n');
-  
-  const volume = typeof data.volume === 'string' ? parseFloat(data.volume) : data.volume;
-  const liquidity = typeof data.liquidity === 'string' ? parseFloat(data.liquidity) : data.liquidity;
-  
+  const description = data.description || "";
+  const rules = data.rules || "";
+  const fullDescription = [description, rules].filter(Boolean).join("\n\n");
+
+  const volume =
+    typeof data.volume === "string" ? parseFloat(data.volume) : data.volume;
+  const liquidity =
+    typeof data.liquidity === "string"
+      ? parseFloat(data.liquidity)
+      : data.liquidity;
+
   return {
     id: data.market_id,
     provider: "POLYMARKET",
@@ -192,10 +199,10 @@ function transformPolymarketData(data: PolymarketData): PolymarketMarket {
 }
 
 function transformLimitlessData(data: LimitlessMarketData): LimitlessMarket {
-  const description = data.description || '';
-  const rules = data.rules || '';
-  const fullDescription = [description, rules].filter(Boolean).join('\n\n');
-  
+  const description = data.description || "";
+  const rules = data.rules || "";
+  const fullDescription = [description, rules].filter(Boolean).join("\n\n");
+
   return {
     id: data.id,
     provider: "LIMITLESS",
@@ -299,47 +306,33 @@ export async function GET(
     const limit = parseInt(searchParams.get("limit") || "10");
     const offset = (page - 1) * limit;
 
-    if (marketCache && Date.now() - marketCache.timestamp < CACHE_DURATION) {
-      const start = (page - 1) * limit;
-      const end = start + limit;
-      return NextResponse.json({
-        success: true,
-        data: marketCache.data.slice(start, end),
-        pagination: {
-          currentPage: page,
-          totalPages: Math.ceil(marketCache.data.length / limit),
-          totalItems: marketCache.data.length,
-          itemsPerPage: limit,
-          hasNextPage: end < marketCache.data.length,
-          hasPreviousPage: page > 1,
-        },
-      });
-    }
 
     const response = await fetch(
       `${FASTAPI_URL}/api/v1/grouped-markets/fetch_consolidated_markets?limit=${limit}&offset=${offset}`,
       {
         headers: {
           "Content-Type": "application/json",
-          "Cache-Control": "no-cache",
         },
-        next: { revalidate: 0 },
+        // Disable caching for now to debug
+        cache: "no-store",
       }
     );
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error("FastAPI error:", {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText,
+      });
+
       throw new Error(
-        `Failed to fetch consolidated markets: ${response.status}`
+        `FastAPI request failed: ${response.status} ${response.statusText}`
       );
     }
 
     const rawData = await response.json();
     const transformedData = transformConsolidatedData(rawData);
-
-    marketCache = {
-      data: transformedData,
-      timestamp: Date.now(),
-    };
 
     return NextResponse.json({
       success: true,
@@ -347,16 +340,22 @@ export async function GET(
       pagination: {
         currentPage: page,
         itemsPerPage: limit,
-        totalItems: transformedData.length * page,
-        totalPages: Math.ceil((transformedData.length * page) / limit),
+        totalItems: transformedData.length,
+        totalPages: Math.ceil(transformedData.length / limit),
         hasNextPage: transformedData.length === limit,
         hasPreviousPage: page > 1,
       },
     });
   } catch (error) {
-    console.error("Error in consolidated markets API:", error);
+    // Enhanced error logging
+    console.error("Markets API error:", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+
     return NextResponse.json({
       success: false,
+      error: error instanceof Error ? error.message : "Internal server error",
       data: [],
       pagination: {
         currentPage: 1,
