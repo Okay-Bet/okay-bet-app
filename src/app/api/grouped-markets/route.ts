@@ -306,26 +306,18 @@ export async function GET(
     const limit = parseInt(searchParams.get("limit") || "10");
     const offset = (page - 1) * limit;
 
-
     const response = await fetch(
       `${FASTAPI_URL}/api/v1/grouped-markets/fetch_consolidated_markets?limit=${limit}&offset=${offset}`,
       {
         headers: {
           "Content-Type": "application/json",
         },
-        // Disable caching for now to debug
-        cache: "no-store",
+        next: { revalidate: 30 },
+        // cache: "no-store", // Remove caching
       }
     );
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("FastAPI error:", {
-        status: response.status,
-        statusText: response.statusText,
-        error: errorText,
-      });
-
       throw new Error(
         `FastAPI request failed: ${response.status} ${response.statusText}`
       );
@@ -347,12 +339,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    // Enhanced error logging
-    console.error("Markets API error:", {
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-
+    console.error("Markets API error:", error);
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : "Internal server error",

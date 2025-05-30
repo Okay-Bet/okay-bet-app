@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback } from "react";
+import React from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useGroupedMarkets } from "@/hooks/useGroupedMarkets";
 import { GroupedMarketCard } from "./GroupedMarketCard";
@@ -8,56 +8,24 @@ import { BetSlip } from "../Bet/BetSlip";
 import ConnectWallet from "../User/ConnectWallet";
 import Pitch from "../Landing/Pitch";
 import Testimonials from "../Landing/Testimonials";
-import type { GroupedMarketCard as GroupedMarketCardType } from "@/components/types";
 
 const LoadingSpinner = () => (
-  <div className="text-center py-4">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+  <div className="flex justify-center items-center min-h-[200px]">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+    <p className="ml-3 text-gray-600">Loading markets data...</p>
   </div>
 );
 
-const MarketGrid = React.memo(
-  ({ markets }: { markets: GroupedMarketCardType[] }) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {markets.map((groupedMarket) => (
-        <GroupedMarketCard
-          key={groupedMarket.id}
-          groupedMarket={groupedMarket}
-        />
-      ))}
-    </div>
-  )
-);
-
-MarketGrid.displayName = "MarketGrid";
-
-interface PredictionMarketsProps {
-  initialData?: {
-    data: GroupedMarketCardType[];
-    pagination: {
-      currentPage: number;
-      totalPages: number;
-      hasNextPage: boolean;
-      hasPreviousPage: boolean;
-      totalItems: number;
-      itemsPerPage: number;
-    };
-  };
-}
-
-const PredictionMarkets = ({ initialData }: PredictionMarketsProps) => {
+const PredictionMarkets = () => {
   const { authenticated, ready } = usePrivy();
-  const { 
-    groupedMarkets, 
-    loading, 
-    error, 
-    hasMore, 
-    loadMore, 
-    page 
-  } = useGroupedMarkets(initialData);
 
   if (!ready) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex justify-center items-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        <p className="ml-3 text-gray-600">Initializing...</p>
+      </div>
+    );
   }
 
   if (!authenticated) {
@@ -70,10 +38,30 @@ const PredictionMarkets = ({ initialData }: PredictionMarketsProps) => {
     );
   }
 
+  return <AuthenticatedMarketsView />;
+};
+
+const AuthenticatedMarketsView = () => {
+  const { 
+    groupedMarkets, 
+    loading, 
+    error, 
+    hasMore, 
+    loadMore, 
+    page 
+  } = useGroupedMarkets();
+
   if (error) {
     return (
-      <div className="text-center text-red-500 py-4">
-        Error loading markets: {error}
+      <div className="text-center text-red-500 py-4 min-h-[200px] flex flex-col items-center justify-center">
+        <p className="text-lg font-semibold">Error loading markets</p>
+        <p className="text-sm mt-2">{error}</p>
+        <button 
+          onClick={() => loadMore(1)} 
+          className="mt-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+        >
+          Try Again
+        </button>
       </div>
     );
   }
@@ -81,35 +69,54 @@ const PredictionMarkets = ({ initialData }: PredictionMarketsProps) => {
   return (
     <div className="container mx-auto px-4">
       <ConnectWallet />
-      <MarketGrid markets={groupedMarkets} />
       
-      <div className="flex justify-center gap-4 my-6">
-        {page > 1 && (
-          <button
-            onClick={() => loadMore(page - 1)}
-            className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
-            disabled={loading}
-          >
-            Previous
-          </button>
-        )}
-        
-        <span className="px-4 py-2">
-          Page {page}
-        </span>
+      {loading && groupedMarkets.length === 0 ? (
+        <LoadingSpinner />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {groupedMarkets.map((groupedMarket) => (
+              <GroupedMarketCard
+                key={groupedMarket.id}
+                groupedMarket={groupedMarket}
+              />
+            ))}
+          </div>
+          
+          <div className="flex justify-center gap-4 my-6">
+            {page > 1 && (
+              <button
+                onClick={() => loadMore(page - 1)}
+                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 transition-opacity"
+                disabled={loading}
+              >
+                Previous
+              </button>
+            )}
+            
+            <span className="px-4 py-2">
+              Page {page}
+            </span>
 
-        {hasMore && (
-          <button
-            onClick={() => loadMore(page + 1)}
-            className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
-            disabled={loading}
-          >
-            Next
-          </button>
-        )}
-        
-        {loading && <LoadingSpinner />}
-      </div>
+            {hasMore && (
+              <button
+                onClick={() => loadMore(page + 1)}
+                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 transition-opacity"
+                disabled={loading}
+              >
+                Next
+              </button>
+            )}
+            
+            {loading && (
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
+                <span className="ml-2 text-sm text-gray-600">Loading...</span>
+              </div>
+            )}
+          </div>
+        </>
+      )}
       
       <BetSlip />
       <Testimonials />

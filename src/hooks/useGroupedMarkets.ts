@@ -77,30 +77,17 @@ export function useGroupedMarkets(
     initialData?.pagination.hasNextPage || false
   );
 
-  const loadingRef = useRef(false);
-  const fetchInProgress = useRef(false);
   const ITEMS_PER_PAGE = initialData?.pagination.itemsPerPage || 9;
-
   const { addBet } = useBetSlip();
 
   const fetchGroupedMarkets = useCallback(
     async (pageNum: number) => {
-      if (loadingRef.current || fetchInProgress.current) return;
-
-      loadingRef.current = true;
-      fetchInProgress.current = true;
-
       try {
         setLoading(true);
-        const timestamp = new Date().getTime();
         const response = await fetch(
-          `/api/grouped-markets?page=${pageNum}&limit=${ITEMS_PER_PAGE}&t=${timestamp}`,
+          `/api/grouped-markets?page=${pageNum}&limit=${ITEMS_PER_PAGE}`,
           {
-            headers: {
-              "Cache-Control": "no-cache",
-              Pragma: "no-cache",
-            },
-            credentials: "include",
+            cache: "no-store",
           }
         );
 
@@ -114,11 +101,9 @@ export function useGroupedMarkets(
           throw new Error("Invalid data structure received from API");
         }
 
-        // For subsequent pages, append the data
         setGroupedMarkets((prevMarkets) =>
           pageNum === 1 ? data : [...prevMarkets, ...data]
         );
-
         setHasMore(pagination.hasNextPage);
         setPage(pageNum);
         setError(null);
@@ -126,15 +111,12 @@ export function useGroupedMarkets(
         console.error("Error fetching markets:", err);
         setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
-        loadingRef.current = false;
-        fetchInProgress.current = false;
         setLoading(false);
       }
     },
     [ITEMS_PER_PAGE]
   );
 
-  // Only fetch if no initial data provided
   useEffect(() => {
     if (!initialData) {
       fetchGroupedMarkets(1);
@@ -180,7 +162,7 @@ export function useGroupedMarkets(
 
       const bet: PolymarketBet = {
         marketId: market.id,
-        eventTitle: market.question, 
+        eventTitle: market.question,
         marketQuestion: market.question,
         position,
         price: priceToUse,
