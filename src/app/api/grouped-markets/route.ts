@@ -297,61 +297,81 @@ function transformConsolidatedData(
     });
 }
 
-export async function GET(
-  request: Request
-): Promise<NextResponse<GroupedMarketsResponse>> {
+export async function GET(request: Request) {
   try {
+    // Get search params
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
     const offset = (page - 1) * limit;
 
+    // Create cache key based on pagination params
+    const cacheKey = `markets-page-${page}-limit-${limit}`;
+
+    // Fetch with cache configuration
     const response = await fetch(
       `${FASTAPI_URL}/api/v1/grouped-markets/fetch_consolidated_markets?limit=${limit}&offset=${offset}`,
       {
+        next: {
+          revalidate: 30, // Cache for 30 seconds
+          tags: [cacheKey], // Tag for cache invalidation if needed
+        },
         headers: {
           "Content-Type": "application/json",
         },
-        next: { revalidate: 30 },
-        // cache: "no-store", // Remove caching
       }
     );
 
     if (!response.ok) {
-      throw new Error(
-        `FastAPI request failed: ${response.status} ${response.statusText}`
-      );
+      throw new Error(`FastAPI request failed: ${response.status}`);
     }
 
     const rawData = await response.json();
     const transformedData = transformConsolidatedData(rawData);
 
-    return NextResponse.json({
-      success: true,
-      data: transformedData,
-      pagination: {
-        currentPage: page,
-        itemsPerPage: limit,
-        totalItems: transformedData.length,
-        totalPages: Math.ceil(transformedData.length / limit),
-        hasNextPage: transformedData.length === limit,
-        hasPreviousPage: page > 1,
+    // Return response with cache headers
+    return NextResponse.json(
+      {
+        success: true,
+        data: transformedData,
+        pagination: {
+          currentPage: page,
+          itemsPerPage: limit,
+          totalItems: transformedData.length,
+          totalPages: Math.ceil(transformedData.length / limit),
+          hasNextPage: transformedData.length === limit,
+          hasPreviousPage: page > 1,
+        },
       },
-    });
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=30, stale-while-revalidate=59",
+        },
+      }
+    );
   } catch (error) {
     console.error("Markets API error:", error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : "Internal server error",
-      data: [],
-      pagination: {
-        currentPage: 1,
-        totalPages: 0,
-        totalItems: 0,
-        itemsPerPage: 10,
-        hasNextPage: false,
-        hasPreviousPage: false,
+    // Error responses should not be cached
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error",
+        data: [],
+        pagination: {
+          currentPage: 1,
+          totalPages: 0,
+          totalItems: 0,
+          itemsPerPage: 10,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
       },
-    });
+      {
+        status: 500,
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
   }
 }

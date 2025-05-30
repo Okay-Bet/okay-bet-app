@@ -87,7 +87,9 @@ export function useGroupedMarkets(
         const response = await fetch(
           `/api/grouped-markets?page=${pageNum}&limit=${ITEMS_PER_PAGE}`,
           {
-            cache: "no-store",
+            headers: {
+              "Content-Type": "application/json",
+            },
           }
         );
 
