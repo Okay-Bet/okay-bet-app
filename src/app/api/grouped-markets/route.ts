@@ -22,10 +22,11 @@ interface MarketMetrics {
   openInterest: number;
 }
 
-// Define the data structures we receive from the API
 type KalshiMarketData = {
   market_id: string;
   title: string;
+  description: string; 
+  rules: string; 
   status: string;
   volume: number;
   liquidity: number;
@@ -39,6 +40,8 @@ type KalshiMarketData = {
 type PolymarketData = {
   market_id: string;
   question: string;
+  description: string; 
+  rules: string; 
   volume: string | number;
   liquidity: string | number;
   end_date: string;
@@ -51,6 +54,8 @@ type PolymarketData = {
 type LimitlessMarketData = {
   id: string;
   title: string;
+  description: string; 
+  rules: string; 
   status: string;
   volume: number;
   liquidity: number;
@@ -78,11 +83,15 @@ interface ConsolidatedMarketResponse {
 }
 
 function transformKalshiData(data: KalshiMarketData): KalshiMarket {
+   const description = data.description || '';
+  const rules = data.rules || '';
+  const fullDescription = [description, rules].filter(Boolean).join('\n\n');
+  
   return {
     id: data.market_id,
     provider: "KALSHI",
     question: data.title,
-    description: "",
+    description: fullDescription,
     ticker: data.event_ticker,
     category: data.event_ticker,
     status: data.status as MarketStatus,
@@ -104,6 +113,7 @@ function transformKalshiData(data: KalshiMarketData): KalshiMarket {
       openInterest: String(data.open_interest || 0),
       openInterestRaw: String(data.open_interest || 0),
     },
+    volume24H: data.volume || 0,
     prices: {
       yes: {
         bid: data.best_bid_price,
@@ -123,11 +133,18 @@ function transformKalshiData(data: KalshiMarketData): KalshiMarket {
 }
 
 function transformPolymarketData(data: PolymarketData): PolymarketMarket {
+  const description = data.description || '';
+  const rules = data.rules || '';
+  const fullDescription = [description, rules].filter(Boolean).join('\n\n');
+  
+  const volume = typeof data.volume === 'string' ? parseFloat(data.volume) : data.volume;
+  const liquidity = typeof data.liquidity === 'string' ? parseFloat(data.liquidity) : data.liquidity;
+  
   return {
     id: data.market_id,
     provider: "POLYMARKET",
     question: data.question,
-    description: "",
+    description: fullDescription,
     slug: "",
     status: "ACTIVE",
     expirationDate: data.end_date,
@@ -140,12 +157,12 @@ function transformPolymarketData(data: PolymarketData): PolymarketMarket {
       decimals: 6,
     },
     metrics: {
-      volume: String(data.volume),
-      volumeRaw: String(data.volume),
-      liquidity: String(data.liquidity),
-      liquidityRaw: String(data.liquidity),
-      openInterest: "0",
-      openInterestRaw: "0",
+      volume: String(volume),
+      volumeRaw: String(volume),
+      liquidity: String(liquidity),
+      liquidityRaw: String(liquidity),
+      openInterest: String(liquidity),
+      openInterestRaw: String(liquidity),
     },
     prices: {
       yes: {
@@ -173,11 +190,15 @@ function transformPolymarketData(data: PolymarketData): PolymarketMarket {
 }
 
 function transformLimitlessData(data: LimitlessMarketData): LimitlessMarket {
+  const description = data.description || '';
+  const rules = data.rules || '';
+  const fullDescription = [description, rules].filter(Boolean).join('\n\n');
+  
   return {
     id: data.id,
     provider: "LIMITLESS",
     question: data.title,
-    description: "",
+    description: fullDescription,
     status: data.status as MarketStatus,
     slug: "",
     expirationDate: data.expiration_date,
@@ -195,8 +216,8 @@ function transformLimitlessData(data: LimitlessMarketData): LimitlessMarket {
       volumeRaw: String(data.volume || 0),
       liquidity: String(data.liquidity || 0),
       liquidityRaw: String(data.liquidity || 0),
-      openInterest: "0",
-      openInterestRaw: "0",
+      openInterest: String(data.liquidity || 0),
+      openInterestRaw: String(data.liquidity || 0),
     },
     prices: {
       yes: {

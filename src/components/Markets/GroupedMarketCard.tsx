@@ -39,23 +39,44 @@ const MarketDetailsSection = React.memo<MarketDetailsProps>(
         const volume = parseFloat(market.volume24H?.toString() || "0");
         return `$${volume.toLocaleString()}`;
       }
-      return `$${(
-        parseFloat(market.metrics.volumeRaw) / 1e6
-      ).toLocaleString()}`;
+      const volume = parseFloat(market.metrics.volumeRaw || "0");
+      return `$${volume.toLocaleString()}`;
     }, [market]);
 
     const getLiquidityDisplay = useCallback(() => {
       if (market.provider === "KALSHI") {
-        return `$${parseFloat(market.metrics.liquidity).toLocaleString()}`;
+        const liquidity = parseFloat(market.metrics.liquidity || "0");
+        return `$${liquidity.toLocaleString()}`;
       }
-      return `$${(
-        parseFloat(market.metrics.openInterestRaw) / 1e6
-      ).toLocaleString()}`;
+      const liquidity = parseFloat(market.metrics.liquidityRaw || "0");
+      return `$${liquidity.toLocaleString()}`;
     }, [market]);
+
+    const renderDescription = useCallback((description: string) => {
+      // Check if the content contains HTML tags
+      const hasHtml = /<[a-z][\s\S]*>/i.test(description);
+
+      if (hasHtml) {
+        return (
+          <div
+            className="prose prose-sm text-gray-600 max-w-none [&_a]:text-blue-600 [&_a]:underline"
+            dangerouslySetInnerHTML={{ __html: description }}
+          />
+        );
+      }
+
+      // For plain text, render with normal spacing
+      return (
+        <div className="prose prose-sm text-gray-600 max-w-none">
+          <p>{description}</p>
+        </div>
+      );
+    }, []);
 
     return (
       <div className={`px-4 py-3 rounded-lg ${className}`}>
-        <div className="space-y-3">
+        <div className="space-y-4">
+          {/* Metrics Grid */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center">
               <span className="text-gray-500 w-24">Volume:</span>
@@ -73,6 +94,7 @@ const MarketDetailsSection = React.memo<MarketDetailsProps>(
             </div>
           </div>
 
+          {/* Expiration Date */}
           <div className="flex items-center">
             <span className="text-gray-500 w-24">Ends:</span>
             <span className="text-gray-800">
@@ -80,7 +102,10 @@ const MarketDetailsSection = React.memo<MarketDetailsProps>(
             </span>
           </div>
 
-          <p className="text-sm text-gray-600 mt-2">{market.description}</p>
+          {/* Market Description */}
+          {market.description && (
+            <div className="mt-2">{renderDescription(market.description)}</div>
+          )}
         </div>
       </div>
     );
@@ -143,7 +168,7 @@ const MarketRow = React.memo<{
               className="object-contain"
               fill
               sizes="64px"
-              priority={false} // Only prioritize visible logos
+              priority={false}
             />
           </div>
         </div>
@@ -190,29 +215,33 @@ export const GroupedMarketCard = React.memo<{
   const { limitlessMarkets, polymarketMarkets, kalshiMarkets, title } =
     groupedMarket;
 
-  // Memoize the expanded markets list
-  const expandedMarketsContent = useMemo(() => {
-    if (expandedMarkets.size === 0) return null;
-
-    const allMarkets = [
-      ...limitlessMarkets,
-      ...polymarketMarkets,
-      ...kalshiMarkets,
-    ];
-
-    return [...expandedMarkets].map((marketId) => {
-      const marketData = allMarkets.find((m) => m.market.id === marketId);
-      if (!marketData) return null;
+  const renderMarketWithDetails = useCallback(
+    (
+      { market }: { market: LimitlessMarket | PolymarketMarket | KalshiMarket },
+      provider: keyof typeof PROVIDER_LOGOS,
+      onBetClick: (market: any, position: "YES" | "NO") => void
+    ) => {
+      const isExpanded = expandedMarkets.has(market.id);
 
       return (
-        <MarketDetailsSection
-          key={marketId}
-          market={marketData.market}
-          className="bg-gray-50 rounded-lg mt-2"
-        />
+        <div key={market.id} className="space-y-2">
+          <MarketRow
+            market={market}
+            onBetClick={onBetClick}
+            onExpandClick={() => toggleMarketExpanded(market.id)}
+            provider={provider}
+          />
+          {isExpanded && (
+            <MarketDetailsSection
+              market={market}
+              className="bg-gray-50 rounded-lg ml-2"
+            />
+          )}
+        </div>
       );
-    });
-  }, [expandedMarkets, limitlessMarkets, polymarketMarkets, kalshiMarkets]);
+    },
+    [expandedMarkets, toggleMarketExpanded]
+  );
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200/80 w-full">
@@ -221,40 +250,20 @@ export const GroupedMarketCard = React.memo<{
       </div>
 
       <div className="p-2 space-y-2">
-        {limitlessMarkets.map(({ market }) => (
-          <MarketRow
-            key={market.id}
-            market={market}
-            onBetClick={handleBetClick}
-            onExpandClick={() => toggleMarketExpanded(market.id)}
-            provider="LIMITLESS"
-          />
-        ))}
+        {limitlessMarkets.map((marketData) =>
+          renderMarketWithDetails(marketData, "LIMITLESS", handleBetClick)
+        )}
 
-        {polymarketMarkets.map(({ market }) => (
-          <MarketRow
-            key={market.id}
-            market={market}
-            onBetClick={handlePolymarketBetClick}
-            onExpandClick={() => toggleMarketExpanded(market.id)}
-            provider="POLYMARKET"
-          />
-        ))}
+        {polymarketMarkets.map((marketData) =>
+          renderMarketWithDetails(
+            marketData,
+            "POLYMARKET",
+            handlePolymarketBetClick
+          )
+        )}
 
-        {kalshiMarkets.map(({ market }) => (
-          <MarketRow
-            key={market.id}
-            market={market}
-            onBetClick={handleKalshiBetClick}
-            onExpandClick={() => toggleMarketExpanded(market.id)}
-            provider="KALSHI"
-          />
-        ))}
-
-        {expandedMarkets.size > 0 && (
-          <div className="mt-4 border-t border-gray-200 pt-4">
-            {expandedMarketsContent}
-          </div>
+        {kalshiMarkets.map((marketData) =>
+          renderMarketWithDetails(marketData, "KALSHI", handleKalshiBetClick)
         )}
       </div>
     </div>
