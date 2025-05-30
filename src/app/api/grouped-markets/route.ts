@@ -49,6 +49,7 @@ type PolymarketData = {
   no_best_sell_price: number;
   yes_best_buy_price: number;
   yes_best_sell_price: number;
+  market_slug: string;
 };
 
 type LimitlessMarketData = {
@@ -62,6 +63,7 @@ type LimitlessMarketData = {
   expiration_date: string;
   best_ask_price: number;
   best_bid_price: number;
+  slug: string;
 };
 
 interface ConsolidatedMarketResponse {
@@ -145,7 +147,7 @@ function transformPolymarketData(data: PolymarketData): PolymarketMarket {
     provider: "POLYMARKET",
     question: data.question,
     description: fullDescription,
-    slug: "",
+    slug: data.market_slug,
     status: "ACTIVE",
     expirationDate: data.end_date,
     timestamps: {
@@ -200,7 +202,7 @@ function transformLimitlessData(data: LimitlessMarketData): LimitlessMarket {
     question: data.title,
     description: fullDescription,
     status: data.status as MarketStatus,
-    slug: "",
+    slug: data.slug,
     expirationDate: data.expiration_date,
     timestamps: {
       created: new Date().toISOString(),

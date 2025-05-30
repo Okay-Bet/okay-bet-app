@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import React, { createContext, useContext, useState, useCallback } from "react";
 
@@ -56,12 +56,12 @@ export const BetSlipProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
       if (!limitlessBet.marketSlug) {
-        console.error("Missing market slug for Limitless bet");
+        console.error("Missing market slug or URL for Limitless bet");
         return;
       }
     } else if (newBet.provider === "POLYMARKET") {
       if (!newBet.slug) {
-        console.error("Invalid Polymarket slug:", newBet.slug);
+        console.error("Missing slug for Polymarket bet");
         return;
       }
     }
@@ -100,6 +100,7 @@ export const BetSlipProvider: React.FC<{ children: React.ReactNode }> = ({
       return;
     }
 
+    console.log("Setting validated bet:", validatedBet); // Add debug logging
     setBet(validatedBet);
   }, []);
 

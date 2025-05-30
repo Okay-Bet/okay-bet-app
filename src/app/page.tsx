@@ -3,7 +3,6 @@ import { headers } from 'next/headers';
 import Image from "next/image";
 import Logo from "@/components/Logo/Logo";
 import PredictionMarkets from "@/components/Markets/PredictionMarkets";
-import { BetSlipProvider } from "./context/BetSlipContext";
 import Providers from "../components/Providers/Providers";
 
 async function getInitialMarkets(page: number = 1, limit: number = 10) {
@@ -53,9 +52,7 @@ export default async function Home({
 
         <Suspense fallback={<div>Loading markets...</div>}>
           <Providers>
-            <BetSlipProvider>
             <PredictionMarkets initialData={initialData} />
-            </BetSlipProvider>
           </Providers>
         </Suspense>
       </div>

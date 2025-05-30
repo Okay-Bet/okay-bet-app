@@ -33,8 +33,14 @@ interface UseGroupedMarketsReturn {
   loadMore: (newPage: number) => void;
   marketActions: {
     handleBetClick: (market: LimitlessMarket, position: "YES" | "NO") => void;
-    handlePolymarketBetClick: (market: PolymarketMarket, position: "YES" | "NO") => void;
-    handleKalshiBetClick: (market: KalshiMarket, position: "YES" | "NO") => void;
+    handlePolymarketBetClick: (
+      market: PolymarketMarket,
+      position: "YES" | "NO"
+    ) => void;
+    handleKalshiBetClick: (
+      market: KalshiMarket,
+      position: "YES" | "NO"
+    ) => void;
     toggleMarketExpanded: (marketId: string) => void;
   };
   marketStates: {
@@ -54,17 +60,23 @@ const getMarketPrice = (
   return market.prices[position]?.ask || 0;
 };
 
-export function useGroupedMarkets(initialData?: InitialData): UseGroupedMarketsReturn {
+export function useGroupedMarkets(
+  initialData?: InitialData
+): UseGroupedMarketsReturn {
   const [groupedMarkets, setGroupedMarkets] = useState<GroupedMarketCard[]>(
     initialData?.data || []
   );
   const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState<string | null>(null);
   const [showMoneyline, setShowMoneyline] = useState(false);
-  const [expandedMarkets, setExpandedMarkets] = useState<Set<string>>(new Set());
+  const [expandedMarkets, setExpandedMarkets] = useState<Set<string>>(
+    new Set()
+  );
   const [page, setPage] = useState(initialData?.pagination.currentPage || 1);
-  const [hasMore, setHasMore] = useState(initialData?.pagination.hasNextPage || false);
-  
+  const [hasMore, setHasMore] = useState(
+    initialData?.pagination.hasNextPage || false
+  );
+
   const loadingRef = useRef(false);
   const fetchInProgress = useRef(false);
   const ITEMS_PER_PAGE = initialData?.pagination.itemsPerPage || 9;
@@ -88,7 +100,7 @@ export function useGroupedMarkets(initialData?: InitialData): UseGroupedMarketsR
               "Cache-Control": "no-cache",
               Pragma: "no-cache",
             },
-            credentials: 'include'
+            credentials: "include",
           }
         );
 
@@ -99,14 +111,14 @@ export function useGroupedMarkets(initialData?: InitialData): UseGroupedMarketsR
         const { data, pagination } = await response.json();
 
         if (!data) {
-          throw new Error('Invalid data structure received from API');
+          throw new Error("Invalid data structure received from API");
         }
 
         // For subsequent pages, append the data
-        setGroupedMarkets(prevMarkets => 
+        setGroupedMarkets((prevMarkets) =>
           pageNum === 1 ? data : [...prevMarkets, ...data]
         );
-        
+
         setHasMore(pagination.hasNextPage);
         setPage(pageNum);
         setError(null);
@@ -143,7 +155,7 @@ export function useGroupedMarkets(initialData?: InitialData): UseGroupedMarketsR
 
       const bet: LimitlessBet = {
         marketId: market.id,
-        eventTitle: market.question,
+        eventTitle: market.question, // Add fallback to question
         marketQuestion: market.question,
         position,
         price: priceToUse,
@@ -168,7 +180,7 @@ export function useGroupedMarkets(initialData?: InitialData): UseGroupedMarketsR
 
       const bet: PolymarketBet = {
         marketId: market.id,
-        eventTitle: market.question,
+        eventTitle: market.question, 
         marketQuestion: market.question,
         position,
         price: priceToUse,
