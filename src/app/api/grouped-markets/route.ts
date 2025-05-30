@@ -299,7 +299,6 @@ function transformConsolidatedData(
 
 export async function GET(request: Request) {
   try {
-    // Get search params
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
@@ -308,13 +307,13 @@ export async function GET(request: Request) {
     // Create cache key based on pagination params
     const cacheKey = `markets-page-${page}-limit-${limit}`;
 
-    // Fetch with cache configuration
+    // Fetch consolidated markets
     const response = await fetch(
       `${FASTAPI_URL}/api/v1/grouped-markets/fetch_consolidated_markets?limit=${limit}&offset=${offset}`,
       {
         next: {
-          revalidate: 30, // Cache for 30 seconds
-          tags: [cacheKey], // Tag for cache invalidation if needed
+          revalidate: 30,
+          tags: [cacheKey],
         },
         headers: {
           "Content-Type": "application/json",
@@ -328,6 +327,67 @@ export async function GET(request: Request) {
 
     const rawData = await response.json();
     const transformedData = transformConsolidatedData(rawData);
+
+    // Collect all Polymarket IDs
+    const polymarketIds = transformedData
+      .flatMap((group) => group.polymarketMarkets.map((pm) => pm.market.id))
+      .filter(Boolean);
+
+    // If we have Polymarket markets, fetch their prices using our local API
+    if (polymarketIds.length > 0) {
+      try {
+        // Get the base URL from the incoming request
+        const url = new URL(request.url);
+        const baseUrl = `${url.protocol}//${url.host}`;
+
+        const pricesResponse = await fetch(`${baseUrl}/api/markets`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            type: "polymarketByIds",
+            conditionIds: polymarketIds,
+          }),
+          cache: "no-store",
+        });
+
+        if (pricesResponse.ok) {
+          const { markets: pricesData } = await pricesResponse.json();
+
+          // Update the transformed data with fresh prices
+          transformedData.forEach((group) => {
+            group.polymarketMarkets = group.polymarketMarkets.map((pm) => {
+              const updatedMarket = pricesData.find(
+                (p: { id: string; }) => p.id === pm.market.id
+              );
+              if (updatedMarket) {
+                return {
+                  ...pm,
+                  market: {
+                    ...pm.market,
+                    prices: updatedMarket.prices,
+                    yesBestAsk: updatedMarket.prices.yes.ask,
+                    noBestAsk: updatedMarket.prices.no.ask,
+                    yesBestBid: updatedMarket.prices.yes.bid,
+                    noBestBid: updatedMarket.prices.no.bid,
+                  },
+                };
+              }
+              return pm;
+            });
+          });
+        } else {
+          console.warn(
+            "Failed to fetch Polymarket prices:",
+            pricesResponse.status
+          );
+        }
+      } catch (priceError) {
+        console.warn("Error fetching Polymarket prices:", priceError);
+        // Continue with original data if price fetch fails
+      }
+    }
 
     // Return response with cache headers
     return NextResponse.json(
@@ -351,7 +411,6 @@ export async function GET(request: Request) {
     );
   } catch (error) {
     console.error("Markets API error:", error);
-    // Error responses should not be cached
     return NextResponse.json(
       {
         success: false,
