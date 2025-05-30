@@ -1,4 +1,3 @@
-// src/hooks/useGroupedMarkets.ts
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useBetSlip } from "../app/context/BetSlipContext";
 import type {
@@ -11,12 +10,27 @@ import type {
   KalshiBet,
 } from "../components/types";
 
+interface PaginationMetadata {
+  currentPage: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  totalItems: number;
+  itemsPerPage: number;
+}
+
+interface InitialData {
+  data: GroupedMarketCard[];
+  pagination: PaginationMetadata;
+}
+
 interface UseGroupedMarketsReturn {
   groupedMarkets: GroupedMarketCard[];
   loading: boolean;
   error: string | null;
   hasMore: boolean;
-  loadMore: () => void;
+  page: number;
+  loadMore: (newPage: number) => void;
   marketActions: {
     handleBetClick: (market: LimitlessMarket, position: "YES" | "NO") => void;
     handlePolymarketBetClick: (
@@ -46,98 +60,86 @@ const getMarketPrice = (
   return market.prices[position]?.ask || 0;
 };
 
-export function useGroupedMarkets(): UseGroupedMarketsReturn {
-  const [groupedMarkets, setGroupedMarkets] = useState<GroupedMarketCard[]>([]);
-  const [loading, setLoading] = useState(true);
+export function useGroupedMarkets(
+  initialData?: InitialData
+): UseGroupedMarketsReturn {
+  const [groupedMarkets, setGroupedMarkets] = useState<GroupedMarketCard[]>(
+    initialData?.data || []
+  );
+  const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState<string | null>(null);
   const [showMoneyline, setShowMoneyline] = useState(false);
   const [expandedMarkets, setExpandedMarkets] = useState<Set<string>>(
     new Set()
   );
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [page, setPage] = useState(initialData?.pagination.currentPage || 1);
+  const [hasMore, setHasMore] = useState(
+    initialData?.pagination.hasNextPage || false
+  );
 
+  const loadingRef = useRef(false);
   const fetchInProgress = useRef(false);
-  const ITEMS_PER_PAGE = 10;
+  const ITEMS_PER_PAGE = initialData?.pagination.itemsPerPage || 9;
 
   const { addBet } = useBetSlip();
 
   const fetchGroupedMarkets = useCallback(
-    async (pageNum: number, isLoadingMore = false) => {
-      // Prevent multiple concurrent fetches
-      if (fetchInProgress.current) {
-        return;
-      }
+    async (pageNum: number) => {
+      if (loadingRef.current || fetchInProgress.current) return;
+
+      loadingRef.current = true;
+      fetchInProgress.current = true;
 
       try {
-        fetchInProgress.current = true;
-        if (isLoadingMore) {
-          setIsFetchingMore(true);
-        } else {
-          setLoading(true);
-        }
-
+        setLoading(true);
+        const timestamp = new Date().getTime();
         const response = await fetch(
-          `/api/grouped-markets?page=${pageNum}&limit=${ITEMS_PER_PAGE}`
+          `/api/grouped-markets?page=${pageNum}&limit=${ITEMS_PER_PAGE}&t=${timestamp}`,
+          {
+            headers: {
+              "Cache-Control": "no-cache",
+              Pragma: "no-cache",
+            },
+            credentials: "include",
+          }
         );
 
         if (!response.ok) {
           throw new Error(`Failed to fetch markets: ${response.status}`);
         }
 
-        const data = await response.json();
+        const { data, pagination } = await response.json();
 
-        if (!data.success) {
-          throw new Error(data.error || "Failed to fetch grouped markets");
+        if (!data) {
+          throw new Error("Invalid data structure received from API");
         }
 
-        setGroupedMarkets((prev) => {
-          if (pageNum === 1) {
-            return data.data;
-          }
-          // Create a map of existing markets to avoid duplicates
-          const existingMarketsMap = new Map(
-            prev.map((market) => [market.id, market])
-          );
+        // For subsequent pages, append the data
+        setGroupedMarkets((prevMarkets) =>
+          pageNum === 1 ? data : [...prevMarkets, ...data]
+        );
 
-          // Update existing markets and add new ones
-          data.data.forEach((market: GroupedMarketCard) => {
-            existingMarketsMap.set(market.id, market);
-          });
-
-          return Array.from(existingMarketsMap.values());
-        });
-
-        setHasMore(data.data.length === ITEMS_PER_PAGE);
+        setHasMore(pagination.hasNextPage);
+        setPage(pageNum);
         setError(null);
       } catch (err) {
         console.error("Error fetching markets:", err);
         setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
-        setLoading(false);
-        setIsFetchingMore(false);
+        loadingRef.current = false;
         fetchInProgress.current = false;
+        setLoading(false);
       }
     },
-    []
+    [ITEMS_PER_PAGE]
   );
 
-  // Initial fetch only
+  // Only fetch if no initial data provided
   useEffect(() => {
-    fetchGroupedMarkets(1);
-    return () => {
-      fetchInProgress.current = false;
-    };
-  }, [fetchGroupedMarkets]);
-
-  const loadMore = useCallback(() => {
-    if (!loading && !isFetchingMore && hasMore && !fetchInProgress.current) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      fetchGroupedMarkets(nextPage, true);
+    if (!initialData) {
+      fetchGroupedMarkets(1);
     }
-  }, [loading, isFetchingMore, hasMore, page, fetchGroupedMarkets]);
+  }, [fetchGroupedMarkets, initialData]);
 
   const handleBetClick = useCallback(
     (market: LimitlessMarket, position: "YES" | "NO") => {
@@ -153,7 +155,7 @@ export function useGroupedMarkets(): UseGroupedMarketsReturn {
 
       const bet: LimitlessBet = {
         marketId: market.id,
-        eventTitle: market.question,
+        eventTitle: market.question, // Add fallback to question
         marketQuestion: market.question,
         position,
         price: priceToUse,
@@ -178,7 +180,7 @@ export function useGroupedMarkets(): UseGroupedMarketsReturn {
 
       const bet: PolymarketBet = {
         marketId: market.id,
-        eventTitle: market.question,
+        eventTitle: market.question, 
         marketQuestion: market.question,
         position,
         price: priceToUse,
@@ -232,10 +234,11 @@ export function useGroupedMarkets(): UseGroupedMarketsReturn {
 
   return {
     groupedMarkets,
-    loading: loading || isFetchingMore,
+    loading,
     error,
     hasMore,
-    loadMore,
+    page,
+    loadMore: fetchGroupedMarkets,
     marketActions: {
       handleBetClick,
       handlePolymarketBetClick,

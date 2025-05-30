@@ -101,7 +101,7 @@ const Pitch = () => {
             </h1>
 
             <p className="text-2xl text-white/90 mb-12 max-w-3xl mx-auto leading-relaxed font-bold">
-              Okay Bet is the application layer of prediction markets
+              Okay Bet provides apps on top of prediction markets
             </p>
 
             {/* Live Feature Section */}
@@ -112,8 +112,8 @@ const Pitch = () => {
                 </h2>
                 <p className="text-xl text-white/90 leading-relaxed">
                   Compare prices, rules, and liquidity between prediction
-                  markets on Limitless and Polymarket. Open trades directly
-                  through our app.
+                  markets on Limitless, Polymarket, and Kalshi. Find trades directly
+                  through the app.
                 </p>
               </div>
               <div className="md:w-1/2">

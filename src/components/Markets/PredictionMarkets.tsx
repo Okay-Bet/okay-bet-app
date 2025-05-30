@@ -1,10 +1,14 @@
-// src/components/Markets/PredictionMarkets.tsx
-import React, { useEffect } from 'react';
-import { useGroupedMarkets } from '@/hooks/useGroupedMarkets';
-import { GroupedMarketCard } from './GroupedMarketCard';
-import { BetSlip } from '../Bet/BetSlip';
-import InfiniteScroll from 'react-infinite-scroll-component';
-import type { GroupedMarketCard as GroupedMarketCardType } from '@/components/types';
+'use client';
+
+import React, { useCallback } from "react";
+import { usePrivy } from "@privy-io/react-auth";
+import { useGroupedMarkets } from "@/hooks/useGroupedMarkets";
+import { GroupedMarketCard } from "./GroupedMarketCard";
+import { BetSlip } from "../Bet/BetSlip";
+import ConnectWallet from "../User/ConnectWallet";
+import Pitch from "../Landing/Pitch";
+import Testimonials from "../Landing/Testimonials";
+import type { GroupedMarketCard as GroupedMarketCardType } from "@/components/types";
 
 const LoadingSpinner = () => (
   <div className="text-center py-4">
@@ -12,60 +16,105 @@ const LoadingSpinner = () => (
   </div>
 );
 
-const MarketGrid = React.memo(({ markets }: { markets: GroupedMarketCardType[] }) => (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-    {markets.map((groupedMarket) => (
-      <GroupedMarketCard 
-        key={groupedMarket.id} 
-        groupedMarket={groupedMarket} 
-      />
-    ))}
-  </div>
-));
+const MarketGrid = React.memo(
+  ({ markets }: { markets: GroupedMarketCardType[] }) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {markets.map((groupedMarket) => (
+        <GroupedMarketCard
+          key={groupedMarket.id}
+          groupedMarket={groupedMarket}
+        />
+      ))}
+    </div>
+  )
+);
 
-MarketGrid.displayName = 'MarketGrid';
+MarketGrid.displayName = "MarketGrid";
 
-const PredictionMarkets = () => {
+interface PredictionMarketsProps {
+  initialData?: {
+    data: GroupedMarketCardType[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      hasNextPage: boolean;
+      hasPreviousPage: boolean;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  };
+}
+
+const PredictionMarkets = ({ initialData }: PredictionMarketsProps) => {
+  const { authenticated, ready } = usePrivy();
   const { 
     groupedMarkets, 
     loading, 
-    error,
-    hasMore,
-    loadMore 
-  } = useGroupedMarkets();
+    error, 
+    hasMore, 
+    loadMore, 
+    page 
+  } = useGroupedMarkets(initialData);
 
+  if (!ready) {
+    return <div>Loading...</div>;
+  }
 
-  if (loading && groupedMarkets.length === 0) {
-    return <LoadingSpinner />;
+  if (!authenticated) {
+    return (
+      <>
+        <ConnectWallet />
+        <Pitch />
+        <Testimonials />
+      </>
+    );
   }
 
   if (error) {
     return (
-      <div className="p-4 bg-red-50 text-red-600 rounded-lg">
-        {error}
+      <div className="text-center text-red-500 py-4">
+        Error loading markets: {error}
       </div>
     );
   }
 
   return (
     <div className="container mx-auto px-4">
-      <InfiniteScroll
-        dataLength={groupedMarkets.length}
-        next={loadMore}
-        hasMore={hasMore}
-        loader={<LoadingSpinner />}
-        endMessage={
-          <div className="text-center text-gray-500 py-4">
-            No more markets to load
-          </div>
-        }
-        scrollThreshold={0.8}
-      >
-        <MarketGrid markets={groupedMarkets} />
-      </InfiniteScroll>
+      <ConnectWallet />
+      <MarketGrid markets={groupedMarkets} />
+      
+      <div className="flex justify-center gap-4 my-6">
+        {page > 1 && (
+          <button
+            onClick={() => loadMore(page - 1)}
+            className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
+            disabled={loading}
+          >
+            Previous
+          </button>
+        )}
+        
+        <span className="px-4 py-2">
+          Page {page}
+        </span>
+
+        {hasMore && (
+          <button
+            onClick={() => loadMore(page + 1)}
+            className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
+            disabled={loading}
+          >
+            Next
+          </button>
+        )}
+        
+        {loading && <LoadingSpinner />}
+      </div>
+      
       <BetSlip />
+      <Testimonials />
     </div>
   );
 };
 
-export default PredictionMarkets;
+export default React.memo(PredictionMarkets);
