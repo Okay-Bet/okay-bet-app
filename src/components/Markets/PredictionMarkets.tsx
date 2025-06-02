@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import React from "react";
 import { usePrivy } from "@privy-io/react-auth";
@@ -42,23 +42,17 @@ const PredictionMarkets = () => {
 };
 
 const AuthenticatedMarketsView = () => {
-  const { 
-    groupedMarkets, 
-    loading, 
-    error, 
-    hasMore, 
-    loadMore, 
-    page 
-  } = useGroupedMarkets();
+  const { groupedMarkets, loading, error, hasMore, loadMore, page } =
+    useGroupedMarkets();
 
   if (error) {
     return (
       <div className="text-center text-red-500 py-4 min-h-[200px] flex flex-col items-center justify-center">
         <p className="text-lg font-semibold">Error loading markets</p>
         <p className="text-sm mt-2">{error}</p>
-        <button 
-          onClick={() => loadMore(1)} 
-          className="mt-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+        <button
+          onClick={() => loadMore(1)}
+          className="mt-4 px-4 py-2 bg-accent-gray-800 text-white rounded hover:bg-accent-gray-700 transition-colors"
         >
           Try Again
         </button>
@@ -69,7 +63,7 @@ const AuthenticatedMarketsView = () => {
   return (
     <div className="container mx-auto px-4">
       <ConnectWallet />
-      
+
       {loading && groupedMarkets.length === 0 ? (
         <LoadingSpinner />
       ) : (
@@ -82,42 +76,28 @@ const AuthenticatedMarketsView = () => {
               />
             ))}
           </div>
-          
-          <div className="flex justify-center gap-4 my-6">
-            {page > 1 && (
-              <button
-                onClick={() => loadMore(page - 1)}
-                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 transition-opacity"
-                disabled={loading}
-              >
-                Previous
-              </button>
-            )}
-            
-            <span className="px-4 py-2">
-              Page {page}
-            </span>
 
+          <div className="flex justify-center my-6">
             {hasMore && (
               <button
                 onClick={() => loadMore(page + 1)}
-                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 transition-opacity"
+                className="px-8 py-3 bg-accent-gray-800 text-white rounded hover:bg-accent-gray-700 disabled:opacity-50 transition-colors shadow-sharp flex items-center gap-2"
                 disabled={loading}
               >
-                Next
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <span>Loading...</span>
+                  </>
+                ) : (
+                  "Load More"
+                )}
               </button>
-            )}
-            
-            {loading && (
-              <div className="flex items-center">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
-                <span className="ml-2 text-sm text-gray-600">Loading...</span>
-              </div>
             )}
           </div>
         </>
       )}
-      
+
       <BetSlip />
       <Testimonials />
     </div>
