@@ -302,7 +302,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
-    const offset = (page - 1) * limit;
+    const offset = (page - 1) * limit + limit; // Add one page offset to skip first results
 
     // Create cache key based on pagination params
     const cacheKey = `markets-page-${page}-limit-${limit}`;
