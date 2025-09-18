@@ -5,7 +5,7 @@
 import type { Metadata } from "next";
 import "../styles/globals.css";
 import Providers from "../components/Providers/Providers";
-import PrivyProvider from "../components/Providers/privyProvider";
+// import PrivyProvider from "../components/Providers/privyProvider"; // Disabled - not using wallet signin
 import { Analytics } from "@vercel/analytics/react";
 import dynamic from "next/dynamic";
 import ServiceWorkerRegistration from "../components/ServiceWorkerRegistration";
@@ -85,13 +85,13 @@ export default function RootLayout({
 
         {/* Content wrapper */}
         <div className="relative z-10">
-          <PrivyProvider>
+          {/* <PrivyProvider> */}
             <Providers>
               <ServiceWorkerRegistration />
               {children}
               <Analytics />
             </Providers>
-          </PrivyProvider>
+          {/* </PrivyProvider> */}
         </div>
       </body>
     </html>

@@ -176,7 +176,7 @@ export function usePositions() {
     };
 
     fetchPositions();
-  }, [address, isConnected, refreshTrigger]);
+  }, [address, isConnected, refreshTrigger, updateAllPositionValues]);
 
 
   const refreshPositions = () => {
