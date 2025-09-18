@@ -1,0 +1,313 @@
+SPMC API IMPROVEMENTS AND REQUIREMENTS
+=====================================
+
+Based on the issues we encountered, here's a comprehensive list of improvements needed for the SPMC API endpoints and the structure required for efficient integration:
+
+## SPMC API Improvements Needed
+
+### 1. **Market ID Lookup Endpoint**
+- **Need**: `/api/v1/markets/by-platform-id/{platform}/{platform_market_id}`
+- **Purpose**: Direct lookup by platform-specific IDs (e.g., Polymarket condition IDs)
+- **Example**: `/api/v1/markets/by-platform-id/polymarket/0x5e63988b-15a5-400a-9e06-530bf225740a`
+
+### 2. **Batch Market Fetching**
+- **Need**: `/api/v1/markets/batch`
+- **Request Structure**:
+```jsonSPMC API IMPROVEMENTS AND REQUIREMENTS
+=====================================
+
+Based on the issues we encountered, here's a comprehensive list of improvements needed for the SPMC API endpoints and the structure required for efficient integration:
+
+## SPMC API Improvements Needed
+
+### 1. **Market ID Lookup Endpoint**
+- **Need**: `/api/v1/markets/by-platform-id/{platform}/{platform_market_id}`
+- **Purpose**: Direct lookup by platform-specific IDs (e.g., Polymarket condition IDs)
+- **Example**: `/api/v1/markets/by-platform-id/polymarket/0x5e63988b-15a5-400a-9e06-530bf225740a`
+
+### 2. **Batch Market Fetching**
+- **Need**: `/api/v1/markets/batch`
+- **Request Structure**:
+```json
+{
+  "platform": "polymarket",
+  "market_ids": ["id1", "id2", "id3"],
+  "fields": ["prices", "volume", "liquidity"]  // Optional field filtering
+}
+```
+- **Purpose**: Fetch multiple markets in a single request to avoid timeout issues
+
+### 3. **Consistent Market ID Mapping**
+- **Current Issue**: SPMC uses internal IDs, not platform-specific IDs
+- **Need**: Response should include:
+```json
+{
+  "id": "spmc-internal-id",
+  "platform_market_id": "0x5e63988b...",  // Original platform ID
+  "platform": "polymarket",
+  "prices": {...}
+}
+```
+
+### 4. **Price-Only Endpoint**
+- **Need**: `/api/v1/markets/prices`
+- **Purpose**: Lightweight endpoint for real-time price updates
+- **Request**: `POST` with array of market IDs
+- **Response**: Minimal price data only
+
+### 5. **WebSocket/SSE Support**
+- **Need**: Real-time price streaming endpoint
+- **Example**: `wss://api.spmc.dev/v1/markets/stream?ids=id1,id2,id3`
+- **Purpose**: Eliminate polling for price updates
+
+## Required Structure for Integration
+
+### 1. **Unified Market Response Schema**
+```typescript
+interface SPMCMarket {
+  // Core identifiers
+  id: string;                    // SPMC internal ID
+  platform: "polymarket" | "kalshi" | "limitless";
+  platform_market_id: string;    // Original platform ID
+  
+  // Market info
+  title: string;
+  description: string;
+  status: "active" | "closed" | "resolved";
+  close_time: string;
+  
+  // Pricing data
+  prices: {
+    yes: {
+      bid: number | null;
+      ask: number | null;
+      last: number | null;
+    };
+    no: {
+      bid: number | null;
+      ask: number | null;
+      last: number | null;
+    };
+    updated_at: string;
+  };
+  
+  // Metrics
+  volume_24h: number;
+  liquidity: number;
+  
+  // Metadata
+  last_updated: string;
+  data_quality_score: number;
+}
+```
+
+### 2. **Error Handling Structure**
+```typescript
+interface SPMCError {
+  error: {
+    code: string;
+    message: string;
+    details?: {
+      failed_ids?: string[];
+      partial_results?: any[];
+    };
+  };
+  timestamp: string;
+}
+```
+
+### 3. **Pagination That Works with IDs**
+```typescript
+interface BatchRequest {
+  market_ids: string[];
+  chunk_size?: number;  // Server-side chunking
+  timeout_ms?: number;  // Per-chunk timeout
+}
+```
+
+## Implementation Recommendations
+
+### 1. **Caching Strategy**
+- SPMC should implement aggressive caching for market metadata
+- Price data should have shorter TTL (5-30 seconds)
+- Support `If-None-Match` headers for efficient polling
+
+### 2. **Rate Limiting**
+- Clear rate limit headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`
+- Implement sliding window rate limiting
+- Different limits for different endpoints (prices vs full data)
+
+### 3. **Performance Optimizations**
+```json
+// Request with field selection
+GET /api/v1/markets/batch?fields=prices,volume&platform=polymarket
+```
+
+### 4. **Fallback Support**
+```json
+{
+  "primary_source": "live",
+  "fallback_available": true,
+  "data_staleness_seconds": 15
+}
+```
+
+## Immediate Workarounds for Current Implementation
+
+Until SPMC implements these improvements, here's what we should do:
+
+1. **Implement client-side batching** with smaller chunks (10-20 markets per request)
+2. **Add aggressive timeouts** (5-10 seconds per request)
+3. **Implement retry logic** with exponential backoff
+4. **Cache responses locally** with appropriate TTLs
+5. **Consider hybrid approach**: Use SPMC for discovery, Polymarket API for real-time prices
+
+## Technical Issues Encountered
+
+
+1. **Timeout Errors**: Headers Timeout Error (UND_ERR_HEADERS_TIM
+1. **Timeout Errors**: Headers Timeout Error (UND_ERR_HEADERS_TIMEOUT) when fetching multiple markets
+2. **ID Mismatch**: SPMC uses internal IDs, cannot query by platform-specific IDs
+3. **No Batch Endpoint**: Must make individual requests for each market
+4. **Service Availability**: Grouping service returning "unavailable" errors
+5. **Missing Direct Lookup**: No way to fetch market by Polymarket condition ID
+{
+  "platform": "polymarket",
+  "market_ids": ["id1", "id2", "id3"],
+  "fields": ["prices", "volume", "liquidity"]  // Optional field filtering
+}
+```
+- **Purpose**: Fetch multiple markets in a single request to avoid timeout issues
+
+### 3. **Consistent Market ID Mapping**
+- **Current Issue**: SPMC uses internal IDs, not platform-specific IDs
+- **Need**: Response should include:
+```json
+{
+  "id": "spmc-internal-id",
+  "platform_market_id": "0x5e63988b...",  // Original platform ID
+  "platform": "polymarket",
+  "prices": {...}
+}
+```
+
+### 4. **Price-Only Endpoint**
+- **Need**: `/api/v1/markets/prices`
+- **Purpose**: Lightweight endpoint for real-time price updates
+- **Request**: `POST` with array of market IDs
+- **Response**: Minimal price data only
+
+### 5. **WebSocket/SSE Support**
+- **Need**: Real-time price streaming endpoint
+- **Example**: `wss://api.spmc.dev/v1/markets/stream?ids=id1,id2,id3`
+- **Purpose**: Eliminate polling for price updates
+
+## Required Structure for Integration
+
+### 1. **Unified Market Response Schema**
+```typescript
+interface SPMCMarket {
+  // Core identifiers
+  id: string;                    // SPMC internal ID
+  platform: "polymarket" | "kalshi" | "limitless";
+  platform_market_id: string;    // Original platform ID
+  
+  // Market info
+  title: string;
+  description: string;
+  status: "active" | "closed" | "resolved";
+  close_time: string;
+  
+  // Pricing data
+  prices: {
+    yes: {
+      bid: number | null;
+      ask: number | null;
+      last: number | null;
+    };
+    no: {
+      bid: number | null;
+      ask: number | null;
+      last: number | null;
+    };
+    updated_at: string;
+  };
+  
+  // Metrics
+  volume_24h: number;
+  liquidity: number;
+  
+  // Metadata
+  last_updated: string;
+  data_quality_score: number;
+}
+```
+
+### 2. **Error Handling Structure**
+```typescript
+interface SPMCError {
+  error: {
+    code: string;
+    message: string;
+    details?: {
+      failed_ids?: string[];
+      partial_results?: any[];
+    };
+  };
+  timestamp: string;
+}
+```
+
+### 3. **Pagination That Works with IDs**
+```typescript
+interface BatchRequest {
+  market_ids: string[];
+  chunk_size?: number;  // Server-side chunking
+  timeout_ms?: number;  // Per-chunk timeout
+}
+```
+
+## Implementation Recommendations
+
+### 1. **Caching Strategy**
+- SPMC should implement aggressive caching for market metadata
+- Price data should have shorter TTL (5-30 seconds)
+- Support `If-None-Match` headers for efficient polling
+
+### 2. **Rate Limiting**
+- Clear rate limit headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`
+- Implement sliding window rate limiting
+- Different limits for different endpoints (prices vs full data)
+
+### 3. **Performance Optimizations**
+```json
+// Request with field selection
+GET /api/v1/markets/batch?fields=prices,volume&platform=polymarket
+```
+
+### 4. **Fallback Support**
+```json
+{
+  "primary_source": "live",
+  "fallback_available": true,
+  "data_staleness_seconds": 15
+}
+```
+
+## Immediate Workarounds for Current Implementation
+
+Until SPMC implements these improvements, here's what we should do:
+
+1. **Implement client-side batching** with smaller chunks (10-20 markets per request)
+2. **Add aggressive timeouts** (5-10 seconds per request)
+3. **Implement retry logic** with exponential backoff
+4. **Cache responses locally** with appropriate TTLs
+5. **Consider hybrid approach**: Use SPMC for discovery, Polymarket API for real-time prices
+
+## Technical Issues Encountered
+
+1. **Timeout Errors**: Headers Timeout Error (UND_ERR_HEADERS_TIMEOUT) when fetching multiple markets
+2. **ID Mismatch**: SPMC uses internal IDs, cannot query by platform-specific IDs
+3. **No Batch Endpoint**: Must make individual requests for each market
+4. **Service Availability**: Grouping service returning "unavailable" errors
+5. **Missing Direct Lookup**: No way to fetch market by Polymarket condition ID

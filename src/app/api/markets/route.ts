@@ -95,7 +95,19 @@ async function fetchPolymarketsByConditionIds(
       .join("&");
     const url = `${GAMMA_API_URL}/markets?${conditionIdsParam}`;
 
-    const response = await fetch(url);
+    // Add timeout to prevent hanging requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+    });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`Failed to fetch Polymarket markets: ${response.status}`);

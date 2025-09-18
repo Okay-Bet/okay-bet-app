@@ -5,7 +5,7 @@
 
 The App Layer for Prediction markets
 
-https://www.okaybet.fun/
+https://www.okaybet.app/
 
 ## The stack
 
