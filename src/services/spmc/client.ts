@@ -344,7 +344,7 @@ export class SPMCClient {
       });
     }
     
-    const endpoint = `/groups${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const endpoint = `/groups/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return this.request<{ groups: SPMCGroup[]; total: number }>(endpoint);
   }
 

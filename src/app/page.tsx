@@ -57,7 +57,17 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 py-16">
+    <main className="min-h-screen flex items-center justify-center px-4 py-16 relative">
+      {/* Development Navigation */}
+      <div className="absolute top-4 right-4 flex gap-2">
+        <a 
+          href="/groups" 
+          className="px-4 py-2 bg-white/90 backdrop-blur-sm border border-accent-gray-200 rounded-lg shadow-sharp hover:shadow-aggressive transition-shadow text-sm font-body"
+        >
+          Groups (Dev)
+        </a>
+      </div>
+      
       <div className="max-w-5xl w-full text-center relative z-10">
         <div className="mb-8">
           <Logo />
