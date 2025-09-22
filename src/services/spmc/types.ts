@@ -177,6 +177,7 @@ export interface SPMCSearchRequest {
   limit?: number;
   offset?: number;
   fuzzy?: boolean;
+  status?: string;
 }
 
 export interface SPMCPricesRequest {
@@ -202,7 +203,8 @@ export interface SPMCMarketsResponse {
 }
 
 export interface SPMCSearchResponse {
-  results: SPMCMarket[];
+  markets: SPMCMarket[];
+  results?: SPMCMarket[]; // Keep for backwards compatibility
   query: string;
   totalResults: number;
 }

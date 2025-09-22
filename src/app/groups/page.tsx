@@ -33,7 +33,8 @@ import {
   ListItemText,
   ListItemSecondaryAction,
   Divider,
-  Tooltip
+  Tooltip,
+  Pagination
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -102,6 +103,20 @@ export default function GroupsPage() {
     weight: number;
     position_type: string;
   }>>([]);
+  
+  // For create group panel
+  const [createPanelSearchQuery, setCreatePanelSearchQuery] = useState('');
+  const [createPanelMarkets, setCreatePanelMarkets] = useState<SPMCMarket[]>([]);
+  const [createPanelSearchLoading, setCreatePanelSearchLoading] = useState(false);
+  const [createPanelSelectedMarkets, setCreatePanelSelectedMarkets] = useState<Array<{
+    market_id: string;
+    weight: number;
+    position_type: string;
+  }>>([]);
+  const [createPanelPage, setCreatePanelPage] = useState(0);
+  const [createPanelTotalCount, setCreatePanelTotalCount] = useState(0);
+  const [createPanelHasMore, setCreatePanelHasMore] = useState(false);
+  const pageSize = 20;
 
   // Load groups
   const loadGroups = async () => {
@@ -158,6 +173,70 @@ export default function GroupsPage() {
       }
     } catch (err) {
       setError(`Error creating group: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+  
+  // Create group with markets (for create panel)
+  const handleCreateGroupWithMarkets = async () => {
+    try {
+      // First create the group
+      const groupResponse = await spmcClient.createGroup(newGroup);
+      if (groupResponse.success && groupResponse.data) {
+        // If markets are selected, add them to the group
+        if (createPanelSelectedMarkets.length > 0) {
+          await spmcClient.addMarketsToGroup(groupResponse.data.id, createPanelSelectedMarkets);
+        }
+        
+        // Reset form and reload groups
+        setNewGroup({
+          title: '',
+          description: '',
+          group_type: 'watchlist',
+          metadata: {}
+        });
+        setCreatePanelSelectedMarkets([]);
+        setCreatePanelMarkets([]);
+        setCreatePanelSearchQuery('');
+        await loadGroups();
+        
+        // Show success message
+        setError(null);
+        alert(`Group "${groupResponse.data.title}" created successfully with ${createPanelSelectedMarkets.length} markets!`);
+      } else {
+        setError('Failed to create group');
+      }
+    } catch (err) {
+      setError(`Error creating group: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+  
+  // Search markets for create panel (with pagination)
+  const handleCreatePanelSearch = async (page: number = 0) => {
+    if (!createPanelSearchQuery.trim()) return;
+    
+    setCreatePanelSearchLoading(true);
+    setCreatePanelPage(page);
+    
+    try {
+      const response = await spmcClient.searchMarkets({ 
+        query: createPanelSearchQuery, 
+        limit: pageSize,
+        offset: page * pageSize
+      });
+      if (response.success && response.data) {
+        setCreatePanelMarkets(response.data.markets);
+        
+        // Check if there are more results
+        // The API returns total_count in the response
+        const totalCount = (response as any).data?.totalResults || response.data.markets.length;
+        setCreatePanelTotalCount(totalCount);
+        setCreatePanelHasMore((page + 1) * pageSize < totalCount);
+      }
+    } catch (err) {
+      console.error('Error searching markets:', err);
+      setError(`Error searching markets: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setCreatePanelSearchLoading(false);
     }
   };
 
@@ -357,7 +436,7 @@ export default function GroupsPage() {
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
         <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
           <Tab label="All Groups" />
-          <Tab label="API Testing" />
+          <Tab label="Create Group" icon={<AddCircleIcon />} iconPosition="start" />
         </Tabs>
       </Box>
 
@@ -399,108 +478,246 @@ export default function GroupsPage() {
       </TabPanel>
 
       <TabPanel value={tabValue} index={1}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            API Testing Panel
-          </Typography>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Test SPMC Group API endpoints directly
-          </Typography>
+        <Grid container spacing={3}>
+          {/* Group Details Form */}
+          <Grid item xs={12} md={4}>
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Group Details
+              </Typography>
+              <Stack spacing={2}>
+                <TextField
+                  fullWidth
+                  label="Group Title"
+                  value={newGroup.title}
+                  onChange={(e) => setNewGroup({ ...newGroup, title: e.target.value })}
+                  placeholder="e.g., My Watchlist"
+                />
+                <TextField
+                  fullWidth
+                  label="Description"
+                  multiline
+                  rows={3}
+                  value={newGroup.description}
+                  onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
+                  placeholder="Describe your group..."
+                />
+                <FormControl fullWidth>
+                  <InputLabel>Group Type</InputLabel>
+                  <Select
+                    value={newGroup.group_type}
+                    label="Group Type"
+                    onChange={(e) => setNewGroup({ ...newGroup, group_type: e.target.value as any })}
+                  >
+                    <MenuItem value="watchlist">Watchlist</MenuItem>
+                    <MenuItem value="portfolio">Portfolio</MenuItem>
+                    <MenuItem value="index">Index</MenuItem>
+                    <MenuItem value="arbitrage">Arbitrage</MenuItem>
+                    <MenuItem value="correlated">Correlated</MenuItem>
+                    <MenuItem value="inverse">Inverse</MenuItem>
+                    <MenuItem value="same_event">Same Event</MenuItem>
+                  </Select>
+                </FormControl>
+                
+                <Divider />
+                
+                <Box>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Selected Markets: {createPanelSelectedMarkets.length}
+                  </Typography>
+                  {createPanelSelectedMarkets.length > 0 && (
+                    <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 1 }}>
+                      {createPanelSelectedMarkets.slice(0, 5).map((m, idx) => (
+                        <Chip 
+                          key={m.market_id} 
+                          label={`Market ${idx + 1}`}
+                          size="small"
+                          onDelete={() => {
+                            setCreatePanelSelectedMarkets(
+                              createPanelSelectedMarkets.filter(s => s.market_id !== m.market_id)
+                            );
+                          }}
+                        />
+                      ))}
+                      {createPanelSelectedMarkets.length > 5 && (
+                        <Chip 
+                          label={`+${createPanelSelectedMarkets.length - 5} more`}
+                          size="small"
+                          variant="outlined"
+                        />
+                      )}
+                    </Stack>
+                  )}
+                </Box>
+                
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={handleCreateGroupWithMarkets}
+                  disabled={!newGroup.title}
+                  startIcon={<AddIcon />}
+                >
+                  Create Group
+                </Button>
+              </Stack>
+            </Paper>
+          </Grid>
           
-          <Grid container spacing={2} sx={{ mt: 2 }}>
-            <Grid item xs={12} md={6}>
-              <Card>
-                <CardContent>
-                  <Typography variant="subtitle1" gutterBottom>
-                    Quick Actions
-                  </Typography>
-                  <Stack spacing={2}>
-                    <Button 
-                      fullWidth 
-                      variant="outlined"
-                      onClick={async () => {
-                        const title = prompt('Enter group title:');
-                        if (title) {
-                          try {
-                            const response = await spmcClient.createGroup({
-                              title,
-                              description: 'Test group created via API',
-                              group_type: 'watchlist',
-                              metadata: { test: true }
-                            });
-                            console.log('Create group response:', response);
-                            alert(`Group created: ${JSON.stringify(response.data, null, 2)}`);
-                            loadGroups();
-                          } catch (err) {
-                            console.error('Error:', err);
-                            alert(`Error: ${err}`);
-                          }
-                        }
-                      }}
-                    >
-                      Test Create Group
-                    </Button>
-                    
-                    <Button 
-                      fullWidth 
-                      variant="outlined"
-                      onClick={async () => {
-                        try {
-                          const response = await spmcClient.listGroups({ limit: 5 });
-                          console.log('List groups response:', response);
-                          alert(`Groups: ${JSON.stringify(response.data, null, 2)}`);
-                        } catch (err) {
-                          console.error('Error:', err);
-                          alert(`Error: ${err}`);
-                        }
-                      }}
-                    >
-                      Test List Groups (limit 5)
-                    </Button>
-                    
-                    <Button 
-                      fullWidth 
-                      variant="outlined"
-                      onClick={async () => {
-                        const groupId = prompt('Enter group ID:');
-                        if (groupId) {
-                          try {
-                            const response = await spmcClient.getGroup(groupId);
-                            console.log('Get group response:', response);
-                            alert(`Group details: ${JSON.stringify(response.data, null, 2)}`);
-                          } catch (err) {
-                            console.error('Error:', err);
-                            alert(`Error: ${err}`);
-                          }
-                        }
-                      }}
-                    >
-                      Test Get Group Details
-                    </Button>
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <Card>
-                <CardContent>
-                  <Typography variant="subtitle1" gutterBottom>
-                    Console Output
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Open browser console to see API responses
-                  </Typography>
-                  <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
-                    <Typography variant="caption" component="pre">
-                      Press F12 to open DevTools
+          {/* Market Search and Selection */}
+          <Grid item xs={12} md={8}>
+            <Paper sx={{ p: 3, height: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+              <Typography variant="h6" gutterBottom>
+                Add Markets to Group
+              </Typography>
+              
+              {/* Search Bar */}
+              <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+                <TextField
+                  fullWidth
+                  label="Search Markets"
+                  value={createPanelSearchQuery}
+                  onChange={(e) => setCreatePanelSearchQuery(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleCreatePanelSearch(0)}
+                  placeholder="Search by market title..."
+                  InputProps={{
+                    startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                  }}
+                />
+                <Button
+                  variant="contained"
+                  onClick={() => handleCreatePanelSearch(0)}
+                  disabled={createPanelSearchLoading || !createPanelSearchQuery.trim()}
+                >
+                  {createPanelSearchLoading ? <CircularProgress size={24} /> : 'Search'}
+                </Button>
+              </Stack>
+              
+              {/* Market Results */}
+              <Box sx={{ flex: 1, overflow: 'auto' }}>
+                {createPanelMarkets.length === 0 ? (
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <SearchIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
+                    <Typography color="text.secondary">
+                      {createPanelSearchQuery ? 'No markets found. Try a different search.' : 'Search for markets to add to your group'}
                     </Typography>
                   </Box>
-                </CardContent>
-              </Card>
-            </Grid>
+                ) : (
+                  <List>
+                    {createPanelMarkets.map((market) => {
+                      const isSelected = createPanelSelectedMarkets.some(m => m.market_id === market.id);
+                      return (
+                        <ListItem
+                          key={market.id}
+                          sx={{ 
+                            borderRadius: 1, 
+                            mb: 1,
+                            bgcolor: isSelected ? 'action.selected' : 'transparent',
+                            '&:hover': { bgcolor: 'action.hover' }
+                          }}
+                        >
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => {
+                              if (isSelected) {
+                                setCreatePanelSelectedMarkets(
+                                  createPanelSelectedMarkets.filter(m => m.market_id !== market.id)
+                                );
+                              } else {
+                                setCreatePanelSelectedMarkets([...createPanelSelectedMarkets, {
+                                  market_id: market.id,
+                                  weight: 1,
+                                  position_type: 'long'
+                                }]);
+                              }
+                            }}
+                          />
+                          <ListItemText
+                            primary={market.title}
+                            secondary={
+                              <Stack direction="row" spacing={1} alignItems="center">
+                                <Chip 
+                                  label={market.platform} 
+                                  size="small" 
+                                  color={market.platform === 'polymarket' ? 'primary' : 
+                                         market.platform === 'kalshi' ? 'secondary' : 'default'}
+                                  variant="outlined"
+                                />
+                                {market.current_price !== undefined && (
+                                  <Typography variant="caption" color="primary">
+                                    ${market.current_price.toFixed(2)}
+                                  </Typography>
+                                )}
+                                {market.volume_24h !== undefined && (
+                                  <Typography variant="caption" color="text.secondary">
+                                    Vol: ${(market.volume_24h / 1000).toFixed(0)}k
+                                  </Typography>
+                                )}
+                                {market.category && (
+                                  <Chip label={market.category} size="small" variant="outlined" />
+                                )}
+                              </Stack>
+                            }
+                          />
+                        </ListItem>
+                      );
+                    })}
+                  </List>
+                )}
+              </Box>
+              
+              {/* Pagination and Action Bar */}
+              {createPanelMarkets.length > 0 && (
+                <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+                  {/* Pagination */}
+                  {createPanelTotalCount > pageSize && (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                      <Pagination
+                        count={Math.ceil(createPanelTotalCount / pageSize)}
+                        page={createPanelPage + 1}
+                        onChange={(_, page) => handleCreatePanelSearch(page - 1)}
+                        disabled={createPanelSearchLoading}
+                        color="primary"
+                        size="small"
+                      />
+                      <Typography variant="caption" sx={{ ml: 2, alignSelf: 'center' }} color="text.secondary">
+                        Showing {createPanelPage * pageSize + 1}-{Math.min((createPanelPage + 1) * pageSize, createPanelTotalCount)} of {createPanelTotalCount} results
+                      </Typography>
+                    </Box>
+                  )}
+                  
+                  {/* Selection controls */}
+                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Typography variant="body2" color="text.secondary">
+                      {createPanelSelectedMarkets.length} selected total
+                    </Typography>
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        size="small"
+                        onClick={() => {
+                          setCreatePanelSelectedMarkets(
+                            createPanelMarkets.map(m => ({
+                              market_id: m.id,
+                              weight: 1,
+                              position_type: 'long'
+                            }))
+                          );
+                        }}
+                      >
+                        Select Page
+                      </Button>
+                      <Button
+                        size="small"
+                        onClick={() => setCreatePanelSelectedMarkets([])}
+                      >
+                        Clear All
+                      </Button>
+                    </Stack>
+                  </Stack>
+                </Box>
+              )}
+            </Paper>
           </Grid>
-        </Paper>
+        </Grid>
       </TabPanel>
 
       {/* Create Group Dialog */}

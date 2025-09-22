@@ -57,7 +57,12 @@ export class SPMCClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<SPMCResponse<T>> {
-    const url = `${this.baseUrl}/api/${this.apiVersion}${endpoint}`;
+    // Ensure endpoint has trailing slash for consistency (API redirects without it)
+    const normalizedEndpoint = endpoint.includes('?') 
+      ? endpoint.replace(/\/?\?/, '/?')  // Add slash before query params if missing
+      : (endpoint.endsWith('/') ? endpoint : endpoint + '/');
+    
+    const url = `${this.baseUrl}/api/${this.apiVersion}${normalizedEndpoint}`;
     
     let lastError: Error | null = null;
     
@@ -73,6 +78,7 @@ export class SPMCClient {
             'Content-Type': 'application/json',
             ...options.headers,
           },
+          mode: 'cors',  // Explicitly set CORS mode
         });
 
         clearTimeout(timeoutId);
@@ -196,38 +202,179 @@ export class SPMCClient {
   }
 
   /**
-   * Search markets - Currently not functional on SPMC API
-   * Implement client-side filtering as a workaround
+   * Search markets - Use the proper search endpoint
    */
   async searchMarkets(params: SPMCSearchRequest): Promise<SPMCResponse<SPMCSearchResponse>> {
-    // Search is broken on SPMC API, fetch all and filter client-side
-    const marketsResponse = await this.listMarkets({ 
-      limit: 100,
-      platform: params.platforms?.[0] 
-    });
-    
-    if (!marketsResponse.success || !marketsResponse.data) {
+    try {
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      
+      // Add search query (required, minimum 2 characters)
+      if (params.query && params.query.length >= 2) {
+        queryParams.append('q', params.query);
+      } else if (params.query) {
+        // If query is less than 2 characters, return empty results
+        return {
+          success: true,
+          data: {
+            markets: [],
+            query: params.query,
+            totalResults: 0,
+          },
+          timestamp: new Date().toISOString(),
+        };
+      } else {
+        // If no query, fetch all markets instead
+        const url = `${this.baseUrl}/api/${this.apiVersion}/markets/?limit=${params.limit || 50}`;
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch markets: ${response.status}`);
+        }
+        
+        const responseData = await response.json();
+        const marketsArray = responseData.data || [];
+        
+        const markets = marketsArray.slice(0, params.limit || 50).map((market: any) => ({
+          id: market.id,
+          platform: market.platform,
+          platform_market_id: market.platform_market_id,
+          title: market.title,
+          status: market.status || 'active',
+          is_active: market.is_active !== false,
+          current_price: market.prices?.last || market.prices?.mid || 0,
+          volume_24h: market.volume_24h || 0,
+          liquidity: market.liquidity || 0,
+          category: market.category,
+          updated_at: market.updated_at
+        }));
+        
+        return {
+          success: true,
+          data: {
+            markets,
+            query: '',
+            totalResults: markets.length,
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+      
+      // Add other parameters
+      if (params.limit) {
+        queryParams.append('limit', params.limit.toString());
+      } else {
+        queryParams.append('limit', '50');
+      }
+      
+      if (params.offset) {
+        queryParams.append('offset', params.offset.toString());
+      }
+      
+      if (params.platforms && params.platforms.length > 0) {
+        queryParams.append('platform', params.platforms[0].toLowerCase());
+      }
+      
+      if (params.status) {
+        queryParams.append('status', params.status);
+      }
+      
+      // Include inactive markets by default for broader search results
+      queryParams.append('include_inactive', 'true');
+      
+      // Use the search endpoint (no trailing slash to avoid redirect)
+      const url = `${this.baseUrl}/api/${this.apiVersion}/markets/search?${queryParams.toString()}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        if (response.status === 400) {
+          console.error('Invalid search query');
+          return {
+            success: false,
+            error: { status: 400, message: 'Invalid search query (minimum 2 characters required)' },
+            timestamp: new Date().toISOString(),
+          };
+        }
+        throw new Error(`Failed to search markets: ${response.status}`);
+      }
+      
+      const responseData = await response.json();
+      
+      // Handle the response - API returns {status: "success", markets: [...]}
+      const marketsArray = responseData.markets || responseData.data || responseData.results || [];
+      
+      // Transform to expected response structure
+      const markets = marketsArray.map((market: any) => {
+        
+        // Handle different price field names
+        let currentPrice = 0;
+        if (market.prices) {
+          currentPrice = market.prices.last_trade || 
+                        market.prices.last || 
+                        market.prices.mid || 
+                        market.prices.best_bid || 
+                        0;
+        } else if (market.last_price !== undefined) {
+          currentPrice = market.last_price;
+        } else if (market.current_price !== undefined) {
+          currentPrice = market.current_price;
+        }
+        
+        // Handle volume field variations
+        const volume = market.volume || 
+                       market.volume_24h || 
+                       market.total_volume || 
+                       0;
+        
+        return {
+          id: market.id,
+          platform: market.platform,
+          platform_market_id: market.platform_market_id,
+          title: market.title,
+          status: market.status || 'active',
+          is_active: market.is_active !== false,
+          current_price: currentPrice,
+          volume_24h: volume,
+          liquidity: market.liquidity || 0,
+          category: market.category,
+          updated_at: market.updated_at
+        };
+      });
+      
+      // Get total count from API response
+      const totalCount = responseData.total_count || markets.length;
+      
+      return {
+        success: true,
+        data: {
+          markets,
+          query: params.query || '',
+          totalResults: totalCount,  // Use the total_count from API
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Error searching markets:', error);
       return {
         success: false,
-        error: { status: 500, message: 'Failed to search markets' },
+        error: { 
+          status: 500, 
+          message: error instanceof Error ? error.message : 'Failed to search markets' 
+        },
         timestamp: new Date().toISOString(),
       };
     }
-    
-    const query = params.query.toLowerCase();
-    const filtered = marketsResponse.data.markets.filter((market: any) => 
-      market.title?.toLowerCase().includes(query)
-    );
-    
-    return {
-      success: true,
-      data: {
-        results: filtered.slice(0, params.limit || 10),
-        query: params.query,
-        totalResults: filtered.length,
-      },
-      timestamp: new Date().toISOString(),
-    };
   }
 
   /**
