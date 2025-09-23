@@ -502,6 +502,7 @@ export class SPMCClient {
     market_id: string;
     weight?: number;
     position_type?: string;
+    outcome?: 'yes' | 'no' | 'both';
   }>): Promise<SPMCResponse<SPMCGroup>> {
     return this.request<SPMCGroup>(`/groups/${groupId}/markets`, {
       method: 'POST',

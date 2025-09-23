@@ -45,9 +45,13 @@ import {
   ExpandLess as ExpandLessIcon,
   Search as SearchIcon,
   AddCircle as AddCircleIcon,
-  RemoveCircle as RemoveCircleIcon
+  RemoveCircle as RemoveCircleIcon,
+  Settings as SettingsIcon
 } from '@mui/icons-material';
 import Checkbox from '@mui/material/Checkbox';
+import Slider from '@mui/material/Slider';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -102,7 +106,8 @@ export default function GroupsPage() {
     market_id: string;
     weight: number;
     position_type: string;
-  }>>([]);
+    outcome?: 'yes' | 'no' | 'both';
+  }>>([]); 
   
   // For create group panel
   const [createPanelSearchQuery, setCreatePanelSearchQuery] = useState('');
@@ -112,7 +117,8 @@ export default function GroupsPage() {
     market_id: string;
     weight: number;
     position_type: string;
-  }>>([]);
+    outcome?: 'yes' | 'no' | 'both';
+  }>>([]); 
   const [createPanelPage, setCreatePanelPage] = useState(0);
   const [createPanelTotalCount, setCreatePanelTotalCount] = useState(0);
   const [createPanelHasMore, setCreatePanelHasMore] = useState(false);
@@ -388,6 +394,7 @@ export default function GroupsPage() {
                           />
                           <Typography variant="caption">
                             Weight: {groupMarket.weight} | Type: {groupMarket.position_type}
+                            {groupMarket.outcome && ` | Outcome: ${groupMarket.outcome.toUpperCase()}`}
                           </Typography>
                           {groupMarket.market_current_price !== null && (
                             <Typography variant="caption" color="primary">
@@ -519,33 +526,130 @@ export default function GroupsPage() {
                   </Select>
                 </FormControl>
                 
+                {newGroup.group_type === 'index' && (
+                  <Alert severity="info" icon={<SettingsIcon />}>
+                    <Typography variant="caption">
+                      Index groups allow you to set custom weights for each market. Adjust weights after selecting markets below.
+                    </Typography>
+                  </Alert>
+                )}
+                
                 <Divider />
                 
                 <Box>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Selected Markets: {createPanelSelectedMarkets.length}
-                  </Typography>
-                  {createPanelSelectedMarkets.length > 0 && (
-                    <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 1 }}>
-                      {createPanelSelectedMarkets.slice(0, 5).map((m, idx) => (
-                        <Chip 
-                          key={m.market_id} 
-                          label={`Market ${idx + 1}`}
-                          size="small"
-                          onDelete={() => {
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                    <Typography variant="subtitle2">
+                      Selected Markets: {createPanelSelectedMarkets.length}
+                    </Typography>
+                    {createPanelSelectedMarkets.length > 0 && (
+                      <ToggleButtonGroup
+                        size="small"
+                        exclusive
+                        onChange={(_, value) => {
+                          if (value) {
                             setCreatePanelSelectedMarkets(
-                              createPanelSelectedMarkets.filter(s => s.market_id !== m.market_id)
+                              createPanelSelectedMarkets.map(m => ({ ...m, outcome: value }))
                             );
-                          }}
-                        />
-                      ))}
-                      {createPanelSelectedMarkets.length > 5 && (
-                        <Chip 
-                          label={`+${createPanelSelectedMarkets.length - 5} more`}
-                          size="small"
-                          variant="outlined"
-                        />
-                      )}
+                          }
+                        }}
+                      >
+                        <ToggleButton value="yes" size="small">
+                          All Yes
+                        </ToggleButton>
+                        <ToggleButton value="no" size="small">
+                          All No
+                        </ToggleButton>
+                        <ToggleButton value="both" size="small">
+                          All Both
+                        </ToggleButton>
+                      </ToggleButtonGroup>
+                    )}
+                  </Box>
+                  {createPanelSelectedMarkets.length > 0 && (
+                    <Stack spacing={1} sx={{ mt: 1, maxHeight: 200, overflow: 'auto' }}>
+                      {createPanelSelectedMarkets.map((selectedMarket, idx) => {
+                        const market = createPanelMarkets.find(m => m.id === selectedMarket.market_id);
+                        return (
+                          <Paper key={selectedMarket.market_id} sx={{ p: 1, bgcolor: 'grey.50' }}>
+                            <Stack spacing={1}>
+                              <Box display="flex" justifyContent="space-between" alignItems="center">
+                                <Typography variant="caption" noWrap sx={{ flex: 1, mr: 1 }}>
+                                  {market?.title || `Market ${idx + 1}`}
+                                </Typography>
+                                <IconButton 
+                                  size="small"
+                                  onClick={() => {
+                                    setCreatePanelSelectedMarkets(
+                                      createPanelSelectedMarkets.filter(s => s.market_id !== selectedMarket.market_id)
+                                    );
+                                  }}
+                                >
+                                  <RemoveCircleIcon fontSize="small" />
+                                </IconButton>
+                              </Box>
+                              
+                              {/* Yes/No Selection */}
+                              <ToggleButtonGroup
+                                value={selectedMarket.outcome || 'both'}
+                                exclusive
+                                onChange={(_, value) => {
+                                  if (value) {
+                                    setCreatePanelSelectedMarkets(
+                                      createPanelSelectedMarkets.map(m => 
+                                        m.market_id === selectedMarket.market_id
+                                          ? { ...m, outcome: value }
+                                          : m
+                                      )
+                                    );
+                                  }
+                                }}
+                                size="small"
+                                fullWidth
+                              >
+                                <ToggleButton value="yes" color="success">
+                                  Yes
+                                </ToggleButton>
+                                <ToggleButton value="no" color="error">
+                                  No
+                                </ToggleButton>
+                                <ToggleButton value="both">
+                                  Both
+                                </ToggleButton>
+                              </ToggleButtonGroup>
+                              
+                              {/* Weight Slider for Index Groups */}
+                              {newGroup.group_type === 'index' && (
+                                <Box>
+                                  <Typography variant="caption" color="text.secondary">
+                                    Weight: {selectedMarket.weight}
+                                  </Typography>
+                                  <Slider
+                                    value={selectedMarket.weight}
+                                    onChange={(_, value) => {
+                                      setCreatePanelSelectedMarkets(
+                                        createPanelSelectedMarkets.map(m => 
+                                          m.market_id === selectedMarket.market_id
+                                            ? { ...m, weight: value as number }
+                                            : m
+                                        )
+                                      );
+                                    }}
+                                    min={0.1}
+                                    max={10}
+                                    step={0.1}
+                                    marks={[
+                                      { value: 1, label: '1x' },
+                                      { value: 5, label: '5x' },
+                                      { value: 10, label: '10x' }
+                                    ]}
+                                    size="small"
+                                  />
+                                </Box>
+                              )}
+                            </Stack>
+                          </Paper>
+                        );
+                      })}
                     </Stack>
                   )}
                 </Box>
@@ -626,7 +730,8 @@ export default function GroupsPage() {
                                 setCreatePanelSelectedMarkets([...createPanelSelectedMarkets, {
                                   market_id: market.id,
                                   weight: 1,
-                                  position_type: 'long'
+                                  position_type: 'long',
+                                  outcome: 'both'
                                 }]);
                               }
                             }}
@@ -694,13 +799,20 @@ export default function GroupsPage() {
                       <Button
                         size="small"
                         onClick={() => {
-                          setCreatePanelSelectedMarkets(
-                            createPanelMarkets.map(m => ({
+                          // Add markets from current page that aren't already selected
+                          const currentPageMarketIds = createPanelMarkets.map(m => m.id);
+                          const existingSelections = createPanelSelectedMarkets.filter(
+                            s => !currentPageMarketIds.includes(s.market_id)
+                          );
+                          const newSelections = createPanelMarkets
+                            .filter(m => !createPanelSelectedMarkets.some(s => s.market_id === m.id))
+                            .map(m => ({
                               market_id: m.id,
                               weight: 1,
-                              position_type: 'long'
-                            }))
-                          );
+                              position_type: 'long',
+                              outcome: 'both' as const
+                            }));
+                          setCreatePanelSelectedMarkets([...existingSelections, ...newSelections]);
                         }}
                       >
                         Select Page
@@ -805,44 +917,111 @@ export default function GroupsPage() {
             </Stack>
             
             {searchMarkets.length > 0 && (
-              <List>
-                {searchMarkets.map((market) => {
-                  const isSelected = selectedMarkets.some(m => m.market_id === market.id);
-                  return (
-                    <ListItem 
-                      key={market.id}
-                      button
-                      onClick={() => {
-                        if (isSelected) {
-                          setSelectedMarkets(selectedMarkets.filter(m => m.market_id !== market.id));
-                        } else {
-                          setSelectedMarkets([...selectedMarkets, {
-                            market_id: market.id,
-                            weight: 1,
-                            position_type: 'long'
-                          }]);
-                        }
-                      }}
-                      selected={isSelected}
-                    >
-                      <ListItemText
-                        primary={market.title}
-                        secondary={
-                          <Stack direction="row" spacing={1}>
-                            <Chip label={market.platform} size="small" />
-                            <Typography variant="caption">
-                              Vol: ${market.volume_24h?.toLocaleString() || 0}
-                            </Typography>
-                          </Stack>
-                        }
-                      />
-                      <ListItemSecondaryAction>
-                        <Checkbox checked={isSelected} />
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                  );
-                })}
-              </List>
+              <Box>
+                <List>
+                  {searchMarkets.map((market) => {
+                    const selectedMarket = selectedMarkets.find(m => m.market_id === market.id);
+                    const isSelected = !!selectedMarket;
+                    return (
+                      <ListItem 
+                        key={market.id}
+                        sx={{ flexDirection: 'column', alignItems: 'stretch', mb: 1, border: '1px solid', borderColor: isSelected ? 'primary.main' : 'divider', borderRadius: 1 }}
+                      >
+                        <Box display="flex" alignItems="center" width="100%">
+                          <Checkbox 
+                            checked={isSelected}
+                            onChange={() => {
+                              if (isSelected) {
+                                setSelectedMarkets(selectedMarkets.filter(m => m.market_id !== market.id));
+                              } else {
+                                setSelectedMarkets([...selectedMarkets, {
+                                  market_id: market.id,
+                                  weight: 1,
+                                  position_type: 'long',
+                                  outcome: 'both'
+                                }]);
+                              }
+                            }}
+                          />
+                          <ListItemText
+                            primary={market.title}
+                            secondary={
+                              <Stack direction="row" spacing={1}>
+                                <Chip label={market.platform} size="small" />
+                                <Typography variant="caption">
+                                  Vol: ${market.volume_24h?.toLocaleString() || 0}
+                                </Typography>
+                              </Stack>
+                            }
+                          />
+                        </Box>
+                        {isSelected && (
+                          <Box sx={{ px: 2, pb: 1 }}>
+                            <Stack spacing={1}>
+                              <ToggleButtonGroup
+                                value={selectedMarket?.outcome || 'both'}
+                                exclusive
+                                onChange={(_, value) => {
+                                  if (value) {
+                                    setSelectedMarkets(
+                                      selectedMarkets.map(m => 
+                                        m.market_id === market.id
+                                          ? { ...m, outcome: value }
+                                          : m
+                                      )
+                                    );
+                                  }
+                                }}
+                                size="small"
+                                fullWidth
+                              >
+                                <ToggleButton value="yes" color="success">
+                                  Yes
+                                </ToggleButton>
+                                <ToggleButton value="no" color="error">
+                                  No
+                                </ToggleButton>
+                                <ToggleButton value="both">
+                                  Both
+                                </ToggleButton>
+                              </ToggleButtonGroup>
+                              
+                              {selectedGroup?.group_type === 'index' && (
+                                <Box>
+                                  <Typography variant="caption" color="text.secondary">
+                                    Weight: {selectedMarket?.weight || 1}
+                                  </Typography>
+                                  <Slider
+                                    value={selectedMarket?.weight || 1}
+                                    onChange={(_, value) => {
+                                      setSelectedMarkets(
+                                        selectedMarkets.map(m => 
+                                          m.market_id === market.id
+                                            ? { ...m, weight: value as number }
+                                            : m
+                                        )
+                                      );
+                                    }}
+                                    min={0.1}
+                                    max={10}
+                                    step={0.1}
+                                    marks={[
+                                      { value: 1, label: '1x' },
+                                      { value: 5, label: '5x' },
+                                      { value: 10, label: '10x' }
+                                    ]}
+                                    size="small"
+                                  />
+                                </Box>
+                              )}
+                            </Stack>
+                          </Box>
+                        )}
+                      </ListItem>
+                    );
+                  })}
+                </List>
+              </Box>
             )}
           </Box>
         </DialogContent>

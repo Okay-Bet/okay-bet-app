@@ -120,6 +120,7 @@ export interface SPMCGroupMarket {
   market_id: string;
   weight: number;
   position_type: string;
+  outcome?: 'yes' | 'no' | 'both';  // Specify yes/no outcome
   metadata?: Record<string, any>;
   added_at: string;
   updated_at: string;
