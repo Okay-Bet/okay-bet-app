@@ -21,12 +21,14 @@ export default function Home() {
     try {
       const response = await spmcClient.listGroups({ limit: 100 });
       if (response.success && response.data) {
-        // Get all groups and load their details
-        const allGroups = response.data.groups;
+        // Filter to only get indexes (not portfolios)
+        const indexGroups = response.data.groups.filter(
+          group => group.group_type === 'index'
+        );
         
-        // Load details for each group to get market information
+        // Load details for each index to get market information
         const groupsWithDetails = await Promise.all(
-          allGroups.map(async (group) => {
+          indexGroups.map(async (group) => {
             try {
               const detailResponse = await spmcClient.getGroup(group.id);
               return detailResponse.success && detailResponse.data ? detailResponse.data : group;
