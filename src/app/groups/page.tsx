@@ -1,137 +1,59 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { spmcClient } from '@/services/spmc/client';
-import { SPMCGroup, SPMCMarket } from '@/services/spmc/types';
-import { 
-  Box, 
-  Container, 
-  Typography, 
-  Card, 
-  CardContent, 
-  Button, 
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  CircularProgress,
-  Alert,
-  IconButton,
-  Chip,
-  Stack,
-  Grid,
-  Paper,
-  Tabs,
-  Tab,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
-  Divider,
-  Tooltip,
-  Pagination
-} from '@mui/material';
-import {
-  Add as AddIcon,
-  Delete as DeleteIcon,
-  Edit as EditIcon,
-  Refresh as RefreshIcon,
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
-  Search as SearchIcon,
-  AddCircle as AddCircleIcon,
-  RemoveCircle as RemoveCircleIcon,
-  Settings as SettingsIcon
-} from '@mui/icons-material';
-import Checkbox from '@mui/material/Checkbox';
-import Slider from '@mui/material/Slider';
-import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`simple-tabpanel-${index}`}
-      aria-labelledby={`simple-tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <Box sx={{ p: 3 }}>
-          {children}
-        </Box>
-      )}
-    </div>
-  );
-}
+import { SPMCGroup, SPMCMarket, SPMCGroupMarket } from '@/services/spmc/types';
+import Logo from '@/components/Logo/Logo';
 
 export default function GroupsPage() {
+  const router = useRouter();
   const [groups, setGroups] = useState<SPMCGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedGroup, setSelectedGroup] = useState<SPMCGroup | null>(null);
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [tabValue, setTabValue] = useState(0);
+  const [activeTab, setActiveTab] = useState<'all' | 'create'>('all');
   
-  // Dialog states
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [addMarketDialogOpen, setAddMarketDialogOpen] = useState(false);
-  const [searchMarkets, setSearchMarkets] = useState<SPMCMarket[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchLoading, setSearchLoading] = useState(false);
+  // Edit mode states
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [editingGroup, setEditingGroup] = useState<SPMCGroup | null>(null);
+  const [editSearchQuery, setEditSearchQuery] = useState('');
+  const [editSearchResults, setEditSearchResults] = useState<SPMCMarket[]>([]);
+  const [editSearchLoading, setEditSearchLoading] = useState(false);
   
-  // Form states
+  // Create form states
   const [newGroup, setNewGroup] = useState({
     title: '',
     description: '',
-    group_type: 'watchlist' as const,
+    group_type: 'index' as 'index' | 'portfolio',
     metadata: {}
   });
   
+  // Search and market selection states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SPMCMarket[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [selectedMarkets, setSelectedMarkets] = useState<Array<{
     market_id: string;
+    market: SPMCMarket;
     weight: number;
-    position_type: string;
-    outcome?: 'yes' | 'no' | 'both';
-  }>>([]); 
+    outcome: 'yes' | 'no' | 'both';
+  }>>([]);
   
-  // For create group panel
-  const [createPanelSearchQuery, setCreatePanelSearchQuery] = useState('');
-  const [createPanelMarkets, setCreatePanelMarkets] = useState<SPMCMarket[]>([]);
-  const [createPanelSearchLoading, setCreatePanelSearchLoading] = useState(false);
-  const [createPanelSelectedMarkets, setCreatePanelSelectedMarkets] = useState<Array<{
-    market_id: string;
-    weight: number;
-    position_type: string;
-    outcome?: 'yes' | 'no' | 'both';
-  }>>([]); 
-  const [createPanelPage, setCreatePanelPage] = useState(0);
-  const [createPanelTotalCount, setCreatePanelTotalCount] = useState(0);
-  const [createPanelHasMore, setCreatePanelHasMore] = useState(false);
-  const pageSize = 20;
+  // Expanded groups for viewing details
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
-  // Load groups
+  // Load all groups
   const loadGroups = async () => {
     setLoading(true);
     setError(null);
     try {
       const response = await spmcClient.listGroups({ limit: 100 });
       if (response.success && response.data) {
-        setGroups(response.data.groups);
+        // Filter to only show index and portfolio groups
+        const filteredGroups = response.data.groups.filter(
+          group => group.group_type === 'index' || group.group_type === 'portfolio'
+        );
+        setGroups(filteredGroups);
       } else {
         setError('Failed to load groups');
       }
@@ -148,101 +70,289 @@ export default function GroupsPage() {
     try {
       const response = await spmcClient.getGroup(groupId);
       if (response.success && response.data) {
-        const updatedGroups = groups.map(g => 
-          g.id === groupId ? response.data : g
+        setGroups(prevGroups => 
+          prevGroups.map(g => g.id === groupId ? response.data : g)
         );
-        setGroups(updatedGroups);
-        if (selectedGroup?.id === groupId) {
-          setSelectedGroup(response.data);
+        // If we're editing this group, update the editing group as well
+        if (editingGroupId === groupId) {
+          setEditingGroup(response.data);
         }
+        return response.data;
       }
     } catch (err) {
       console.error('Error loading group details:', err);
     }
+    return null;
   };
 
-  // Create group
-  const handleCreateGroup = async () => {
-    try {
-      const response = await spmcClient.createGroup(newGroup);
-      if (response.success && response.data) {
-        await loadGroups();
-        setCreateDialogOpen(false);
-        setNewGroup({
-          title: '',
-          description: '',
-          group_type: 'watchlist',
-          metadata: {}
-        });
-      } else {
-        setError('Failed to create group');
-      }
-    } catch (err) {
-      setError(`Error creating group: ${err instanceof Error ? err.message : 'Unknown error'}`);
+  // Enter edit mode for a group
+  const enterEditMode = async (group: SPMCGroup) => {
+    // Load full group details first
+    const fullGroup = await loadGroupDetails(group.id);
+    if (fullGroup) {
+      setEditingGroupId(group.id);
+      setEditingGroup(fullGroup);
+      setExpandedGroups(new Set([group.id]));
     }
   };
-  
-  // Create group with markets (for create panel)
-  const handleCreateGroupWithMarkets = async () => {
-    try {
-      // First create the group
-      const groupResponse = await spmcClient.createGroup(newGroup);
-      if (groupResponse.success && groupResponse.data) {
-        // If markets are selected, add them to the group
-        if (createPanelSelectedMarkets.length > 0) {
-          await spmcClient.addMarketsToGroup(groupResponse.data.id, createPanelSelectedMarkets);
-        }
-        
-        // Reset form and reload groups
-        setNewGroup({
-          title: '',
-          description: '',
-          group_type: 'watchlist',
-          metadata: {}
-        });
-        setCreatePanelSelectedMarkets([]);
-        setCreatePanelMarkets([]);
-        setCreatePanelSearchQuery('');
-        await loadGroups();
-        
-        // Show success message
-        setError(null);
-        alert(`Group "${groupResponse.data.title}" created successfully with ${createPanelSelectedMarkets.length} markets!`);
-      } else {
-        setError('Failed to create group');
-      }
-    } catch (err) {
-      setError(`Error creating group: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
+
+  // Exit edit mode
+  const exitEditMode = () => {
+    setEditingGroupId(null);
+    setEditingGroup(null);
+    setEditSearchQuery('');
+    setEditSearchResults([]);
   };
-  
-  // Search markets for create panel (with pagination)
-  const handleCreatePanelSearch = async (page: number = 0) => {
-    if (!createPanelSearchQuery.trim()) return;
+
+  // Update market weight in editing group
+  const updateEditingMarketWeight = (marketId: string, weight: number) => {
+    if (!editingGroup) return;
     
-    setCreatePanelSearchLoading(true);
-    setCreatePanelPage(page);
+    const updatedMarkets = editingGroup.markets?.map(m => 
+      m.market_id === marketId ? { ...m, weight } : m
+    ) || [];
     
+    setEditingGroup({ ...editingGroup, markets: updatedMarkets });
+  };
+
+  // Update market outcome in editing group
+  const updateEditingMarketOutcome = (marketId: string, outcome: 'yes' | 'no' | 'both') => {
+    if (!editingGroup) return;
+    
+    const updatedMarkets = editingGroup.markets?.map(m => 
+      m.market_id === marketId ? { ...m, outcome } : m
+    ) || [];
+    
+    setEditingGroup({ ...editingGroup, markets: updatedMarkets });
+  };
+
+  // Remove market from editing group (locally)
+  const removeMarketFromEditingGroup = (marketId: string) => {
+    if (!editingGroup) return;
+    
+    const updatedMarkets = editingGroup.markets?.filter(m => 
+      m.market_id !== marketId
+    ) || [];
+    
+    setEditingGroup({ ...editingGroup, markets: updatedMarkets });
+  };
+
+  // Search markets for editing
+  const handleEditSearchMarkets = async () => {
+    if (!editSearchQuery.trim()) return;
+    
+    setEditSearchLoading(true);
     try {
       const response = await spmcClient.searchMarkets({ 
-        query: createPanelSearchQuery, 
-        limit: pageSize,
-        offset: page * pageSize
+        query: editSearchQuery, 
+        limit: 20 
       });
       if (response.success && response.data) {
-        setCreatePanelMarkets(response.data.markets);
-        
-        // Check if there are more results
-        // The API returns total_count in the response
-        const totalCount = (response as any).data?.totalResults || response.data.markets.length;
-        setCreatePanelTotalCount(totalCount);
-        setCreatePanelHasMore((page + 1) * pageSize < totalCount);
+        setEditSearchResults(response.data.markets);
       }
     } catch (err) {
       console.error('Error searching markets:', err);
-      setError(`Error searching markets: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setError('Failed to search markets');
     } finally {
-      setCreatePanelSearchLoading(false);
+      setEditSearchLoading(false);
+    }
+  };
+
+  // Add market to editing group (locally)
+  const addMarketToEditingGroup = (market: SPMCMarket) => {
+    if (!editingGroup) return;
+    
+    // Check if market already exists
+    if (editingGroup.markets?.some(m => m.market_id === market.id)) {
+      return;
+    }
+    
+    const newMarket: SPMCGroupMarket = {
+      id: `temp-${Date.now()}`, // Temporary ID
+      group_id: editingGroup.id,
+      market_id: market.id,
+      market_title: market.title,
+      market_platform: market.platform,
+      market_current_price: market.current_price,
+      market_expiration_date: market.expiration_date,
+      market_close_time: market.market_close_time,
+      market_closes_at: market.closes_at,
+      weight: 1,
+      position_type: 'long',
+      outcome: 'both',  // Default to BOTH for flexibility
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    const updatedMarkets = [...(editingGroup.markets || []), newMarket];
+    setEditingGroup({ ...editingGroup, markets: updatedMarkets, market_count: updatedMarkets.length });
+  };
+
+  // Save all changes to the group
+  const saveGroupChanges = async () => {
+    if (!editingGroup || !editingGroupId) return;
+    
+    try {
+      // First, update basic group info if changed
+      const originalGroup = groups.find(g => g.id === editingGroupId);
+      if (originalGroup && (
+        originalGroup.title !== editingGroup.title || 
+        originalGroup.description !== editingGroup.description
+      )) {
+        await spmcClient.updateGroup(editingGroupId, {
+          title: editingGroup.title,
+          description: editingGroup.description
+        });
+      }
+      
+      // Get original markets from the server
+      const response = await spmcClient.getGroup(editingGroupId);
+      const originalMarkets = response.data?.markets || [];
+      
+      // Find markets to remove (in original but not in edited)
+      const marketsToRemove = originalMarkets.filter(
+        om => !editingGroup.markets?.some(em => em.market_id === om.market_id)
+      );
+      
+      // Find markets to add (in edited but not in original)
+      const marketsToAdd = editingGroup.markets?.filter(
+        em => !originalMarkets.some(om => om.market_id === em.market_id)
+      ) || [];
+      
+      // Find markets to update (in both but with different weights/outcomes)
+      const marketsToUpdate = editingGroup.markets?.filter(em => {
+        const original = originalMarkets.find(om => om.market_id === em.market_id);
+        return original && (
+          original.weight !== em.weight || 
+          original.outcome !== em.outcome
+        );
+      }) || [];
+      
+      // Execute all changes
+      // Remove markets
+      for (const market of marketsToRemove) {
+        await spmcClient.removeMarketFromGroup(editingGroupId, market.market_id);
+      }
+      
+      // Add new markets
+      if (marketsToAdd.length > 0) {
+        const newMarkets = marketsToAdd.map(m => ({
+          market_id: m.market_id,
+          weight: m.weight || 1,
+          position_type: 'long' as const,
+          outcome: m.outcome || 'yes' as const
+        }));
+        await spmcClient.addMarketsToGroup(editingGroupId, newMarkets);
+      }
+      
+      // Update existing markets (remove and re-add with new settings)
+      for (const market of marketsToUpdate) {
+        await spmcClient.removeMarketFromGroup(editingGroupId, market.market_id);
+        await spmcClient.addMarketsToGroup(editingGroupId, [{
+          market_id: market.market_id,
+          weight: market.weight || 1,
+          position_type: 'long' as const,
+          outcome: market.outcome || 'yes' as const
+        }]);
+      }
+      
+      // Reload groups and exit edit mode
+      await loadGroups();
+      exitEditMode();
+    } catch (err) {
+      setError(`Error saving changes: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  // Search markets
+  const handleSearchMarkets = async () => {
+    if (!searchQuery.trim()) return;
+    
+    setSearchLoading(true);
+    try {
+      const response = await spmcClient.searchMarkets({ 
+        query: searchQuery, 
+        limit: 20 
+      });
+      if (response.success && response.data) {
+        setSearchResults(response.data.markets);
+      }
+    } catch (err) {
+      console.error('Error searching markets:', err);
+      setError('Failed to search markets');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // Toggle market selection
+  const toggleMarketSelection = (market: SPMCMarket) => {
+    const existing = selectedMarkets.find(m => m.market_id === market.id);
+    if (existing) {
+      setSelectedMarkets(selectedMarkets.filter(m => m.market_id !== market.id));
+    } else {
+      setSelectedMarkets([...selectedMarkets, {
+        market_id: market.id,
+        market,
+        weight: 1,
+        outcome: 'both'  // Default to BOTH for flexibility
+      }]);
+    }
+  };
+
+  // Update market weight
+  const updateMarketWeight = (marketId: string, weight: number) => {
+    setSelectedMarkets(selectedMarkets.map(m => 
+      m.market_id === marketId ? { ...m, weight } : m
+    ));
+  };
+
+  // Update market outcome
+  const updateMarketOutcome = (marketId: string, outcome: 'yes' | 'no' | 'both') => {
+    setSelectedMarkets(selectedMarkets.map(m => 
+      m.market_id === marketId ? { ...m, outcome } : m
+    ));
+  };
+
+  // Create group with markets
+  const handleCreateGroup = async () => {
+    if (!newGroup.title.trim()) {
+      setError('Please enter a group title');
+      return;
+    }
+
+    try {
+      // Create the group
+      const groupResponse = await spmcClient.createGroup(newGroup);
+      if (groupResponse.success && groupResponse.data) {
+        // Add markets if any selected
+        if (selectedMarkets.length > 0) {
+          const marketsToAdd = selectedMarkets.map(m => ({
+            market_id: m.market_id,
+            weight: m.weight,
+            position_type: 'long' as const,
+            outcome: m.outcome
+          }));
+          await spmcClient.addMarketsToGroup(groupResponse.data.id, marketsToAdd);
+        }
+        
+        // Reset form
+        setNewGroup({
+          title: '',
+          description: '',
+          group_type: 'index',
+          metadata: {}
+        });
+        setSelectedMarkets([]);
+        setSearchResults([]);
+        setSearchQuery('');
+        setActiveTab('all');
+        
+        // Reload groups
+        await loadGroups();
+      }
+    } catch (err) {
+      setError(`Error creating group: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 
@@ -253,65 +363,19 @@ export default function GroupsPage() {
     try {
       await spmcClient.deleteGroup(groupId);
       await loadGroups();
-      if (selectedGroup?.id === groupId) {
-        setSelectedGroup(null);
-      }
     } catch (err) {
       setError(`Error deleting group: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 
-  // Search markets
-  const handleSearchMarkets = async () => {
-    if (!searchQuery.trim()) return;
-    
-    setSearchLoading(true);
-    try {
-      const response = await spmcClient.searchMarkets({ query: searchQuery, limit: 20 });
-      if (response.success && response.data) {
-        setSearchMarkets(response.data.markets);
-      }
-    } catch (err) {
-      console.error('Error searching markets:', err);
-    } finally {
-      setSearchLoading(false);
-    }
-  };
-
-  // Add markets to group
-  const handleAddMarketsToGroup = async () => {
-    if (!selectedGroup || selectedMarkets.length === 0) return;
-    
-    try {
-      await spmcClient.addMarketsToGroup(selectedGroup.id, selectedMarkets);
-      await loadGroupDetails(selectedGroup.id);
-      setAddMarketDialogOpen(false);
-      setSelectedMarkets([]);
-      setSearchMarkets([]);
-      setSearchQuery('');
-    } catch (err) {
-      setError(`Error adding markets: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  };
-
-  // Remove market from group
-  const handleRemoveMarketFromGroup = async (groupId: string, marketId: string) => {
-    try {
-      await spmcClient.removeMarketFromGroup(groupId, marketId);
-      await loadGroupDetails(groupId);
-    } catch (err) {
-      setError(`Error removing market: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  };
-
   // Toggle group expansion
-  const toggleGroupExpansion = (groupId: string) => {
+  const toggleGroupExpansion = async (groupId: string) => {
     const newExpanded = new Set(expandedGroups);
     if (newExpanded.has(groupId)) {
       newExpanded.delete(groupId);
     } else {
       newExpanded.add(groupId);
-      loadGroupDetails(groupId); // Load full details when expanding
+      await loadGroupDetails(groupId);
     }
     setExpandedGroups(newExpanded);
   };
@@ -320,729 +384,681 @@ export default function GroupsPage() {
     loadGroups();
   }, []);
 
-  const renderGroupCard = (group: SPMCGroup) => {
-    const isExpanded = expandedGroups.has(group.id);
-    
-    return (
-      <Card key={group.id} sx={{ mb: 2 }}>
-        <CardContent>
-          <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-            <Box flex={1}>
-              <Typography variant="h6">{group.title}</Typography>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                {group.description}
-              </Typography>
-              <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                <Chip 
-                  label={group.group_type} 
-                  size="small" 
-                  color="primary" 
-                  variant="outlined" 
-                />
-                <Chip 
-                  label={`${group.market_count} markets`} 
-                  size="small" 
-                />
-                {group.is_system_generated && (
-                  <Chip label="System" size="small" color="secondary" />
-                )}
-              </Stack>
-            </Box>
-            <Box>
-              <IconButton 
-                size="small" 
-                onClick={() => toggleGroupExpansion(group.id)}
-              >
-                {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-              </IconButton>
-              <IconButton 
-                size="small" 
-                onClick={() => {
-                  setSelectedGroup(group);
-                  setAddMarketDialogOpen(true);
-                }}
-              >
-                <AddIcon />
-              </IconButton>
-              <IconButton 
-                size="small" 
-                onClick={() => handleDeleteGroup(group.id)}
-                color="error"
-              >
-                <DeleteIcon />
-              </IconButton>
-            </Box>
-          </Box>
-          
-          {isExpanded && group.markets && (
-            <Box sx={{ mt: 2 }}>
-              <Divider sx={{ mb: 2 }} />
-              <Typography variant="subtitle2" gutterBottom>
-                Markets in this group:
-              </Typography>
-              <List dense>
-                {group.markets.map((groupMarket) => (
-                  <ListItem key={groupMarket.id}>
-                    <ListItemText
-                      primary={groupMarket.market_title || groupMarket.market_id}
-                      secondary={
-                        <Stack direction="row" spacing={1}>
-                          <Chip 
-                            label={groupMarket.market_platform || 'Unknown'} 
-                            size="small" 
-                            variant="outlined"
-                          />
-                          <Typography variant="caption">
-                            Weight: {groupMarket.weight} | Type: {groupMarket.position_type}
-                            {groupMarket.outcome && ` | Outcome: ${groupMarket.outcome.toUpperCase()}`}
-                          </Typography>
-                          {groupMarket.market_current_price !== null && (
-                            <Typography variant="caption" color="primary">
-                              Price: ${groupMarket.market_current_price?.toFixed(2)}
-                            </Typography>
-                          )}
-                        </Stack>
-                      }
-                    />
-                    <ListItemSecondaryAction>
-                      <IconButton 
-                        edge="end" 
-                        size="small"
-                        onClick={() => handleRemoveMarketFromGroup(group.id, groupMarket.market_id)}
-                      >
-                        <RemoveCircleIcon color="error" fontSize="small" />
-                      </IconButton>
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                ))}
-              </List>
-            </Box>
-          )}
-        </CardContent>
-      </Card>
-    );
-  };
-
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" gutterBottom>
-          SPMC Groups Management
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          View and manage market groups for testing SPMC API integration
-        </Typography>
-      </Box>
+    <div className="min-h-screen bg-gray-50">
+      {/* Navigation */}
+      <nav className="bg-white border-b border-gray-300 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-8">
+              <Logo />
+              <h1 className="text-xl font-bold text-gray-900">Groups Management</h1>
+            </div>
+            <button
+              onClick={() => router.push('/')}
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-primary transition flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back to Home
+            </button>
+          </div>
+        </div>
+      </nav>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
-
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-        <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
-          <Tab label="All Groups" />
-          <Tab label="Create Group" icon={<AddCircleIcon />} iconPosition="start" />
-        </Tabs>
-      </Box>
-
-      <TabPanel value={tabValue} index={0}>
-        <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setCreateDialogOpen(true)}
-          >
-            Create Group
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<RefreshIcon />}
-            onClick={loadGroups}
-          >
-            Refresh
-          </Button>
-        </Box>
-
-        {loading ? (
-          <Box display="flex" justifyContent="center" sx={{ mt: 4 }}>
-            <CircularProgress />
-          </Box>
-        ) : (
-          <Box>
-            {groups.length === 0 ? (
-              <Paper sx={{ p: 4, textAlign: 'center' }}>
-                <Typography color="text.secondary">
-                  No groups found. Create your first group to get started.
-                </Typography>
-              </Paper>
-            ) : (
-              groups.map(renderGroupCard)
-            )}
-          </Box>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Error Alert */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex justify-between items-center">
+              <p className="text-red-700">{error}</p>
+              <button
+                onClick={() => setError(null)}
+                className="text-red-500 hover:text-red-700"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
         )}
-      </TabPanel>
 
-      <TabPanel value={tabValue} index={1}>
-        <Grid container spacing={3}>
-          {/* Group Details Form */}
-          <Grid item xs={12} md={4}>
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Group Details
-              </Typography>
-              <Stack spacing={2}>
-                <TextField
-                  fullWidth
-                  label="Group Title"
-                  value={newGroup.title}
-                  onChange={(e) => setNewGroup({ ...newGroup, title: e.target.value })}
-                  placeholder="e.g., My Watchlist"
-                />
-                <TextField
-                  fullWidth
-                  label="Description"
-                  multiline
-                  rows={3}
-                  value={newGroup.description}
-                  onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
-                  placeholder="Describe your group..."
-                />
-                <FormControl fullWidth>
-                  <InputLabel>Group Type</InputLabel>
-                  <Select
-                    value={newGroup.group_type}
-                    label="Group Type"
-                    onChange={(e) => setNewGroup({ ...newGroup, group_type: e.target.value as any })}
-                  >
-                    <MenuItem value="watchlist">Watchlist</MenuItem>
-                    <MenuItem value="portfolio">Portfolio</MenuItem>
-                    <MenuItem value="index">Index</MenuItem>
-                    <MenuItem value="arbitrage">Arbitrage</MenuItem>
-                    <MenuItem value="correlated">Correlated</MenuItem>
-                    <MenuItem value="inverse">Inverse</MenuItem>
-                    <MenuItem value="same_event">Same Event</MenuItem>
-                  </Select>
-                </FormControl>
-                
-                {newGroup.group_type === 'index' && (
-                  <Alert severity="info" icon={<SettingsIcon />}>
-                    <Typography variant="caption">
-                      Index groups allow you to set custom weights for each market. Adjust weights after selecting markets below.
-                    </Typography>
-                  </Alert>
-                )}
-                
-                <Divider />
-                
-                <Box>
-                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                    <Typography variant="subtitle2">
-                      Selected Markets: {createPanelSelectedMarkets.length}
-                    </Typography>
-                    {createPanelSelectedMarkets.length > 0 && (
-                      <ToggleButtonGroup
-                        size="small"
-                        exclusive
-                        onChange={(_, value) => {
-                          if (value) {
-                            setCreatePanelSelectedMarkets(
-                              createPanelSelectedMarkets.map(m => ({ ...m, outcome: value }))
-                            );
-                          }
-                        }}
-                      >
-                        <ToggleButton value="yes" size="small">
-                          All Yes
-                        </ToggleButton>
-                        <ToggleButton value="no" size="small">
-                          All No
-                        </ToggleButton>
-                        <ToggleButton value="both" size="small">
-                          All Both
-                        </ToggleButton>
-                      </ToggleButtonGroup>
-                    )}
-                  </Box>
-                  {createPanelSelectedMarkets.length > 0 && (
-                    <Stack spacing={1} sx={{ mt: 1, maxHeight: 200, overflow: 'auto' }}>
-                      {createPanelSelectedMarkets.map((selectedMarket, idx) => {
-                        const market = createPanelMarkets.find(m => m.id === selectedMarket.market_id);
-                        return (
-                          <Paper key={selectedMarket.market_id} sx={{ p: 1, bgcolor: 'grey.50' }}>
-                            <Stack spacing={1}>
-                              <Box display="flex" justifyContent="space-between" alignItems="center">
-                                <Typography variant="caption" noWrap sx={{ flex: 1, mr: 1 }}>
-                                  {market?.title || `Market ${idx + 1}`}
-                                </Typography>
-                                <IconButton 
-                                  size="small"
-                                  onClick={() => {
-                                    setCreatePanelSelectedMarkets(
-                                      createPanelSelectedMarkets.filter(s => s.market_id !== selectedMarket.market_id)
-                                    );
-                                  }}
-                                >
-                                  <RemoveCircleIcon fontSize="small" />
-                                </IconButton>
-                              </Box>
-                              
-                              {/* Yes/No Selection */}
-                              <ToggleButtonGroup
-                                value={selectedMarket.outcome || 'both'}
-                                exclusive
-                                onChange={(_, value) => {
-                                  if (value) {
-                                    setCreatePanelSelectedMarkets(
-                                      createPanelSelectedMarkets.map(m => 
-                                        m.market_id === selectedMarket.market_id
-                                          ? { ...m, outcome: value }
-                                          : m
-                                      )
-                                    );
-                                  }
-                                }}
-                                size="small"
-                                fullWidth
-                              >
-                                <ToggleButton value="yes" color="success">
-                                  Yes
-                                </ToggleButton>
-                                <ToggleButton value="no" color="error">
-                                  No
-                                </ToggleButton>
-                                <ToggleButton value="both">
-                                  Both
-                                </ToggleButton>
-                              </ToggleButtonGroup>
-                              
-                              {/* Weight Slider for Index Groups */}
-                              {newGroup.group_type === 'index' && (
-                                <Box>
-                                  <Typography variant="caption" color="text.secondary">
-                                    Weight: {selectedMarket.weight}
-                                  </Typography>
-                                  <Slider
-                                    value={selectedMarket.weight}
-                                    onChange={(_, value) => {
-                                      setCreatePanelSelectedMarkets(
-                                        createPanelSelectedMarkets.map(m => 
-                                          m.market_id === selectedMarket.market_id
-                                            ? { ...m, weight: value as number }
-                                            : m
-                                        )
-                                      );
-                                    }}
-                                    min={0.1}
-                                    max={10}
-                                    step={0.1}
-                                    marks={[
-                                      { value: 1, label: '1x' },
-                                      { value: 5, label: '5x' },
-                                      { value: 10, label: '10x' }
-                                    ]}
-                                    size="small"
-                                  />
-                                </Box>
+        {/* Tabs */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+          <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`px-6 py-3 text-sm font-medium transition ${
+                activeTab === 'all'
+                  ? 'text-primary border-b-2 border-primary'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              All Groups
+            </button>
+            <button
+              onClick={() => setActiveTab('create')}
+              className={`px-6 py-3 text-sm font-medium transition ${
+                activeTab === 'create'
+                  ? 'text-primary border-b-2 border-primary'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Create New Group
+            </button>
+          </div>
+        </div>
+
+        {/* All Groups Tab */}
+        {activeTab === 'all' && (
+          <div>
+            <div className="mb-4 flex justify-between items-center">
+              <p className="text-sm font-medium text-gray-800">
+                {groups.length} group{groups.length !== 1 ? 's' : ''} total
+              </p>
+              <button
+                onClick={loadGroups}
+                disabled={loading}
+                className="px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+              >
+                {loading ? 'Loading...' : 'Refresh'}
+              </button>
+            </div>
+
+            {loading && groups.length === 0 ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-gray-500">Loading groups...</p>
+                </div>
+              </div>
+            ) : groups.length === 0 ? (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+                <h3 className="text-lg font-bold text-gray-900 mb-2">No Groups Yet</h3>
+                <p className="text-gray-800 font-medium mb-4">Create your first group to start organizing markets</p>
+                <button
+                  onClick={() => setActiveTab('create')}
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition"
+                >
+                  Create First Group
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {groups.map((group) => {
+                  const isExpanded = expandedGroups.has(group.id);
+                  const isEditing = editingGroupId === group.id;
+                  const displayGroup = isEditing ? editingGroup : group;
+                  
+                  if (!displayGroup) return null;
+                  
+                  return (
+                    <div key={group.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                      <div className="p-6">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  value={displayGroup.title}
+                                  onChange={(e) => setEditingGroup({ ...displayGroup, title: e.target.value })}
+                                  className="text-lg font-semibold px-2 py-1 border border-gray-300 rounded text-black"
+                                />
+                              ) : (
+                                <h3 className="text-lg font-bold text-gray-900">{displayGroup.title}</h3>
                               )}
-                            </Stack>
-                          </Paper>
-                        );
-                      })}
-                    </Stack>
+                              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                                displayGroup.group_type === 'index' 
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : displayGroup.group_type === 'portfolio'
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-gray-100 text-gray-700'
+                              }`}>
+                                {displayGroup.group_type?.toUpperCase()}
+                              </span>
+                              <span className="text-sm text-gray-600">
+                                {displayGroup.market_count} market{displayGroup.market_count !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                            {isEditing ? (
+                              <textarea
+                                value={displayGroup.description}
+                                onChange={(e) => setEditingGroup({ ...displayGroup, description: e.target.value })}
+                                className="w-full text-sm px-2 py-1 border border-gray-300 rounded text-black"
+                                rows={2}
+                              />
+                            ) : (
+                              <p className="text-sm text-gray-800 font-medium">{displayGroup.description}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {isEditing ? (
+                              <>
+                                <button
+                                  onClick={saveGroupChanges}
+                                  className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition text-sm"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={exitEditMode}
+                                  className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition text-sm"
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => toggleGroupExpansion(group.id)}
+                                  className="p-2 text-gray-500 hover:text-gray-700 transition"
+                                >
+                                  <svg 
+                                    className={`w-5 h-5 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => enterEditMode(group)}
+                                  className="p-2 text-blue-500 hover:text-blue-700 transition"
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteGroup(group.id)}
+                                  className="p-2 text-red-500 hover:text-red-700 transition"
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {isExpanded && displayGroup.markets && (
+                          <div className="mt-4 pt-4 border-t border-gray-200">
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="text-sm font-semibold text-gray-800">Markets in this group:</h4>
+                              {isEditing && (
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    value={editSearchQuery}
+                                    onChange={(e) => setEditSearchQuery(e.target.value)}
+                                    onKeyPress={(e) => e.key === 'Enter' && handleEditSearchMarkets()}
+                                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-primary"
+                                    placeholder="Search to add markets..."
+                                  />
+                                  <button
+                                    onClick={handleEditSearchMarkets}
+                                    disabled={editSearchLoading}
+                                    className="px-3 py-1.5 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 transition disabled:opacity-50"
+                                  >
+                                    {editSearchLoading ? (
+                                      <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                      </svg>
+                                    ) : 'Search'}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Search results for adding markets in edit mode */}
+                            {isEditing && editSearchResults.length > 0 && (
+                              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                <div className="text-sm font-semibold text-gray-800 mb-3">Search Results ({editSearchResults.length} found):</div>
+                                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                                  {editSearchResults.map((market) => {
+                                    const alreadyAdded = displayGroup.markets?.some(m => m.market_id === market.id);
+                                    return (
+                                      <div
+                                        key={market.id}
+                                        className={`p-3 bg-white rounded-lg border transition-all ${
+                                          alreadyAdded 
+                                            ? 'border-gray-300 opacity-60 cursor-not-allowed' 
+                                            : 'border-blue-300 cursor-pointer hover:border-primary hover:shadow-md'
+                                        }`}
+                                        onClick={() => !alreadyAdded && addMarketToEditingGroup(market)}
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex-1">
+                                            <div className="font-medium text-gray-900 line-clamp-1">{market.title}</div>
+                                            <div className="flex items-center gap-3 mt-1">
+                                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                                                {market.platform}
+                                              </span>
+                                              {market.current_price !== undefined && (
+                                                <span className="text-sm font-bold text-gray-900">
+                                                  ${market.current_price.toFixed(2)}
+                                                </span>
+                                              )}
+                                              {(market.market_close_time || market.closes_at || market.expiration_date) && (
+                                                <span className="text-xs text-gray-600">
+                                                  Ends: {new Date(market.market_close_time || market.closes_at || market.expiration_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                          {alreadyAdded ? (
+                                            <span className="text-xs font-medium text-gray-500 px-2 py-1 bg-gray-100 rounded">✓ Added</span>
+                                          ) : (
+                                            <button className="text-sm font-medium text-white bg-primary px-3 py-1 rounded hover:bg-primary/90 transition">
+                                              + Add
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                            
+                            <div className="space-y-2">
+                              {displayGroup.markets.length > 0 ? (
+                                displayGroup.markets.map((groupMarket) => (
+                                  <div key={groupMarket.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                    <div className="flex-1">
+                                      <div className="font-medium text-gray-900 text-sm">
+                                        {groupMarket.market_title || 'Loading market title...'}
+                                      </div>
+                                      <div className="flex items-center gap-3 mt-1">
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                                          {groupMarket.market_platform}
+                                        </span>
+                                        {(groupMarket.market_expiration_date || groupMarket.market_close_time || groupMarket.market_closes_at) && (
+                                          <span className="text-xs text-gray-600">
+                                            Ends: {new Date(groupMarket.market_expiration_date || groupMarket.market_close_time || groupMarket.market_closes_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                          </span>
+                                        )}
+                                        {isEditing ? (
+                                          <>
+                                            {displayGroup.group_type === 'index' && (
+                                              <div className="flex items-center gap-1">
+                                                <label className="text-xs text-gray-600">Weight:</label>
+                                                <input
+                                                  type="number"
+                                                  value={groupMarket.weight}
+                                                  onChange={(e) => updateEditingMarketWeight(groupMarket.market_id, parseFloat(e.target.value) || 1)}
+                                                  className="w-16 text-xs px-1 py-0.5 border border-gray-300 rounded text-black"
+                                                  min="0.1"
+                                                  max="10"
+                                                  step="0.1"
+                                                />
+                                              </div>
+                                            )}
+                                            <div className="flex items-center gap-1">
+                                              <span className="text-xs text-gray-600">Outcome:</span>
+                                              <select
+                                                value={groupMarket.outcome || 'yes'}
+                                                onChange={(e) => updateEditingMarketOutcome(groupMarket.market_id, e.target.value as any)}
+                                                className="text-xs px-2 py-1 border border-gray-300 rounded font-medium text-black bg-white"
+                                              >
+                                                <option value="yes" className="font-medium">YES</option>
+                                                <option value="no" className="font-medium">NO</option>
+                                                <option value="both" className="font-medium">BOTH</option>
+                                              </select>
+                                            </div>
+                                          </>
+                                        ) : (
+                                          <>
+                                            {displayGroup.group_type === 'index' && groupMarket.weight !== 1 && (
+                                              <span className="text-xs font-semibold text-blue-600">
+                                                {groupMarket.weight}x weight
+                                              </span>
+                                            )}
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
+                                              groupMarket.outcome === 'yes' ? 'bg-green-100 text-green-700' :
+                                              groupMarket.outcome === 'no' ? 'bg-red-100 text-red-700' :
+                                              groupMarket.outcome === 'both' ? 'bg-blue-100 text-blue-700' :
+                                              'bg-gray-100 text-gray-700'
+                                            }`}>
+                                              {(groupMarket.outcome || 'yes').toUpperCase()}
+                                            </span>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {groupMarket.market_current_price !== null && (
+                                        <div className="text-right">
+                                          <div className={`text-lg font-bold ${
+                                            groupMarket.outcome === 'yes' ? 'text-green-600' :
+                                            groupMarket.outcome === 'no' ? 'text-red-600' :
+                                            'text-blue-600'
+                                          }`}>
+                                            ${groupMarket.market_current_price.toFixed(2)}
+                                          </div>
+                                        </div>
+                                      )}
+                                      {isEditing && (
+                                        <button
+                                          onClick={() => removeMarketFromEditingGroup(groupMarket.market_id)}
+                                          className="p-1 text-red-500 hover:text-red-700"
+                                        >
+                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                          </svg>
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <p className="text-sm text-gray-600 text-center py-4">
+                                  No markets in this group yet. {isEditing && <span className="font-medium">Use the search bar above to add markets.</span>}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Create Group Tab */}
+        {activeTab === 'create' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Group Details Form */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">Group Details</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-800 mb-1">
+                    Group Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={newGroup.title}
+                    onChange={(e) => setNewGroup({ ...newGroup, title: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:ring-2 focus:ring-primary focus:border-primary"
+                    placeholder="e.g., Tech Stocks Index"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-800 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={newGroup.description}
+                    onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:ring-2 focus:ring-primary focus:border-primary"
+                    rows={3}
+                    placeholder="Describe your group..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-800 mb-1">
+                    Group Type
+                  </label>
+                  <select
+                    value={newGroup.group_type}
+                    onChange={(e) => setNewGroup({ ...newGroup, group_type: e.target.value as 'index' | 'portfolio' })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:ring-2 focus:ring-primary focus:border-primary"
+                  >
+                    <option value="index">Index</option>
+                    <option value="portfolio">Portfolio</option>
+                  </select>
+                  {newGroup.group_type === 'index' && (
+                    <p className="mt-2 text-xs text-gray-600">
+                      Index groups allow you to set custom weights for each market
+                    </p>
                   )}
-                </Box>
-                
-                <Button
-                  fullWidth
-                  variant="contained"
-                  onClick={handleCreateGroupWithMarkets}
-                  disabled={!newGroup.title}
-                  startIcon={<AddIcon />}
+                </div>
+
+                {/* Selected Markets */}
+                {selectedMarkets.length > 0 && (
+                  <div className="border-t pt-4">
+                    <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center justify-between">
+                      <span>Selected Markets ({selectedMarkets.length})</span>
+                      <button
+                        onClick={() => setSelectedMarkets([])}
+                        className="text-xs text-red-600 hover:text-red-700 font-medium"
+                      >
+                        Clear all
+                      </button>
+                    </h3>
+                    <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
+                      {selectedMarkets.map((selected) => (
+                        <div key={selected.market_id} className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-gray-900 line-clamp-1">
+                                {selected.market.title}
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                                  {selected.market.platform}
+                                </span>
+                                {selected.market.current_price !== undefined && (
+                                  <span className={`text-sm font-bold ${
+                                    selected.outcome === 'yes' ? 'text-green-600' :
+                                    selected.outcome === 'no' ? 'text-red-600' :
+                                    'text-blue-600'
+                                  }`}>
+                                    ${selected.market.current_price.toFixed(2)}
+                                  </span>
+                                )}
+                                {(selected.market.market_close_time || selected.market.closes_at || selected.market.expiration_date) && (
+                                  <span className="text-xs text-gray-600">
+                                    Ends: {new Date(selected.market.market_close_time || selected.market.closes_at || selected.market.expiration_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3 mt-2">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-xs font-semibold text-gray-700">Outcome:</span>
+                                  <select
+                                    value={selected.outcome}
+                                    onChange={(e) => updateMarketOutcome(selected.market_id, e.target.value as any)}
+                                    className="text-sm px-3 py-1 border-2 border-gray-300 rounded-lg font-semibold text-black bg-white focus:border-primary focus:ring-1 focus:ring-primary"
+                                  >
+                                    <option value="yes" className="font-semibold">YES</option>
+                                    <option value="no" className="font-semibold">NO</option>
+                                    <option value="both" className="font-semibold">BOTH</option>
+                                  </select>
+                                </div>
+                                {newGroup.group_type === 'index' && (
+                                  <div className="flex items-center gap-2">
+                                    <label className="text-xs text-gray-600">Weight:</label>
+                                    <input
+                                      type="number"
+                                      value={selected.weight}
+                                      onChange={(e) => updateMarketWeight(selected.market_id, parseFloat(e.target.value) || 1)}
+                                      className="w-16 text-xs px-2 py-1 border border-gray-300 rounded text-black"
+                                      min="0.1"
+                                      max="10"
+                                      step="0.1"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => toggleMarketSelection(selected.market)}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  onClick={handleCreateGroup}
+                  disabled={!newGroup.title.trim()}
+                  className="w-full px-4 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Create Group
-                </Button>
-              </Stack>
-            </Paper>
-          </Grid>
-          
-          {/* Market Search and Selection */}
-          <Grid item xs={12} md={8}>
-            <Paper sx={{ p: 3, height: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
-              <Typography variant="h6" gutterBottom>
-                Add Markets to Group
-              </Typography>
+                </button>
+              </div>
+            </div>
+
+            {/* Market Search */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">Add Markets</h2>
               
-              {/* Search Bar */}
-              <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-                <TextField
-                  fullWidth
-                  label="Search Markets"
-                  value={createPanelSearchQuery}
-                  onChange={(e) => setCreatePanelSearchQuery(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleCreatePanelSearch(0)}
-                  placeholder="Search by market title..."
-                  InputProps={{
-                    startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                  }}
-                />
-                <Button
-                  variant="contained"
-                  onClick={() => handleCreatePanelSearch(0)}
-                  disabled={createPanelSearchLoading || !createPanelSearchQuery.trim()}
-                >
-                  {createPanelSearchLoading ? <CircularProgress size={24} /> : 'Search'}
-                </Button>
-              </Stack>
-              
-              {/* Market Results */}
-              <Box sx={{ flex: 1, overflow: 'auto' }}>
-                {createPanelMarkets.length === 0 ? (
-                  <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <SearchIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
-                    <Typography color="text.secondary">
-                      {createPanelSearchQuery ? 'No markets found. Try a different search.' : 'Search for markets to add to your group'}
-                    </Typography>
-                  </Box>
-                ) : (
-                  <List>
-                    {createPanelMarkets.map((market) => {
-                      const isSelected = createPanelSelectedMarkets.some(m => m.market_id === market.id);
-                      return (
-                        <ListItem
-                          key={market.id}
-                          sx={{ 
-                            borderRadius: 1, 
-                            mb: 1,
-                            bgcolor: isSelected ? 'action.selected' : 'transparent',
-                            '&:hover': { bgcolor: 'action.hover' }
-                          }}
-                        >
-                          <Checkbox
-                            checked={isSelected}
-                            onChange={() => {
-                              if (isSelected) {
-                                setCreatePanelSelectedMarkets(
-                                  createPanelSelectedMarkets.filter(m => m.market_id !== market.id)
-                                );
-                              } else {
-                                setCreatePanelSelectedMarkets([...createPanelSelectedMarkets, {
-                                  market_id: market.id,
-                                  weight: 1,
-                                  position_type: 'long',
-                                  outcome: 'both'
-                                }]);
-                              }
-                            }}
-                          />
-                          <ListItemText
-                            primary={market.title}
-                            secondary={
-                              <Stack direction="row" spacing={1} alignItems="center">
-                                <Chip 
-                                  label={market.platform} 
-                                  size="small" 
-                                  color={market.platform === 'polymarket' ? 'primary' : 
-                                         market.platform === 'kalshi' ? 'secondary' : 'default'}
-                                  variant="outlined"
-                                />
-                                {market.current_price !== undefined && (
-                                  <Typography variant="caption" color="primary">
-                                    ${market.current_price.toFixed(2)}
-                                  </Typography>
-                                )}
-                                {market.volume_24h !== undefined && (
-                                  <Typography variant="caption" color="text.secondary">
-                                    Vol: ${(market.volume_24h / 1000).toFixed(0)}k
-                                  </Typography>
-                                )}
-                                {market.category && (
-                                  <Chip label={market.category} size="small" variant="outlined" />
-                                )}
-                              </Stack>
-                            }
-                          />
-                        </ListItem>
-                      );
-                    })}
-                  </List>
-                )}
-              </Box>
-              
-              {/* Pagination and Action Bar */}
-              {createPanelMarkets.length > 0 && (
-                <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
-                  {/* Pagination */}
-                  {createPanelTotalCount > pageSize && (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
-                      <Pagination
-                        count={Math.ceil(createPanelTotalCount / pageSize)}
-                        page={createPanelPage + 1}
-                        onChange={(_, page) => handleCreatePanelSearch(page - 1)}
-                        disabled={createPanelSearchLoading}
-                        color="primary"
-                        size="small"
+              <div className="space-y-4">
+                <div className="relative">
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleSearchMarkets()}
+                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-primary"
+                        placeholder="Search for markets to add..."
                       />
-                      <Typography variant="caption" sx={{ ml: 2, alignSelf: 'center' }} color="text.secondary">
-                        Showing {createPanelPage * pageSize + 1}-{Math.min((createPanelPage + 1) * pageSize, createPanelTotalCount)} of {createPanelTotalCount} results
-                      </Typography>
-                    </Box>
+                      <svg className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <button
+                      onClick={handleSearchMarkets}
+                      disabled={searchLoading || !searchQuery.trim()}
+                      className="px-5 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {searchLoading ? (
+                        <>
+                          <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          Searching...
+                        </>
+                      ) : 'Search'}
+                    </button>
+                  </div>
+                  {searchQuery && (
+                    <button
+                      onClick={() => {
+                        setSearchQuery('');
+                        setSearchResults([]);
+                      }}
+                      className="absolute right-20 top-2.5 text-gray-400 hover:text-gray-600"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
                   )}
-                  
-                  {/* Selection controls */}
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="body2" color="text.secondary">
-                      {createPanelSelectedMarkets.length} selected total
-                    </Typography>
-                    <Stack direction="row" spacing={1}>
-                      <Button
-                        size="small"
-                        onClick={() => {
-                          // Add markets from current page that aren't already selected
-                          const currentPageMarketIds = createPanelMarkets.map(m => m.id);
-                          const existingSelections = createPanelSelectedMarkets.filter(
-                            s => !currentPageMarketIds.includes(s.market_id)
-                          );
-                          const newSelections = createPanelMarkets
-                            .filter(m => !createPanelSelectedMarkets.some(s => s.market_id === m.id))
-                            .map(m => ({
-                              market_id: m.id,
-                              weight: 1,
-                              position_type: 'long',
-                              outcome: 'both' as const
-                            }));
-                          setCreatePanelSelectedMarkets([...existingSelections, ...newSelections]);
-                        }}
-                      >
-                        Select Page
-                      </Button>
-                      <Button
-                        size="small"
-                        onClick={() => setCreatePanelSelectedMarkets([])}
-                      >
-                        Clear All
-                      </Button>
-                    </Stack>
-                  </Stack>
-                </Box>
-              )}
-            </Paper>
-          </Grid>
-        </Grid>
-      </TabPanel>
+                </div>
 
-      {/* Create Group Dialog */}
-      <Dialog 
-        open={createDialogOpen} 
-        onClose={() => setCreateDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Create New Group</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField
-              fullWidth
-              label="Title"
-              value={newGroup.title}
-              onChange={(e) => setNewGroup({ ...newGroup, title: e.target.value })}
-            />
-            <TextField
-              fullWidth
-              label="Description"
-              multiline
-              rows={3}
-              value={newGroup.description}
-              onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
-            />
-            <FormControl fullWidth>
-              <InputLabel>Group Type</InputLabel>
-              <Select
-                value={newGroup.group_type}
-                label="Group Type"
-                onChange={(e) => setNewGroup({ ...newGroup, group_type: e.target.value as any })}
-              >
-                <MenuItem value="watchlist">Watchlist</MenuItem>
-                <MenuItem value="portfolio">Portfolio</MenuItem>
-                <MenuItem value="index">Index</MenuItem>
-                <MenuItem value="arbitrage">Arbitrage</MenuItem>
-                <MenuItem value="correlated">Correlated</MenuItem>
-                <MenuItem value="inverse">Inverse</MenuItem>
-                <MenuItem value="same_event">Same Event</MenuItem>
-              </Select>
-            </FormControl>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
-          <Button 
-            onClick={handleCreateGroup}
-            variant="contained"
-            disabled={!newGroup.title}
-          >
-            Create
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Add Market Dialog */}
-      <Dialog 
-        open={addMarketDialogOpen} 
-        onClose={() => setAddMarketDialogOpen(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          Add Markets to {selectedGroup?.title}
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ mt: 2 }}>
-            <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-              <TextField
-                fullWidth
-                label="Search Markets"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearchMarkets()}
-              />
-              <Button 
-                variant="contained" 
-                onClick={handleSearchMarkets}
-                disabled={searchLoading}
-                startIcon={searchLoading ? <CircularProgress size={20} /> : <SearchIcon />}
-              >
-                Search
-              </Button>
-            </Stack>
-            
-            {searchMarkets.length > 0 && (
-              <Box>
-                <List>
-                  {searchMarkets.map((market) => {
-                    const selectedMarket = selectedMarkets.find(m => m.market_id === market.id);
-                    const isSelected = !!selectedMarket;
-                    return (
-                      <ListItem 
-                        key={market.id}
-                        sx={{ flexDirection: 'column', alignItems: 'stretch', mb: 1, border: '1px solid', borderColor: isSelected ? 'primary.main' : 'divider', borderRadius: 1 }}
-                      >
-                        <Box display="flex" alignItems="center" width="100%">
-                          <Checkbox 
-                            checked={isSelected}
-                            onChange={() => {
-                              if (isSelected) {
-                                setSelectedMarkets(selectedMarkets.filter(m => m.market_id !== market.id));
-                              } else {
-                                setSelectedMarkets([...selectedMarkets, {
-                                  market_id: market.id,
-                                  weight: 1,
-                                  position_type: 'long',
-                                  outcome: 'both'
-                                }]);
-                              }
-                            }}
-                          />
-                          <ListItemText
-                            primary={market.title}
-                            secondary={
-                              <Stack direction="row" spacing={1}>
-                                <Chip label={market.platform} size="small" />
-                                <Typography variant="caption">
-                                  Vol: ${market.volume_24h?.toLocaleString() || 0}
-                                </Typography>
-                              </Stack>
-                            }
-                          />
-                        </Box>
-                        {isSelected && (
-                          <Box sx={{ px: 2, pb: 1 }}>
-                            <Stack spacing={1}>
-                              <ToggleButtonGroup
-                                value={selectedMarket?.outcome || 'both'}
-                                exclusive
-                                onChange={(_, value) => {
-                                  if (value) {
-                                    setSelectedMarkets(
-                                      selectedMarkets.map(m => 
-                                        m.market_id === market.id
-                                          ? { ...m, outcome: value }
-                                          : m
-                                      )
-                                    );
-                                  }
-                                }}
-                                size="small"
-                                fullWidth
-                              >
-                                <ToggleButton value="yes" color="success">
-                                  Yes
-                                </ToggleButton>
-                                <ToggleButton value="no" color="error">
-                                  No
-                                </ToggleButton>
-                                <ToggleButton value="both">
-                                  Both
-                                </ToggleButton>
-                              </ToggleButtonGroup>
-                              
-                              {selectedGroup?.group_type === 'index' && (
-                                <Box>
-                                  <Typography variant="caption" color="text.secondary">
-                                    Weight: {selectedMarket?.weight || 1}
-                                  </Typography>
-                                  <Slider
-                                    value={selectedMarket?.weight || 1}
-                                    onChange={(_, value) => {
-                                      setSelectedMarkets(
-                                        selectedMarkets.map(m => 
-                                          m.market_id === market.id
-                                            ? { ...m, weight: value as number }
-                                            : m
-                                        )
-                                      );
-                                    }}
-                                    min={0.1}
-                                    max={10}
-                                    step={0.1}
-                                    marks={[
-                                      { value: 1, label: '1x' },
-                                      { value: 5, label: '5x' },
-                                      { value: 10, label: '10x' }
-                                    ]}
-                                    size="small"
-                                  />
-                                </Box>
-                              )}
-                            </Stack>
-                          </Box>
-                        )}
-                      </ListItem>
-                    );
-                  })}
-                </List>
-              </Box>
-            )}
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => {
-            setAddMarketDialogOpen(false);
-            setSelectedMarkets([]);
-            setSearchMarkets([]);
-            setSearchQuery('');
-          }}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleAddMarketsToGroup}
-            variant="contained"
-            disabled={selectedMarkets.length === 0}
-          >
-            Add {selectedMarkets.length} Market{selectedMarkets.length !== 1 ? 's' : ''}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+                {searchResults.length > 0 ? (
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-medium text-gray-700">
+                        {searchResults.length} market{searchResults.length !== 1 ? 's' : ''} found
+                      </span>
+                      {selectedMarkets.length > 0 && (
+                        <span className="text-sm font-medium text-primary">
+                          {selectedMarkets.length} selected
+                        </span>
+                      )}
+                    </div>
+                    <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
+                      {searchResults.map((market) => {
+                        const isSelected = selectedMarkets.some(m => m.market_id === market.id);
+                        return (
+                          <div
+                            key={market.id}
+                            className={`p-3 rounded-lg border-2 transition-all cursor-pointer ${
+                              isSelected 
+                                ? 'border-primary bg-primary/10 shadow-sm' 
+                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                            }`}
+                            onClick={() => toggleMarketSelection(market)}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="font-medium text-gray-900 text-sm line-clamp-2">
+                                  {market.title}
+                                </div>
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                                    {market.platform}
+                                  </span>
+                                  {market.current_price !== undefined && (
+                                    <span className="text-sm font-bold text-gray-900">
+                                      ${market.current_price.toFixed(2)}
+                                    </span>
+                                  )}
+                                  {(market.market_close_time || market.closes_at || market.expiration_date) && (
+                                    <span className="text-xs text-gray-600">
+                                      Ends: {new Date(market.market_close_time || market.closes_at || market.expiration_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                    </span>
+                                  )}
+                                  {market.volume_24h && (
+                                    <span className="text-xs text-gray-500">
+                                      Vol: ${(market.volume_24h / 1000).toFixed(1)}k
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center">
+                                <div className={`w-5 h-5 rounded-full border-2 transition-all ${
+                                  isSelected 
+                                    ? 'bg-primary border-primary scale-110' 
+                                    : 'border-gray-400 hover:border-gray-600'
+                                }`}>
+                                  {isSelected && (
+                                    <svg className="w-full h-full text-white" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : searchQuery && !searchLoading ? (
+                  <div className="text-center py-12">
+                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 12h.01M12 12h.01M12 12h.01M12 12h.01M12 12h.01M12 12h.01M12 12h.01M12 12h.01M12 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="mt-2 text-sm font-medium text-gray-900">No markets found</p>
+                    <p className="text-sm text-gray-600">Try searching with different keywords</p>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <p className="mt-2 text-sm font-medium text-gray-900">Search for markets</p>
+                    <p className="text-sm text-gray-600">Find and add markets to your group</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

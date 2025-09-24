@@ -57,12 +57,8 @@ export class SPMCClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<SPMCResponse<T>> {
-    // Ensure endpoint has trailing slash for consistency (API redirects without it)
-    const normalizedEndpoint = endpoint.includes('?') 
-      ? endpoint.replace(/\/?\?/, '/?')  // Add slash before query params if missing
-      : (endpoint.endsWith('/') ? endpoint : endpoint + '/');
-    
-    const url = `${this.baseUrl}/api/${this.apiVersion}${normalizedEndpoint}`;
+    // Use endpoint as-is without modifying trailing slashes
+    const url = `${this.baseUrl}/api/${this.apiVersion}${endpoint}`;
     
     let lastError: Error | null = null;
     
@@ -348,7 +344,10 @@ export class SPMCClient {
           volume_24h: volume,
           liquidity: market.liquidity || 0,
           category: market.category,
-          updated_at: market.updated_at
+          updated_at: market.updated_at,
+          market_close_time: market.market_close_time,
+          closes_at: market.closes_at,
+          expiration_date: market.expiration_date
         };
       });
       

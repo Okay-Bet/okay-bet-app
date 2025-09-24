@@ -55,6 +55,8 @@ export interface SPMCMarket {
   updated_at?: string;
   created_at?: string;
   expiration_date?: string;
+  market_close_time?: string; // From search results
+  closes_at?: string; // From single market endpoint
   slug?: string;
   event_ticker?: string;
   metrics?: SPMCMarketMetrics;
@@ -127,6 +129,9 @@ export interface SPMCGroupMarket {
   market_title?: string;
   market_platform?: Platform;
   market_current_price?: number | null;
+  market_expiration_date?: string;
+  market_close_time?: string;
+  market_closes_at?: string;
 }
 
 // Stats Types
