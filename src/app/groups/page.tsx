@@ -6,6 +6,20 @@ import { spmcClient } from '@/services/spmc/client';
 import { SPMCGroup, SPMCMarket, SPMCGroupMarket } from '@/services/spmc/types';
 import Logo from '@/components/Logo/Logo';
 
+// Helper function to get platform badge styling
+const getPlatformBadgeClass = (platform: string) => {
+  switch (platform) {
+    case 'kalshi':
+      return 'bg-green-100 text-green-700 border-green-300';
+    case 'polymarket':
+      return 'bg-purple-100 text-purple-700 border-purple-300';
+    case 'limitless':
+      return 'bg-blue-100 text-blue-700 border-blue-300';
+    default:
+      return 'bg-gray-100 text-gray-700 border-gray-300';
+  }
+};
+
 export default function GroupsPage() {
   const router = useRouter();
   const [groups, setGroups] = useState<SPMCGroup[]>([]);
@@ -19,6 +33,11 @@ export default function GroupsPage() {
   const [editSearchQuery, setEditSearchQuery] = useState('');
   const [editSearchResults, setEditSearchResults] = useState<SPMCMarket[]>([]);
   const [editSearchLoading, setEditSearchLoading] = useState(false);
+  const [editPlatformFilters, setEditPlatformFilters] = useState<{
+    polymarket: boolean;
+    kalshi: boolean;
+    limitless: boolean;
+  }>({ polymarket: true, kalshi: true, limitless: true });
   
   // Create form states
   const [newGroup, setNewGroup] = useState({
@@ -32,6 +51,11 @@ export default function GroupsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SPMCMarket[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [platformFilters, setPlatformFilters] = useState<{
+    polymarket: boolean;
+    kalshi: boolean;
+    limitless: boolean;
+  }>({ polymarket: true, kalshi: true, limitless: true });
   const [selectedMarkets, setSelectedMarkets] = useState<Array<{
     market_id: string;
     market: SPMCMarket;
@@ -145,10 +169,17 @@ export default function GroupsPage() {
     try {
       const response = await spmcClient.searchMarkets({ 
         query: editSearchQuery, 
-        limit: 20 
+        limit: 50 
       });
       if (response.success && response.data) {
-        setEditSearchResults(response.data.markets);
+        // Filter by selected platforms
+        const filtered = response.data.markets.filter(market => {
+          if (market.platform === 'polymarket' && !editPlatformFilters.polymarket) return false;
+          if (market.platform === 'kalshi' && !editPlatformFilters.kalshi) return false;
+          if (market.platform === 'limitless' && !editPlatformFilters.limitless) return false;
+          return true;
+        });
+        setEditSearchResults(filtered);
       }
     } catch (err) {
       console.error('Error searching markets:', err);
@@ -272,10 +303,17 @@ export default function GroupsPage() {
     try {
       const response = await spmcClient.searchMarkets({ 
         query: searchQuery, 
-        limit: 20 
+        limit: 50 
       });
       if (response.success && response.data) {
-        setSearchResults(response.data.markets);
+        // Filter by selected platforms
+        const filtered = response.data.markets.filter(market => {
+          if (market.platform === 'polymarket' && !platformFilters.polymarket) return false;
+          if (market.platform === 'kalshi' && !platformFilters.kalshi) return false;
+          if (market.platform === 'limitless' && !platformFilters.limitless) return false;
+          return true;
+        });
+        setSearchResults(filtered);
       }
     } catch (err) {
       console.error('Error searching markets:', err);
@@ -613,6 +651,33 @@ export default function GroupsPage() {
                               )}
                             </div>
                             
+                            {/* Platform filters for edit mode */}
+                            {isEditing && (
+                              <div className="flex items-center gap-2 flex-wrap mt-2">
+                                <span className="text-xs font-medium text-gray-600">Filter:</span>
+                                <button
+                                  onClick={() => setEditPlatformFilters(prev => ({ ...prev, polymarket: !prev.polymarket }))}
+                                  className={`px-2 py-0.5 text-xs font-medium rounded-full border transition-all ${
+                                    editPlatformFilters.polymarket 
+                                      ? 'bg-purple-100 text-purple-700 border-purple-300' 
+                                      : 'bg-gray-100 text-gray-400 border-gray-300 line-through'
+                                  }`}
+                                >
+                                  PM
+                                </button>
+                                <button
+                                  onClick={() => setEditPlatformFilters(prev => ({ ...prev, kalshi: !prev.kalshi }))}
+                                  className={`px-2 py-0.5 text-xs font-medium rounded-full border transition-all ${
+                                    editPlatformFilters.kalshi 
+                                      ? 'bg-green-100 text-green-700 border-green-300' 
+                                      : 'bg-gray-100 text-gray-400 border-gray-300 line-through'
+                                  }`}
+                                >
+                                  KS
+                                </button>
+                              </div>
+                            )}
+                            
                             {/* Search results for adding markets in edit mode */}
                             {isEditing && editSearchResults.length > 0 && (
                               <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -634,7 +699,7 @@ export default function GroupsPage() {
                                           <div className="flex-1">
                                             <div className="font-medium text-gray-900 line-clamp-1">{market.title}</div>
                                             <div className="flex items-center gap-3 mt-1">
-                                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getPlatformBadgeClass(market.platform)}`}>
                                                 {market.platform}
                                               </span>
                                               {market.current_price !== undefined && (
@@ -673,7 +738,7 @@ export default function GroupsPage() {
                                         {groupMarket.market_title || 'Loading market title...'}
                                       </div>
                                       <div className="flex items-center gap-3 mt-1">
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getPlatformBadgeClass(groupMarket.market_platform || '')}`}>
                                           {groupMarket.market_platform}
                                         </span>
                                         {(groupMarket.market_expiration_date || groupMarket.market_close_time || groupMarket.market_closes_at) && (
@@ -845,7 +910,7 @@ export default function GroupsPage() {
                                 {selected.market.title}
                               </div>
                               <div className="flex items-center gap-2 mt-1">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getPlatformBadgeClass(selected.market.platform)}`}>
                                   {selected.market.platform}
                                 </span>
                                 {selected.market.current_price !== undefined && (
@@ -967,11 +1032,55 @@ export default function GroupsPage() {
                   )}
                 </div>
 
+                {/* Platform Filters */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-medium text-gray-700">Filter by platform:</span>
+                  <button
+                    onClick={() => setPlatformFilters(prev => ({ ...prev, polymarket: !prev.polymarket }))}
+                    className={`px-3 py-1 text-xs font-medium rounded-full border transition-all ${
+                      platformFilters.polymarket 
+                        ? 'bg-purple-100 text-purple-700 border-purple-300' 
+                        : 'bg-gray-100 text-gray-400 border-gray-300 line-through'
+                    }`}
+                  >
+                    Polymarket
+                  </button>
+                  <button
+                    onClick={() => setPlatformFilters(prev => ({ ...prev, kalshi: !prev.kalshi }))}
+                    className={`px-3 py-1 text-xs font-medium rounded-full border transition-all ${
+                      platformFilters.kalshi 
+                        ? 'bg-green-100 text-green-700 border-green-300' 
+                        : 'bg-gray-100 text-gray-400 border-gray-300 line-through'
+                    }`}
+                  >
+                    Kalshi
+                  </button>
+                  <button
+                    onClick={() => setPlatformFilters(prev => ({ ...prev, limitless: !prev.limitless }))}
+                    className={`px-3 py-1 text-xs font-medium rounded-full border transition-all ${
+                      platformFilters.limitless 
+                        ? 'bg-blue-100 text-blue-700 border-blue-300' 
+                        : 'bg-gray-100 text-gray-400 border-gray-300 line-through'
+                    }`}
+                  >
+                    Limitless
+                  </button>
+                  <button
+                    onClick={() => setPlatformFilters({ polymarket: true, kalshi: true, limitless: true })}
+                    className="px-3 py-1 text-xs font-medium text-gray-600 hover:text-gray-900"
+                  >
+                    Show all
+                  </button>
+                </div>
+
                 {searchResults.length > 0 ? (
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm font-medium text-gray-700">
                         {searchResults.length} market{searchResults.length !== 1 ? 's' : ''} found
+                        {(!platformFilters.polymarket || !platformFilters.kalshi || !platformFilters.limitless) && (
+                          <span className="text-xs text-gray-500 ml-1">(filtered)</span>
+                        )}
                       </span>
                       {selectedMarkets.length > 0 && (
                         <span className="text-sm font-medium text-primary">
@@ -998,7 +1107,7 @@ export default function GroupsPage() {
                                   {market.title}
                                 </div>
                                 <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getPlatformBadgeClass(market.platform)}`}>
                                     {market.platform}
                                   </span>
                                   {market.current_price !== undefined && (
