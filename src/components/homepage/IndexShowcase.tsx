@@ -30,9 +30,9 @@ export const IndexShowcase: React.FC<IndexShowcaseProps> = ({
   return (
     <section id="index-showcase" className="py-16 bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Index Grid */}
+        {/* Index List - Full Width */}
         {groups.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="space-y-6">
             {groups.map((group) => (
               <IndexCard 
                 key={group.id} 

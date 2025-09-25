@@ -31,7 +31,171 @@ export default function Home() {
           indexGroups.map(async (group) => {
             try {
               const detailResponse = await spmcClient.getGroup(group.id);
-              return detailResponse.success && detailResponse.data ? detailResponse.data : group;
+              if (detailResponse.success && detailResponse.data) {
+                const groupWithDetails = detailResponse.data;
+                
+                // Fetch accurate prices for each market in the group
+                if (groupWithDetails.markets && groupWithDetails.markets.length > 0) {
+                  // Try batch price fetching first using SPMC prices endpoint
+                  try {
+                    const marketIds = groupWithDetails.markets.map(m => m.market_id);
+                    const platforms = [...new Set(groupWithDetails.markets.map(m => m.market_platform).filter(Boolean))];
+                    
+                    const pricesResponse = await spmcClient.getMarketPrices({
+                      marketIds: marketIds,
+                      platforms: platforms.length > 0 ? platforms : undefined
+                    });
+                    
+                    if (pricesResponse.success && pricesResponse.data?.prices) {
+                      const pricesMap = pricesResponse.data.prices;
+                      
+                      const marketsWithPrices = groupWithDetails.markets.map((market) => {
+                        const priceData = pricesMap[market.market_id];
+                        let currentPrice = market.market_current_price || 0.5;
+                        
+                        if (priceData) {
+                          // SPMC API returns prices in the format:
+                          // { yes: { ask: 0.xx, bid: 0.xx, last: 0.xx, mid: 0.xx }, no: {...} }
+                          // We want the price for the outcome specified in the market
+                          const outcome = market.outcome || 'yes';
+                          
+                          if (outcome === 'yes' && priceData.yes) {
+                            // For YES outcome, use ask price (what you'd pay to buy)
+                            currentPrice = priceData.yes.ask || 
+                                         priceData.yes.last || 
+                                         priceData.yes.mid || 
+                                         currentPrice;
+                          } else if (outcome === 'no' && priceData.no) {
+                            // For NO outcome, use ask price
+                            currentPrice = priceData.no.ask || 
+                                         priceData.no.last || 
+                                         priceData.no.mid || 
+                                         currentPrice;
+                          } else if (priceData.yes) {
+                            // Default to YES price if outcome not specified
+                            currentPrice = priceData.yes.ask || 
+                                         priceData.yes.last || 
+                                         priceData.yes.mid || 
+                                         currentPrice;
+                          }
+                        }
+                        
+                        return {
+                          ...market,
+                          market_current_price: currentPrice
+                        };
+                      });
+                      
+                      return {
+                        ...groupWithDetails,
+                        markets: marketsWithPrices
+                      };
+                    }
+                  } catch (err) {
+                    // Batch price fetch failed, falling back to individual fetches
+                  }
+                  
+                  // Fallback to individual market fetches if batch fails
+                  const marketsWithPrices = await Promise.all(
+                    groupWithDetails.markets.map(async (market) => {
+                      try {
+                        // Try getting ticker data first
+                        try {
+                          const tickerResponse = await spmcClient.getTicker(market.market_id);
+                          if (tickerResponse.success && tickerResponse.data) {
+                            if (tickerResponse.data.lastPrice !== undefined) {
+                              return {
+                                ...market,
+                                market_current_price: tickerResponse.data.lastPrice
+                              };
+                            }
+                          }
+                        } catch (tickerErr) {
+                          // Ticker fetch failed, try market endpoint
+                        }
+                        
+                        // Fallback to market details
+                        const marketResponse = await spmcClient.getMarket(
+                          market.market_id, 
+                          market.market_platform
+                        );
+                        
+                        if (marketResponse.success && marketResponse.data) {
+                          const marketData = marketResponse.data;
+                          
+                          let currentPrice = market.market_current_price || 0.5;
+                          const outcome = market.outcome || 'yes';
+                          
+                          // SPMC market endpoint returns prices in the nested format
+                          if (marketData.prices) {
+                            // Try the simple structure first (for direct price data)
+                            if (typeof marketData.prices.mid === 'number') {
+                              currentPrice = marketData.prices.mid;
+                            } else if (outcome === 'yes') {
+                              // Check different price structures for YES outcome
+                              if (marketData.prices.yes) {
+                                currentPrice = marketData.prices.yes.ask || 
+                                             marketData.prices.yes.last || 
+                                             marketData.prices.yes.mid || 
+                                             currentPrice;
+                              } else if (marketData.prices.YES) {
+                                currentPrice = marketData.prices.YES.ask || 
+                                             marketData.prices.YES.last || 
+                                             marketData.prices.YES.mid || 
+                                             currentPrice;
+                              }
+                            } else if (outcome === 'no') {
+                              // Check different price structures for NO outcome
+                              if (marketData.prices.no) {
+                                currentPrice = marketData.prices.no.ask || 
+                                             marketData.prices.no.last || 
+                                             marketData.prices.no.mid || 
+                                             currentPrice;
+                              } else if (marketData.prices.NO) {
+                                currentPrice = marketData.prices.NO.ask || 
+                                             marketData.prices.NO.last || 
+                                             marketData.prices.NO.mid || 
+                                             currentPrice;
+                              }
+                            }
+                          }
+                          
+                          // Check for direct price fields as last resort
+                          if (currentPrice === 0.5 || !currentPrice) {
+                            currentPrice = marketData.current_price || 
+                                         marketData.last_price || 
+                                         marketData.lastPrice ||
+                                         currentPrice;
+                          }
+                          
+                          return {
+                            ...market,
+                            market_current_price: currentPrice,
+                            market_title: marketData.title || market.market_title,
+                            market_expiration_date: marketData.expiration_date || 
+                                                   marketData.market_close_time ||
+                                                   marketData.closes_at || 
+                                                   market.market_expiration_date
+                          };
+                        }
+                        
+                        return market;
+                      } catch (err) {
+                        // Failed to fetch price for this market, use existing data
+                        return market;
+                      }
+                    })
+                  );
+                  
+                  return {
+                    ...groupWithDetails,
+                    markets: marketsWithPrices
+                  };
+                }
+                
+                return groupWithDetails;
+              }
+              return group;
             } catch {
               return group;
             }

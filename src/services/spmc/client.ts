@@ -383,7 +383,24 @@ export class SPMCClient {
     const endpoint = platform 
       ? `/markets/${marketId}?platform=${platform}`
       : `/markets/${marketId}`;
-    return this.request<SPMCMarket>(endpoint);
+    
+    const response = await this.request<any>(endpoint);
+    
+    // Handle wrapped response from SPMC API
+    if (response.success && response.data) {
+      // If the response has a nested data structure (status, data, meta)
+      if (response.data.status === 'success' && response.data.data) {
+        return {
+          success: true,
+          data: response.data.data,
+          timestamp: response.timestamp
+        };
+      }
+      // Otherwise return as is
+      return response as SPMCResponse<SPMCMarket>;
+    }
+    
+    return response;
   }
 
   /**
@@ -400,10 +417,26 @@ export class SPMCClient {
    * Get real-time market prices
    */
   async getMarketPrices(params: SPMCPricesRequest): Promise<SPMCResponse<SPMCPricesResponse>> {
-    return this.request<SPMCPricesResponse>('/markets/prices', {
+    const response = await this.request<any>('/markets/prices', {
       method: 'POST',
       body: JSON.stringify(params),
     });
+    
+    // Handle wrapped response from SPMC API
+    if (response.success && response.data) {
+      // If the response has a nested data structure (status, data, meta)
+      if (response.data.status === 'success' && response.data.data) {
+        return {
+          success: true,
+          data: response.data.data,
+          timestamp: response.timestamp
+        };
+      }
+      // Otherwise return as is
+      return response as SPMCResponse<SPMCPricesResponse>;
+    }
+    
+    return response;
   }
 
   // ============= Tickers Endpoints =============
