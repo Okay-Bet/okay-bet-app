@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { SPMCGroup } from '@/services/spmc/types';
+import { CreateFundModal } from '@/components/funds/CreateFundModal';
 
 interface IndexCardProps {
   group: SPMCGroup;
   onInvest?: (groupId: string, allocations: MarketAllocation[]) => void;
   onBuyIndex?: (groupId: string) => void;
+  onCreateFund?: (groupId: string) => void;
 }
 
 export interface MarketAllocation {
@@ -20,9 +22,10 @@ export interface MarketAllocation {
   resolutionDate?: string;
 }
 
-export const IndexCard: React.FC<IndexCardProps> = ({ group, onInvest, onBuyIndex }) => {
+export const IndexCard: React.FC<IndexCardProps> = ({ group, onInvest, onBuyIndex, onCreateFund }) => {
   const [investmentAmount, setInvestmentAmount] = useState<string>('100');
   const [showCalculator, setShowCalculator] = useState(false);
+  const [showCreateFund, setShowCreateFund] = useState(false);
 
   // Calculate index metrics and market percentages
   const totalWeight = group.markets?.reduce((sum, m) => sum + (m.weight || 1), 0) || 1;
@@ -160,6 +163,12 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, onInvest, onBuyInde
                   className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
                 >
                   {showCalculator ? 'Hide' : 'Show'} Breakdown
+                </button>
+                <button
+                  onClick={() => setShowCreateFund(true)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                >
+                  Create Fund
                 </button>
               </div>
             </div>
@@ -317,6 +326,22 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, onInvest, onBuyInde
           </div>
         </div>
       </div>
+      {/* Create Fund Modal */}
+      {showCreateFund && (
+        <CreateFundModal
+          isOpen={showCreateFund}
+          onClose={() => setShowCreateFund(false)}
+          groupId={group.id}
+          groupName={group.title}
+          onSuccess={(fundAddress) => {
+            console.log('Fund created:', fundAddress);
+            setShowCreateFund(false);
+            if (onCreateFund) {
+              onCreateFund(group.id);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

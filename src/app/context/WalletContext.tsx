@@ -16,7 +16,7 @@ interface WalletContextType {
   chainId?: number;
 }
 
-const WalletContext = createContext<WalletContextType | undefined>(undefined);
+export const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -31,7 +31,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
       if (activeWallet) {
         try {
           const provider = await activeWallet.getEthereumProvider();
-          const client = createPrivyWalletClient(provider);
+          const chainId = activeWallet.chainId ? Number(activeWallet.chainId) : undefined;
+          const client = createPrivyWalletClient(provider, chainId);
           setWalletClient(client);
         } catch (error) {
           console.error("Failed to setup wallet client:", error);

@@ -68,7 +68,7 @@ export const IndexShowcase: React.FC<IndexShowcaseProps> = ({
           <div className="mt-12 text-center">
             <div className="inline-flex flex-col sm:flex-row items-center gap-4 p-6 bg-primary/5 rounded-xl border border-primary/20">
               <div className="text-left">
-                <h3 className="font-semibold text-gray-900 mb-1">Can't find what you're looking for?</h3>
+                <h3 className="font-semibold text-gray-900 mb-1">Can&apos;t find what you&apos;re looking for?</h3>
                 <p className="text-sm text-gray-800">Create your own custom index with your preferred markets.</p>
               </div>
               <button

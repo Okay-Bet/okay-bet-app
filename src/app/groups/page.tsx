@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { spmcClient } from '@/services/spmc/client';
 import { SPMCGroup, SPMCMarket, SPMCGroupMarket } from '@/services/spmc/types';
 import Logo from '@/components/Logo/Logo';
+import { CreateFundModal } from '@/components/funds/CreateFundModal';
 
 // Helper function to get platform badge styling
 const getPlatformBadgeClass = (platform: string) => {
@@ -65,6 +66,10 @@ export default function GroupsPage() {
   
   // Expanded groups for viewing details
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  
+  // Fund creation states
+  const [showCreateFundModal, setShowCreateFundModal] = useState(false);
+  const [selectedGroupForFund, setSelectedGroupForFund] = useState<SPMCGroup | null>(null);
 
   // Load all groups
   const loadGroups = async () => {
@@ -607,6 +612,18 @@ export default function GroupsPage() {
                                 >
                                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedGroupForFund(group);
+                                    setShowCreateFundModal(true);
+                                  }}
+                                  className="p-2 text-green-500 hover:text-green-700 transition"
+                                  title="Create Fund"
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                   </svg>
                                 </button>
                                 <button
@@ -1168,6 +1185,25 @@ export default function GroupsPage() {
           </div>
         )}
       </div>
+      
+      {/* Create Fund Modal */}
+      {showCreateFundModal && selectedGroupForFund && (
+        <CreateFundModal
+          isOpen={showCreateFundModal}
+          onClose={() => {
+            setShowCreateFundModal(false);
+            setSelectedGroupForFund(null);
+          }}
+          groupId={selectedGroupForFund.id}
+          groupName={selectedGroupForFund.title}
+          onSuccess={(fundAddress) => {
+            console.log('Fund created for group:', selectedGroupForFund.id, 'Fund address:', fundAddress);
+            setShowCreateFundModal(false);
+            setSelectedGroupForFund(null);
+            // Could also refresh groups or update metadata here
+          }}
+        />
+      )}
     </div>
   );
 }
