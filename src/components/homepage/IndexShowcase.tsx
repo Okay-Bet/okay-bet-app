@@ -1,21 +1,60 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { SPMCGroup } from '@/services/spmc/types';
 import { IndexCard } from './IndexCard';
 import { MarketAllocation } from './IndexCard';
+import { FundFactoryService } from '@/services/funds/fundFactory.service';
 
 interface IndexShowcaseProps {
   groups: SPMCGroup[];
   loading?: boolean;
   onInvest?: (groupId: string, allocations: MarketAllocation[]) => void;
   onCreateIndex?: () => void;
+  fundAddresses?: Record<string, string>; // Map of groupId to fundAddress
 }
 
 export const IndexShowcase: React.FC<IndexShowcaseProps> = ({ 
   groups, 
   loading, 
   onInvest,
-  onCreateIndex 
+  onCreateIndex,
+  fundAddresses = {}
 }) => {
+  const [localFundAddresses, setLocalFundAddresses] = useState<Record<string, string>>(fundAddresses);
+  const [loadingFunds, setLoadingFunds] = useState(true);
+
+  // Load fund addresses for groups
+  useEffect(() => {
+    const loadFundAddresses = async () => {
+      try {
+        setLoadingFunds(true);
+        const factoryService = new FundFactoryService();
+        
+        // Get all funds from factory
+        const allFunds = await factoryService.getAllFunds();
+        
+        // For now, we'll use a simple mapping - in production you'd want to
+        // store the group-fund relationship in your database
+        const fundMap: Record<string, string> = {};
+        
+        // Example: Map known test fund to a specific group if needed
+        // This is where you'd typically query your database for group-fund relationships
+        
+        setLocalFundAddresses({ ...fundAddresses, ...fundMap });
+      } catch (error) {
+        console.error('Error loading fund addresses:', error);
+      } finally {
+        setLoadingFunds(false);
+      }
+    };
+
+    loadFundAddresses();
+  }, [groups]);
+
+  const handleRefreshFund = (groupId: string) => {
+    // Trigger a refresh of fund data for this group
+    // This could be more sophisticated in production
+    console.log('Refreshing fund for group:', groupId);
+  };
   if (loading && groups.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -36,8 +75,10 @@ export const IndexShowcase: React.FC<IndexShowcaseProps> = ({
             {groups.map((group) => (
               <IndexCard 
                 key={group.id} 
-                group={group} 
+                group={group}
+                fundAddress={localFundAddresses[group.id] || null}
                 onInvest={onInvest}
+                onRefreshFund={() => handleRefreshFund(group.id)}
               />
             ))}
           </div>

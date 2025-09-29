@@ -302,6 +302,11 @@ export default function Home() {
         loading={loading}
         onInvest={handleInvest}
         onCreateIndex={handleCreateIndex}
+        fundAddresses={{
+          // Map the first group to our test fund for demo purposes
+          // In production, this would come from your database
+          ...(groups[0] ? { [groups[0].id]: '0x8A136572B7b72AE8582cc49FEB231c4850FE8cD0' } : {})
+        }}
       />
 
       {/* Features Section */}
