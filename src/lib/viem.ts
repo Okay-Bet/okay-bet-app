@@ -43,8 +43,8 @@ export const chains = [base, polygon, optimism, arbitrum, polygonAmoy] as const;
 
 // Specify the client type more precisely
 export const publicClient = createPublicClient({
-  chain: base,
-  transport: http(),
+  chain: polygonAmoy,
+  transport: http(process.env.NEXT_PUBLIC_POLYGON_AMOY_RPC),
 }) as PublicClient;
 
 // Create public clients for each chain
@@ -71,21 +71,25 @@ export const publicClients = {
   }) as PublicClient,
 };
 
-export const createPrivyWalletClient = (provider: any, chainId?: number): WalletClient | null => {
+export const createPrivyWalletClient = (provider: any, chainId?: number, address?: string): WalletClient | null => {
   if (!provider) return null;
   
   try {
-    // Select chain based on chainId
-    let chain = base; // default
+    // Select chain based on chainId, default to polygonAmoy
+    let chain = polygonAmoy; // default to Polygon Amoy
     if (chainId === 137) chain = polygon;
     else if (chainId === 80002) chain = polygonAmoy;
+    else if (chainId === 8453) chain = base;
     else if (chainId === 10) chain = optimism;
     else if (chainId === 42161) chain = arbitrum;
     
-    return createWalletClient({
+    const client = createWalletClient({
       chain,
-      transport: custom(provider)
+      transport: custom(provider),
+      account: address as `0x${string}` | undefined
     });
+    
+    return client;
   } catch (error) {
     console.error('Failed to create wallet client:', error);
     return null;

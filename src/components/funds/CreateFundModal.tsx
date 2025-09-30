@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { usePrivy } from '@privy-io/react-auth';
 import { WalletContext } from '@/app/context/WalletContext';
 import { FundFactoryService } from '@/services/funds/fundFactory.service';
 import { groupFundIntegrationService } from '@/services/funds/groupFundIntegration.service';
@@ -36,10 +36,8 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
 }) => {
   // Try to use wallet context if available
   const walletContext = useContext(WalletContext);
-  const { wallets } = useWallets();
   const { login } = usePrivy();
   const walletClient = walletContext?.walletClient || null;
-  const address = walletContext?.address;
   const chainId = walletContext?.chainId;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -147,58 +145,10 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
       return;
     }
 
-    // Check if on correct chain
+    // Check if on correct chain (Polygon Amoy)
     if (chainId !== 80002) {
-      // Detect if using Privy embedded wallet
-      const connectedWallet = wallets.find(w => w.address?.toLowerCase() === address?.toLowerCase());
-      const isEmbeddedWallet = connectedWallet?.walletClientType === 'privy';
-      
-      if (isEmbeddedWallet) {
-        setError('Your Privy wallet needs to be on Polygon Amoy network. Please disconnect and reconnect, or use an external wallet like MetaMask.');
-        return;
-      }
-      
-      // For external wallets (MetaMask, etc.), try to switch
-      try {
-        // Try to switch to Polygon Amoy
-        await walletClient.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0x13882' }], // 0x13882 for Polygon Amoy
-        });
-        // Wait a bit for the switch to complete
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      } catch (switchError: any) {
-        // This error code indicates that the chain has not been added to the wallet
-        if (switchError.code === 4902) {
-          try {
-            // Add the Polygon Amoy network
-            await walletClient.request({
-              method: 'wallet_addEthereumChain',
-              params: [{
-                chainId: '0x13882',
-                chainName: 'Polygon Amoy Testnet',
-                nativeCurrency: {
-                  name: 'MATIC',
-                  symbol: 'MATIC',
-                  decimals: 18
-                },
-                rpcUrls: ['https://rpc-amoy.polygon.technology'],
-                blockExplorerUrls: ['https://amoy.polygonscan.com/']
-              }]
-            });
-            // Wait for network to be added
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          } catch (addError) {
-            console.error('Failed to add Polygon Amoy network:', addError);
-            setError('Please manually add and switch to Polygon Amoy testnet in your wallet');
-            return;
-          }
-        } else {
-          console.error('Failed to switch network:', switchError);
-          setError('Failed to switch to Polygon Amoy testnet. Please switch manually or use a different wallet.');
-          return;
-        }
-      }
+      // Don't set error since we already show a warning
+      return;
     }
 
     try {
@@ -300,33 +250,8 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
             <div className="mb-4 p-4 bg-orange-100 border border-orange-400 text-orange-700 rounded">
               <p className="font-semibold">Wrong Network</p>
               <p className="text-sm mt-1">
-                {wallets.find(w => w.address?.toLowerCase() === address?.toLowerCase())?.walletClientType === 'privy'
-                  ? 'Your Privy embedded wallet is on the wrong network. For fund deployment, please use an external wallet like MetaMask connected to Polygon Amoy testnet.'
-                  : 'Please switch to Polygon Amoy testnet to deploy funds.'}
+                Please switch your wallet to Polygon Amoy testnet (Chain ID: 80002) to deploy funds.
               </p>
-              {wallets.find(w => w.address?.toLowerCase() === address?.toLowerCase())?.walletClientType === 'privy' && (
-                <div className="mt-3 space-y-2">
-                  <p className="text-xs font-medium">Recommended wallets for fund deployment:</p>
-                  <div className="flex gap-2">
-                    <a
-                      href="https://metamask.io/download/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1 bg-orange-600 text-white rounded text-sm hover:bg-orange-700 transition-colors"
-                    >
-                      Install MetaMask
-                    </a>
-                    <a
-                      href="https://rainbow.me/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 transition-colors"
-                    >
-                      Install Rainbow
-                    </a>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
