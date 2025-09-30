@@ -26,6 +26,7 @@ export default function GroupsPage() {
   const [groups, setGroups] = useState<SPMCGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'create'>('all');
   
   // Edit mode states
@@ -47,6 +48,7 @@ export default function GroupsPage() {
     group_type: 'index' as 'index' | 'portfolio',
     metadata: {}
   });
+  const [isCreating, setIsCreating] = useState(false);
   
   // Search and market selection states
   const [searchQuery, setSearchQuery] = useState('');
@@ -70,6 +72,11 @@ export default function GroupsPage() {
   // Fund creation states
   const [showCreateFundModal, setShowCreateFundModal] = useState(false);
   const [selectedGroupForFund, setSelectedGroupForFund] = useState<SPMCGroup | null>(null);
+  
+  // Delete confirmation modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [groupToDelete, setGroupToDelete] = useState<{ id: string; title: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Load all groups
   const loadGroups = async () => {
@@ -209,7 +216,7 @@ export default function GroupsPage() {
       market_id: market.id,
       market_title: market.title,
       market_platform: market.platform,
-      market_current_price: market.current_price,
+      market_current_price: market.prices?.last || 0,
       market_expiration_date: market.expiration_date,
       market_close_time: market.market_close_time,
       market_closes_at: market.closes_at,
@@ -364,6 +371,13 @@ export default function GroupsPage() {
       return;
     }
 
+    if (isCreating) {
+      return; // Prevent duplicate submissions
+    }
+
+    setIsCreating(true);
+    setError(null); // Clear any previous errors
+
     try {
       // Create the group
       const groupResponse = await spmcClient.createGroup(newGroup);
@@ -378,6 +392,9 @@ export default function GroupsPage() {
           }));
           await spmcClient.addMarketsToGroup(groupResponse.data.id, marketsToAdd);
         }
+        
+        // Show success message
+        setSuccessMessage(`Successfully created group "${newGroup.title}"${selectedMarkets.length > 0 ? ` with ${selectedMarkets.length} market${selectedMarkets.length > 1 ? 's' : ''}` : ''}`);
         
         // Reset form
         setNewGroup({
@@ -396,19 +413,35 @@ export default function GroupsPage() {
       }
     } catch (err) {
       setError(`Error creating group: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsCreating(false);
     }
   };
 
   // Delete group
-  const handleDeleteGroup = async (groupId: string) => {
-    if (!confirm('Are you sure you want to delete this group?')) return;
+  const handleDeleteGroup = async () => {
+    if (!groupToDelete || isDeleting) return;
+    
+    setIsDeleting(true);
+    setError(null);
     
     try {
-      await spmcClient.deleteGroup(groupId);
+      await spmcClient.deleteGroup(groupToDelete.id);
+      setSuccessMessage(`Successfully deleted group "${groupToDelete.title}"`);
+      setShowDeleteModal(false);
+      setGroupToDelete(null);
       await loadGroups();
     } catch (err) {
       setError(`Error deleting group: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsDeleting(false);
     }
+  };
+  
+  // Open delete confirmation modal
+  const openDeleteModal = (groupId: string, groupTitle: string) => {
+    setGroupToDelete({ id: groupId, title: groupTitle });
+    setShowDeleteModal(true);
   };
 
   // Toggle group expansion
@@ -426,6 +459,16 @@ export default function GroupsPage() {
   useEffect(() => {
     loadGroups();
   }, []);
+
+  // Auto-dismiss success message after 5 seconds
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -451,6 +494,26 @@ export default function GroupsPage() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Success Alert */}
+        {successMessage && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <p className="text-green-700 font-medium">{successMessage}</p>
+              </div>
+              <button
+                onClick={() => setSuccessMessage(null)}
+                className="text-green-500 hover:text-green-700"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Error Alert */}
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -627,8 +690,9 @@ export default function GroupsPage() {
                                   </svg>
                                 </button>
                                 <button
-                                  onClick={() => handleDeleteGroup(group.id)}
+                                  onClick={() => openDeleteModal(group.id, group.title)}
                                   className="p-2 text-red-500 hover:text-red-700 transition"
+                                  title="Delete Group"
                                 >
                                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -719,9 +783,9 @@ export default function GroupsPage() {
                                               <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getPlatformBadgeClass(market.platform)}`}>
                                                 {market.platform}
                                               </span>
-                                              {market.current_price !== undefined && (
+                                              {market.prices?.last !== undefined && market.prices.last !== null && (
                                                 <span className="text-sm font-bold text-gray-900">
-                                                  ${market.current_price.toFixed(2)}
+                                                  ${market.prices.last.toFixed(2)}
                                                 </span>
                                               )}
                                               {(market.market_close_time || market.closes_at || market.expiration_date) && (
@@ -930,13 +994,13 @@ export default function GroupsPage() {
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getPlatformBadgeClass(selected.market.platform)}`}>
                                   {selected.market.platform}
                                 </span>
-                                {selected.market.current_price !== undefined && (
+                                {selected.market.prices?.last !== undefined && selected.market.prices.last !== null && (
                                   <span className={`text-sm font-bold ${
                                     selected.outcome === 'yes' ? 'text-green-600' :
                                     selected.outcome === 'no' ? 'text-red-600' :
                                     'text-blue-600'
                                   }`}>
-                                    ${selected.market.current_price.toFixed(2)}
+                                    ${selected.market.prices.last.toFixed(2)}
                                   </span>
                                 )}
                                 {(selected.market.market_close_time || selected.market.closes_at || selected.market.expiration_date) && (
@@ -991,10 +1055,19 @@ export default function GroupsPage() {
 
                 <button
                   onClick={handleCreateGroup}
-                  disabled={!newGroup.title.trim()}
-                  className="w-full px-4 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!newGroup.title.trim() || isCreating}
+                  className="w-full px-4 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Create Group
+                  {isCreating ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Group'
+                  )}
                 </button>
               </div>
             </div>
@@ -1011,7 +1084,7 @@ export default function GroupsPage() {
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleSearchMarkets()}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSearchMarkets()}
                         className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-primary"
                         placeholder="Search for markets to add..."
                       />
@@ -1127,14 +1200,14 @@ export default function GroupsPage() {
                                   <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getPlatformBadgeClass(market.platform)}`}>
                                     {market.platform}
                                   </span>
-                                  {market.current_price !== undefined && (
+                                  {market.prices?.last !== undefined && market.prices.last !== null && (
                                     <span className="text-sm font-bold text-gray-900">
-                                      ${market.current_price.toFixed(2)}
+                                      ${market.prices.last.toFixed(2)}
                                     </span>
                                   )}
                                   {(market.market_close_time || market.closes_at || market.expiration_date) && (
                                     <span className="text-xs text-gray-600">
-                                      Ends: {new Date(market.market_close_time || market.closes_at || market.expiration_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                      Ends: {new Date(market.market_close_time || market.closes_at || market.expiration_date || '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                     </span>
                                   )}
                                   {market.volume_24h && (
@@ -1203,6 +1276,67 @@ export default function GroupsPage() {
             // Could also refresh groups or update metadata here
           }}
         />
+      )}
+      
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && groupToDelete && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            {/* Background overlay */}
+            <div 
+              className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" 
+              onClick={() => !isDeleting && setShowDeleteModal(false)}
+            />
+
+            {/* Modal panel */}
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                    <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                    <h3 className="text-lg font-medium leading-6 text-gray-900">
+                      Delete Group
+                    </h3>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-800">
+                        Are you sure you want to delete the group <span className="font-semibold">"{groupToDelete.title}"</span>? This action cannot be undone.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  onClick={handleDeleteGroup}
+                  disabled={isDeleting}
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isDeleting ? (
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Deleting...
+                    </div>
+                  ) : (
+                    'Delete'
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={isDeleting}
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

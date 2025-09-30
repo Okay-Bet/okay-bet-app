@@ -486,7 +486,8 @@ export class SPMCClient {
       position_type?: string;
     }>;
   }): Promise<SPMCResponse<SPMCGroup>> {
-    const response = await this.request<any>('/groups', {
+    // Add trailing slash to avoid redirect which causes CORS issues
+    const response = await this.request<any>('/groups/', {
       method: 'POST',
       body: JSON.stringify(group),
     });
