@@ -3,6 +3,7 @@
 
 import { PrivyProvider } from "@privy-io/react-auth";
 import { base, polygon, optimism, arbitrum } from "viem/chains";
+import { polygonAmoy } from "@/lib/viem";
 import { WalletProvider } from "../../app/context/WalletContext";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -12,9 +13,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       config={{
         embeddedWallets: {
           createOnLogin: "all-users",
+          // Configure embedded wallets to use Polygon Amoy by default
+          defaultChain: polygonAmoy,
         },
-        defaultChain: base,
-        supportedChains: [base, polygon, optimism, arbitrum],
+        defaultChain: polygonAmoy,
+        supportedChains: [polygonAmoy, base, polygon, optimism, arbitrum],
         // solanaClusters: [
         //   {
         //     name: "mainnet-beta",

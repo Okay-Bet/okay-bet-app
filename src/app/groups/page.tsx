@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { usePrivy } from "@privy-io/react-auth";
 import { spmcClient } from '@/services/spmc/client';
 import { SPMCGroup, SPMCMarket, SPMCGroupMarket } from '@/services/spmc/types';
 import Logo from '@/components/Logo/Logo';
 import { CreateFundModal } from '@/components/funds/CreateFundModal';
+import { GroupFundMetadata } from '@/services/funds/groupFundIntegration.service';
 
 // Helper function to get platform badge styling
 const getPlatformBadgeClass = (platform: string) => {
@@ -21,8 +23,31 @@ const getPlatformBadgeClass = (platform: string) => {
   }
 };
 
+// Helper function to get fund status badge
+const getFundStatusBadge = (metadata: GroupFundMetadata | undefined) => {
+  if (!metadata?.fund_deployment) return null;
+  
+  const status = metadata.fund_deployment.status;
+  const statusConfig = {
+    'deployed': { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Deployed' },
+    'deposit': { bg: 'bg-green-100', text: 'text-green-700', label: 'Accepting Deposits' },
+    'trading': { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Trading Active' },
+    'redemption': { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Redemption Phase' },
+    'completed': { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Completed' },
+  };
+  
+  const config = statusConfig[status] || statusConfig['deployed'];
+  
+  return (
+    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${config.bg} ${config.text}`}>
+      {config.label}
+    </span>
+  );
+};
+
 export default function GroupsPage() {
   const router = useRouter();
+  const { ready, authenticated, login, logout, user } = usePrivy();
   const [groups, setGroups] = useState<SPMCGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -480,15 +505,43 @@ export default function GroupsPage() {
               <Logo />
               <h1 className="text-xl font-bold text-gray-900">Groups Management</h1>
             </div>
-            <button
-              onClick={() => router.push('/')}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-primary transition flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              Back to Home
-            </button>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => router.push('/')}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-primary transition flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Back to Home
+              </button>
+              {ready && !authenticated ? (
+                <button
+                  onClick={login}
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 transition text-sm font-medium"
+                >
+                  Sign In
+                </button>
+              ) : ready && authenticated ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">
+                    {user?.email?.address || user?.wallet?.address?.slice(0, 6) + '...' || 'Connected'}
+                  </span>
+                  <button
+                    onClick={logout}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition text-sm font-medium"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              ) : (
+                <div className="px-4 py-2">
+                  <svg className="w-5 h-5 animate-spin text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </nav>
@@ -626,6 +679,7 @@ export default function GroupsPage() {
                               <span className="text-sm text-gray-600">
                                 {displayGroup.market_count} market{displayGroup.market_count !== 1 ? 's' : ''}
                               </span>
+                              {getFundStatusBadge(displayGroup.metadata as GroupFundMetadata)}
                             </div>
                             {isEditing ? (
                               <textarea
@@ -677,18 +731,47 @@ export default function GroupsPage() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                   </svg>
                                 </button>
-                                <button
-                                  onClick={() => {
-                                    setSelectedGroupForFund(group);
-                                    setShowCreateFundModal(true);
-                                  }}
-                                  className="p-2 text-green-500 hover:text-green-700 transition"
-                                  title="Create Fund"
-                                >
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                </button>
+                                {(group.metadata as GroupFundMetadata)?.fund_deployment ? (
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        const fundAddress = (group.metadata as GroupFundMetadata).fund_deployment?.contract_address;
+                                        if (fundAddress) {
+                                          router.push(`/funds/${fundAddress}`);
+                                        }
+                                      }}
+                                      className="p-2 text-blue-500 hover:text-blue-700 transition"
+                                      title="View Fund"
+                                    >
+                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                      </svg>
+                                    </button>
+                                    <button
+                                      onClick={() => router.push(`/groups/${group.id}/trading-instructions`)}
+                                      className="p-2 text-purple-500 hover:text-purple-700 transition"
+                                      title="Trading Instructions"
+                                    >
+                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                      </svg>
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedGroupForFund(group);
+                                      setShowCreateFundModal(true);
+                                    }}
+                                    className="p-2 text-green-500 hover:text-green-700 transition"
+                                    title="Deploy Fund"
+                                  >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => openDeleteModal(group.id, group.title)}
                                   className="p-2 text-red-500 hover:text-red-700 transition"
@@ -1269,11 +1352,13 @@ export default function GroupsPage() {
           }}
           groupId={selectedGroupForFund.id}
           groupName={selectedGroupForFund.title}
+          group={selectedGroupForFund}
           onSuccess={(fundAddress) => {
             console.log('Fund created for group:', selectedGroupForFund.id, 'Fund address:', fundAddress);
             setShowCreateFundModal(false);
             setSelectedGroupForFund(null);
-            // Could also refresh groups or update metadata here
+            // Refresh groups to show updated fund status
+            loadGroups();
           }}
         />
       )}

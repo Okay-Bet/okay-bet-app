@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from 'next/navigation';
+import { usePrivy } from "@privy-io/react-auth";
 import { spmcClient } from '@/services/spmc/client';
 import { SPMCGroup } from '@/services/spmc/types';
 import Logo from "@/components/Logo/Logo";
@@ -11,6 +12,7 @@ import { MarketAllocation } from '@/components/homepage/IndexCard';
 
 export default function Home() {
   const router = useRouter();
+  const { ready, authenticated, login, logout, user } = usePrivy();
   const [groups, setGroups] = useState<SPMCGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -273,10 +275,36 @@ export default function Home() {
               </button>
               <button
                 onClick={() => router.push('/groups')}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 transition text-sm font-medium"
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm font-medium"
               >
                 Manage Indexes
               </button>
+              {ready && !authenticated ? (
+                <button
+                  onClick={login}
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 transition text-sm font-medium"
+                >
+                  Sign In
+                </button>
+              ) : ready && authenticated ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">
+                    {user?.email?.address || user?.wallet?.address?.slice(0, 6) + '...' || 'Connected'}
+                  </span>
+                  <button
+                    onClick={logout}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition text-sm font-medium"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              ) : (
+                <div className="px-4 py-2">
+                  <svg className="w-5 h-5 animate-spin text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </div>
+              )}
             </div>
           </div>
         </div>
