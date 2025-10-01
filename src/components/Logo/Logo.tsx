@@ -10,7 +10,7 @@ export default function Logo() {
       alt="Okay Bet Logo"
       width={350}
       height={120}
-      className="mx-auto mb-8"
+      className="w-full h-auto object-contain"
       onClick={() => window.location.reload()}
       priority
     />

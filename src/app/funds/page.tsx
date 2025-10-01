@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useContext } from 'react';
 import { useRouter } from 'next/navigation';
-import Logo from '@/components/Logo/Logo';
+import Navbar from '@/components/Common/Navbar';
 import { FundCard } from '@/components/funds/FundCard';
 import { CreateFundModal } from '@/components/funds/CreateFundModal';
 import { InvestmentFlow } from '@/components/funds/InvestmentFlow';
@@ -157,34 +157,20 @@ export default function FundsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-8">
-              <Logo />
-              <nav className="hidden md:flex gap-6">
-                <button
-                  onClick={() => router.push('/')}
-                  className="text-gray-700 hover:text-primary transition"
-                >
-                  Markets
-                </button>
-                <button
-                  onClick={() => router.push('/groups')}
-                  className="text-gray-700 hover:text-primary transition"
-                >
-                  Groups
-                </button>
-                <button
-                  onClick={() => router.push('/funds')}
-                  className="text-primary font-semibold"
-                >
-                  Funds
-                </button>
-              </nav>
+      {/* Navigation */}
+      <Navbar />
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 py-8 pt-24">
+        {/* Page Title and Filters */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Investment Funds</h1>
+              <p className="text-gray-600">
+                Browse and invest in managed prediction market funds
+              </p>
             </div>
-            
             <div className="flex items-center gap-4">
               {chainId !== 80002 && (
                 <div className="text-sm text-orange-600 font-medium">
@@ -199,17 +185,6 @@ export default function FundsPage() {
               </button>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Page Title and Filters */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Investment Funds</h1>
-          <p className="text-gray-600 mb-6">
-            Browse and invest in managed prediction market funds
-          </p>
           
           {/* Phase Filter */}
           <div className="flex items-center gap-2">

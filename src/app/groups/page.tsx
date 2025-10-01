@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { usePrivy } from "@privy-io/react-auth";
 import { spmcClient } from '@/services/spmc/client';
 import { SPMCGroup, SPMCMarket, SPMCGroupMarket } from '@/services/spmc/types';
-import Logo from '@/components/Logo/Logo';
+import Navbar from '@/components/Common/Navbar';
 import { CreateFundModal } from '@/components/funds/CreateFundModal';
 import { GroupFundMetadata } from '@/services/funds/groupFundIntegration.service';
 
@@ -47,7 +47,7 @@ const getFundStatusBadge = (metadata: GroupFundMetadata | undefined) => {
 
 export default function GroupsPage() {
   const router = useRouter();
-  const { ready, authenticated, login, logout, user } = usePrivy();
+  const { ready, authenticated } = usePrivy();
   const [groups, setGroups] = useState<SPMCGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -498,55 +498,9 @@ export default function GroupsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
-      <nav className="bg-white border-b border-gray-300 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-8">
-              <Logo />
-              <h1 className="text-xl font-bold text-gray-900">Groups Management</h1>
-            </div>
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.push('/')}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-primary transition flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Back to Home
-              </button>
-              {ready && !authenticated ? (
-                <button
-                  onClick={login}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 transition text-sm font-medium"
-                >
-                  Sign In
-                </button>
-              ) : ready && authenticated ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">
-                    {user?.email?.address || user?.wallet?.address?.slice(0, 6) + '...' || 'Connected'}
-                  </span>
-                  <button
-                    onClick={logout}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition text-sm font-medium"
-                  >
-                    Sign Out
-                  </button>
-                </div>
-              ) : (
-                <div className="px-4 py-2">
-                  <svg className="w-5 h-5 animate-spin text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
         {/* Success Alert */}
         {successMessage && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">

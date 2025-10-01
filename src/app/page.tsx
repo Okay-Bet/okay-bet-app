@@ -2,17 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { usePrivy } from "@privy-io/react-auth";
 import { spmcClient } from "@/services/spmc/client";
-import { SPMCGroup } from "@/services/spmc/types";
-import Logo from "@/components/Logo/Logo";
+import { SPMCGroup, Platform } from "@/services/spmc/types";
+import Navbar from "@/components/Common/Navbar";
 import { HeroSection } from "@/components/homepage/HeroSection";
 import { IndexShowcase } from "@/components/homepage/IndexShowcase";
 import { MarketAllocation } from "@/components/homepage/IndexCard";
 
 export default function Home() {
   const router = useRouter();
-  const { ready, authenticated, login, logout, user } = usePrivy();
   const [groups, setGroups] = useState<SPMCGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +48,7 @@ export default function Home() {
                       ...new Set(
                         groupWithDetails.markets
                           .map((m) => m.market_platform)
-                          .filter(Boolean)
+                          .filter((p): p is Platform => Boolean(p))
                       ),
                     ];
 
@@ -78,21 +76,18 @@ export default function Home() {
                               currentPrice =
                                 priceData.yes.ask ||
                                 priceData.yes.last ||
-                                priceData.yes.mid ||
                                 currentPrice;
                             } else if (outcome === "no" && priceData.no) {
                               // For NO outcome, use ask price
                               currentPrice =
                                 priceData.no.ask ||
                                 priceData.no.last ||
-                                priceData.no.mid ||
                                 currentPrice;
                             } else if (priceData.yes) {
                               // Default to YES price if outcome not specified
                               currentPrice =
                                 priceData.yes.ask ||
                                 priceData.yes.last ||
-                                priceData.yes.mid ||
                                 currentPrice;
                             }
                           }
@@ -154,32 +149,28 @@ export default function Home() {
                               currentPrice = marketData.prices.mid;
                             } else if (outcome === "yes") {
                               // Check different price structures for YES outcome
-                              if (marketData.prices.yes) {
+                              if ((marketData.prices as any).yes) {
                                 currentPrice =
-                                  marketData.prices.yes.ask ||
-                                  marketData.prices.yes.last ||
-                                  marketData.prices.yes.mid ||
+                                  (marketData.prices as any).yes.ask ||
+                                  (marketData.prices as any).yes.last ||
                                   currentPrice;
-                              } else if (marketData.prices.YES) {
+                              } else if ((marketData.prices as any).YES) {
                                 currentPrice =
-                                  marketData.prices.YES.ask ||
-                                  marketData.prices.YES.last ||
-                                  marketData.prices.YES.mid ||
+                                  (marketData.prices as any).YES.ask ||
+                                  (marketData.prices as any).YES.last ||
                                   currentPrice;
                               }
                             } else if (outcome === "no") {
                               // Check different price structures for NO outcome
-                              if (marketData.prices.no) {
+                              if ((marketData.prices as any).no) {
                                 currentPrice =
-                                  marketData.prices.no.ask ||
-                                  marketData.prices.no.last ||
-                                  marketData.prices.no.mid ||
+                                  (marketData.prices as any).no.ask ||
+                                  (marketData.prices as any).no.last ||
                                   currentPrice;
-                              } else if (marketData.prices.NO) {
+                              } else if ((marketData.prices as any).NO) {
                                 currentPrice =
-                                  marketData.prices.NO.ask ||
-                                  marketData.prices.NO.last ||
-                                  marketData.prices.NO.mid ||
+                                  (marketData.prices as any).NO.ask ||
+                                  (marketData.prices as any).NO.last ||
                                   currentPrice;
                               }
                             }
@@ -188,9 +179,9 @@ export default function Home() {
                           // Check for direct price fields as last resort
                           if (currentPrice === 0.5 || !currentPrice) {
                             currentPrice =
-                              marketData.current_price ||
-                              marketData.last_price ||
-                              marketData.lastPrice ||
+                              (marketData as any).current_price ||
+                              (marketData as any).last_price ||
+                              (marketData as any).lastPrice ||
                               currentPrice;
                           }
 
@@ -282,104 +273,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-white">
       {/* Navigation Bar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-8">
-              <Logo />
-              <div className="hidden sm:flex items-center gap-6">
-                <a
-                  href="#index-showcase"
-                  className="text-sm font-medium text-gray-700 hover:text-primary transition"
-                >
-                  Explore
-                </a>
-                <a
-                  href="/groups"
-                  className="text-sm font-medium text-gray-700 hover:text-primary transition"
-                >
-                  Create
-                </a>
-                <a
-                  href="/portfolio"
-                  className="text-sm font-medium text-gray-700 hover:text-primary transition"
-                >
-                  Portfolio
-                </a>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <button
-                onClick={loadGroups}
-                disabled={loading}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-primary transition disabled:opacity-50"
-              >
-                {loading ? (
-                  <svg
-                    className="w-5 h-5 animate-spin"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                    />
-                  </svg>
-                ) : (
-                  "Refresh"
-                )}
-              </button>
-              <button
-                onClick={() => router.push("/groups")}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm font-medium"
-              >
-                Manage Indexes
-              </button>
-              {ready && !authenticated ? (
-                <button
-                  onClick={login}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 transition text-sm font-medium"
-                >
-                  Sign In
-                </button>
-              ) : ready && authenticated ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">
-                    {user?.email?.address ||
-                      user?.wallet?.address?.slice(0, 6) + "..." ||
-                      "Connected"}
-                  </span>
-                  <button
-                    onClick={logout}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition text-sm font-medium"
-                  >
-                    Sign Out
-                  </button>
-                </div>
-              ) : (
-                <div className="px-4 py-2">
-                  <svg
-                    className="w-5 h-5 animate-spin text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                    />
-                  </svg>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       {/* Hero Section */}
       <div className="pt-16">
