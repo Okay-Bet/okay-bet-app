@@ -105,7 +105,7 @@ export const IndexShowcase: React.FC<IndexShowcaseProps> = ({
         )}
 
         {/* Bottom CTA */}
-        {groups.length > 0 && onCreateIndex && (
+        {/* {groups.length > 0 && onCreateIndex && (
           <div className="mt-12 text-center">
             <div className="inline-flex flex-col sm:flex-row items-center gap-4 p-6 bg-primary/5 rounded-xl border border-primary/20">
               <div className="text-left">
@@ -120,7 +120,7 @@ export const IndexShowcase: React.FC<IndexShowcaseProps> = ({
               </button>
             </div>
           </div>
-        )}
+        )} */}
       </div>
     </section>
   );

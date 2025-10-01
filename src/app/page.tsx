@@ -317,9 +317,12 @@ export default function Home() {
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
               How it works
             </h2>
+            
+            {/* 
+            REPLACE WITH GRAPHIC
             <p className="mt-4 text-lg text-gray-700 max-w-2xl mx-auto">
-              I am not sure yet{" "}
-            </p>
+              Deposit USDC into a strategy vault that will issue you shares. The funds will be used to enter Polymarket positions and will be redeemable after the set period.
+            </p> */}
           </div>
 
           {/* Steps Grid */}
@@ -327,13 +330,13 @@ export default function Home() {
             {/* Browse */}
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
               <div className="text-xs font-semibold text-secondary mb-2">
-                Deposit
+                Browse Funds
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Browse funds
+                Deposit
               </h3>
               <p className="text-gray-600 text-sm">
-                Select the group you lke and deposit USDC into the index
+                Select the strategy you like and deposit USDC in exchange for token shares
               </p>
             </div>
 
@@ -343,11 +346,10 @@ export default function Home() {
                 Monitor
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Deposit USDC
+                Trade
               </h3>
               <p className="text-gray-600 text-sm">
-                One-click investment gets you automatic exposure to all markets
-                in the fund
+                The funds are managed by agents to place prediction market positions along set indexes and strategies.
               </p>
             </div>
 
@@ -360,8 +362,7 @@ export default function Home() {
                 Track & withdraw
               </h3>
               <p className="text-gray-600 text-sm">
-                Monitor real-time performance and withdraw your funds anytime
-                after markets resolve
+                After the trading period redeem your shares for the equivalent size of the fund.
               </p>
             </div>
           </div>
