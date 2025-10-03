@@ -8,6 +8,7 @@ import {
   MIN_INVESTMENT_USDC,
   basisPointsToPercentage
 } from '@/services/funds/types';
+import { formatUnits } from 'viem';
 
 interface InvestmentFlowProps {
   fundAddress: string;
@@ -37,22 +38,50 @@ export const InvestmentFlow: React.FC<InvestmentFlowProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
+  const [maxDeposit, setMaxDeposit] = useState<bigint | null>(null);
+  const [expectedShares, setExpectedShares] = useState<bigint | null>(null);
 
   useEffect(() => {
-    const fetchBalance = async () => {
+    const fetchBalances = async () => {
       if (!address) return;
       
       try {
         const fundService = new InvestmentFundService();
-        const balance = await fundService.getUsdcBalance(address);
+        const [balance, maxDep] = await Promise.all([
+          fundService.getUsdcBalance(address),
+          fundService.getMaxDeposit(fundAddress as `0x${string}`, address)
+        ]);
         setUsdcBalance(balance);
+        setMaxDeposit(maxDep);
       } catch (err) {
-        console.error('Error fetching USDC balance:', err);
+        console.error('Error fetching balances:', err);
       }
     };
 
-    fetchBalance();
-  }, [address]);
+    fetchBalances();
+  }, [address, fundAddress]);
+
+  // Preview shares when amount changes
+  useEffect(() => {
+    const previewShares = async () => {
+      if (!amount || parseFloat(amount) <= 0) {
+        setExpectedShares(null);
+        return;
+      }
+
+      try {
+        const fundService = new InvestmentFundService();
+        const amountWei = usdcToWei(parseFloat(amount));
+        const shares = await fundService.previewDeposit(fundAddress as `0x${string}`, amountWei);
+        setExpectedShares(shares);
+      } catch (err) {
+        console.error('Error previewing shares:', err);
+      }
+    };
+
+    const debounce = setTimeout(previewShares, 500);
+    return () => clearTimeout(debounce);
+  }, [amount, fundAddress]);
 
   const validateAmount = (): boolean => {
     const amountNum = parseFloat(amount);
@@ -102,19 +131,20 @@ export const InvestmentFlow: React.FC<InvestmentFlowProps> = ({
       const fundService = new InvestmentFundService();
       const amountNum = parseFloat(amount);
       
-      // Check fund phase
-      const phase = await fundService.getCurrentPhase(fundAddress as `0x${string}`);
-      if (phase !== FundPhase.DEPOSIT) {
-        setError('Fund is not accepting deposits');
+      // Check if deposits are allowed
+      const maxDep = await fundService.getMaxDeposit(fundAddress as `0x${string}`, address);
+      if (maxDep === 0n) {
+        setError('Deposits are currently closed');
         setStep('amount');
         return;
       }
 
-      // Make deposit
+      // Make deposit with receiver parameter
       const { hash, shares } = await fundService.deposit(
         fundAddress as `0x${string}`,
         amountNum,
-        walletClient
+        walletClient,
+        address // receiver is the same as sender
       );
 
       setTxHash(hash);
@@ -161,8 +191,20 @@ export const InvestmentFlow: React.FC<InvestmentFlowProps> = ({
             USDC
           </span>
         </div>
-        <div className="mt-1 text-sm text-gray-500">
-          Balance: {weiToUsdc(usdcBalance).toFixed(2)} USDC
+        <div className="mt-1 space-y-1">
+          <div className="text-sm text-gray-500">
+            Balance: {weiToUsdc(usdcBalance).toFixed(2)} USDC
+          </div>
+          {maxDeposit !== null && maxDeposit > 0n && (
+            <div className="text-sm text-gray-500">
+              Max deposit: {weiToUsdc(maxDeposit).toFixed(2)} USDC
+            </div>
+          )}
+          {expectedShares !== null && expectedShares > 0n && (
+            <div className="text-sm text-green-600">
+              Expected shares: {parseFloat(formatUnits(expectedShares, 18)).toFixed(6)}
+            </div>
+          )}
         </div>
       </div>
 
@@ -186,9 +228,10 @@ export const InvestmentFlow: React.FC<InvestmentFlowProps> = ({
         </button>
         <button
           onClick={handleAmountSubmit}
-          className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={maxDeposit === 0n}
         >
-          Continue
+          {maxDeposit === 0n ? 'Deposits Closed' : 'Continue'}
         </button>
       </div>
     </div>

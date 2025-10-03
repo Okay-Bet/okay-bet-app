@@ -39,6 +39,7 @@ export const FundCard: React.FC<FundCardProps> = ({
   const [metrics, setMetrics] = useState<FundMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [estimatedValue, setEstimatedValue] = useState<{ value: bigint; lastUpdate: Date | undefined } | null>(null);
   
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -47,6 +48,17 @@ export const FundCard: React.FC<FundCardProps> = ({
         const fundService = new InvestmentFundService();
         const fundMetrics = await fundService.getFundMetrics(fundAddress as `0x${string}`);
         setMetrics(fundMetrics);
+        
+        // Fetch estimated value if in trading phase
+        if (fundMetrics.currentPhase === FundPhase.TRADING) {
+          try {
+            const estValue = await fundService.getEstimatedValue(fundAddress as `0x${string}`);
+            setEstimatedValue(estValue);
+          } catch (err) {
+            console.error('Error fetching estimated value:', err);
+          }
+        }
+        
         setError(null);
       } catch (err) {
         console.error('Error fetching fund metrics:', err);
@@ -148,11 +160,27 @@ export const FundCard: React.FC<FundCardProps> = ({
               </div>
             )}
             
-            {metrics.currentPhase === FundPhase.TRADING && metrics.tradingEndTime && (
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Trading Ends:</span>
-                <span className="font-medium">{formatDate(metrics.tradingEndTime)}</span>
-              </div>
+            {metrics.currentPhase === FundPhase.TRADING && (
+              <>
+                {metrics.tradingEndTime && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Trading Ends:</span>
+                    <span className="font-medium">{formatDate(metrics.tradingEndTime)}</span>
+                  </div>
+                )}
+                {estimatedValue && estimatedValue.value > 0n && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Estimated Value:</span>
+                    <span className="font-medium">${weiToUsdc(estimatedValue.value).toLocaleString()} USDC</span>
+                  </div>
+                )}
+                {estimatedValue && estimatedValue.lastUpdate && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Last Updated:</span>
+                    <span className="font-medium text-xs">{formatDate(estimatedValue.lastUpdate)}</span>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
