@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { spmcClient } from "@/services/spmc/client";
 import { SPMCGroup, Platform } from "@/services/spmc/types";
+import { GroupFundMetadata } from "@/services/funds/groupFundIntegration.service";
 import Navbar from "@/components/Common/Navbar";
 import { HeroSection } from "@/components/homepage/HeroSection";
 import { IndexShowcase } from "@/components/homepage/IndexShowcase";
@@ -21,9 +22,19 @@ export default function Home() {
     try {
       const response = await spmcClient.listGroups({ limit: 100 });
       if (response.success && response.data) {
-        // Filter to only get indexes (not portfolios)
+        // Filter to only get indexes with deployed funds in active phases
         const indexGroups = response.data.groups.filter(
-          (group) => group.group_type === "index"
+          (group) => {
+            if (group.group_type !== "index") return false;
+
+            // Only show groups with deployed funds
+            const metadata = group.metadata as GroupFundMetadata;
+            if (!metadata?.fund_deployment) return false;
+
+            // Only show active phases (deposit, trading, redemption)
+            const status = metadata.fund_deployment.status;
+            return status === 'deposit' || status === 'trading' || status === 'redemption';
+          }
         );
 
         // Load details for each index to get market information
@@ -263,7 +274,8 @@ export default function Home() {
   };
 
   const handleCreateIndex = () => {
-    router.push("/groups");
+    // Route to groups page with create tab active
+    router.push("/groups?tab=create");
   };
 
   useEffect(() => {
@@ -296,13 +308,16 @@ export default function Home() {
           loading={loading}
           onInvest={handleInvest}
           onCreateIndex={handleCreateIndex}
-          fundAddresses={{
-            // Map the first group to our test fund for demo purposes
-            // In production, this would come from your database
-            ...(groups[0]
-              ? { [groups[0].id]: "0x8A136572B7b72AE8582cc49FEB231c4850FE8cD0" }
-              : {}),
-          }}
+          fundAddresses={
+            // Extract fund addresses from group metadata
+            groups.reduce((acc, group) => {
+              const metadata = group.metadata as GroupFundMetadata;
+              if (metadata?.fund_deployment?.contract_address) {
+                acc[group.id] = metadata.fund_deployment.contract_address;
+              }
+              return acc;
+            }, {} as Record<string, string>)
+          }
         />
       </section>
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { usePrivy } from "@privy-io/react-auth";
 import { spmcClient } from '@/services/spmc/client';
 import { SPMCGroup, SPMCMarket, SPMCGroupMarket } from '@/services/spmc/types';
@@ -47,12 +47,16 @@ const getFundStatusBadge = (metadata: GroupFundMetadata | undefined) => {
 
 export default function GroupsPage() {
   const router = useRouter();
-  const { ready, authenticated } = usePrivy();
+  const searchParams = useSearchParams();
+  const { ready, authenticated, login } = usePrivy();
   const [groups, setGroups] = useState<SPMCGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'create'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'create'>(
+    (searchParams?.get('tab') as 'all' | 'create') || 'all'
+  );
+  const [fundStatusFilter, setFundStatusFilter] = useState<'all' | 'no-fund' | 'deployed' | 'deposit' | 'trading' | 'redemption' | 'completed'>('all');
   
   // Edit mode states
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
@@ -501,6 +505,26 @@ export default function GroupsPage() {
       <Navbar />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
+        {/* Authentication Check */}
+        {ready && !authenticated && (
+          <div className="mb-6 p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-start gap-4">
+              <svg className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-yellow-900 mb-1">Authentication Required</h3>
+                <p className="text-yellow-800 mb-3">You need to connect your wallet to create or manage groups and deploy funds.</p>
+                <button
+                  onClick={() => login()}
+                  className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition font-medium"
+                >
+                  Connect Wallet
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Success Alert */}
         {successMessage && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -566,9 +590,28 @@ export default function GroupsPage() {
         {activeTab === 'all' && (
           <div>
             <div className="mb-4 flex justify-between items-center">
-              <p className="text-sm font-medium text-gray-800">
-                {groups.length} group{groups.length !== 1 ? 's' : ''} total
-              </p>
+              <div className="flex items-center gap-4">
+                <p className="text-sm font-medium text-gray-800">
+                  {groups.length} group{groups.length !== 1 ? 's' : ''} total
+                </p>
+                {/* Fund Status Filter */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">Filter:</span>
+                  <select
+                    value={fundStatusFilter}
+                    onChange={(e) => setFundStatusFilter(e.target.value as any)}
+                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-primary focus:border-primary"
+                  >
+                    <option value="all">All Groups</option>
+                    <option value="no-fund">No Fund Deployed</option>
+                    <option value="deployed">Fund Deployed</option>
+                    <option value="deposit">Accepting Deposits</option>
+                    <option value="trading">Trading Active</option>
+                    <option value="redemption">Redemption Phase</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+              </div>
               <button
                 onClick={loadGroups}
                 disabled={loading}
@@ -598,11 +641,25 @@ export default function GroupsPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {groups.map((group) => {
+                {groups.filter((group) => {
+                  // Apply fund status filter
+                  const metadata = group.metadata as GroupFundMetadata;
+                  const hasFund = !!metadata?.fund_deployment;
+                  const fundStatus = metadata?.fund_deployment?.status;
+
+                  if (fundStatusFilter === 'all') return true;
+                  if (fundStatusFilter === 'no-fund') return !hasFund;
+                  if (fundStatusFilter === 'deployed') return hasFund;
+                  if (fundStatusFilter === 'deposit') return fundStatus === 'deposit';
+                  if (fundStatusFilter === 'trading') return fundStatus === 'trading';
+                  if (fundStatusFilter === 'redemption') return fundStatus === 'redemption';
+                  if (fundStatusFilter === 'completed') return fundStatus === 'completed';
+                  return true;
+                }).map((group) => {
                   const isExpanded = expandedGroups.has(group.id);
                   const isEditing = editingGroupId === group.id;
                   const displayGroup = isEditing ? editingGroup : group;
-                  
+
                   if (!displayGroup) return null;
                   
                   return (
@@ -1342,7 +1399,7 @@ export default function GroupsPage() {
                     </h3>
                     <div className="mt-2">
                       <p className="text-sm text-gray-800">
-                        Are you sure you want to delete the group <span className="font-semibold">"{groupToDelete.title}"</span>? This action cannot be undone.
+                        Are you sure you want to delete the group <span className="font-semibold">&quot;{groupToDelete.title}&quot;</span>? This action cannot be undone.
                       </p>
                     </div>
                   </div>
