@@ -8,6 +8,21 @@ import { SPMCGroup, SPMCMarket, SPMCGroupMarket } from '@/services/spmc/types';
 import Navbar from '@/components/Common/Navbar';
 import { CreateFundModal } from '@/components/funds/CreateFundModal';
 import { GroupFundMetadata } from '@/services/funds/groupFundIntegration.service';
+import { InteractivePieChart } from '@/components/groups/InteractivePieChart';
+
+// Market colors for consistent numbering
+const MARKET_COLORS = [
+  '#3B82F6', // Blue
+  '#10B981', // Green  
+  '#F59E0B', // Yellow
+  '#EF4444', // Red
+  '#8B5CF6', // Purple
+  '#EC4899', // Pink
+  '#06B6D4', // Cyan
+  '#F97316', // Orange
+  '#6366F1', // Indigo
+  '#84CC16', // Lime
+];
 
 // Helper function to get platform badge styling
 const getPlatformBadgeClass = (platform: string) => {
@@ -91,9 +106,9 @@ export default function GroupsPage() {
   const [selectedMarkets, setSelectedMarkets] = useState<Array<{
     market_id: string;
     market: SPMCMarket;
-    weight: number;
-    outcome: 'yes' | 'no' | 'both';
-  }>>([]);
+    ratio: number;
+    outcome: 'yes' | 'no';
+  }>>([]); 
   
   // Expanded groups for viewing details
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -136,7 +151,7 @@ export default function GroupsPage() {
       const response = await spmcClient.getGroup(groupId);
       if (response.success && response.data) {
         setGroups(prevGroups => 
-          prevGroups.map(g => g.id === groupId ? response.data : g)
+          prevGroups.map(g => g.id === groupId ? response.data! : g)
         );
         // If we're editing this group, update the editing group as well
         if (editingGroupId === groupId) {
@@ -181,7 +196,7 @@ export default function GroupsPage() {
   };
 
   // Update market outcome in editing group
-  const updateEditingMarketOutcome = (marketId: string, outcome: 'yes' | 'no' | 'both') => {
+  const updateEditingMarketOutcome = (marketId: string, outcome: 'yes' | 'no') => {
     if (!editingGroup) return;
     
     const updatedMarkets = editingGroup.markets?.map(m => 
@@ -241,7 +256,6 @@ export default function GroupsPage() {
     
     const newMarket: SPMCGroupMarket = {
       id: `temp-${Date.now()}`, // Temporary ID
-      group_id: editingGroup.id,
       market_id: market.id,
       market_title: market.title,
       market_platform: market.platform,
@@ -251,7 +265,7 @@ export default function GroupsPage() {
       market_closes_at: market.closes_at,
       weight: 1,
       position_type: 'long',
-      outcome: 'both',  // Default to BOTH for flexibility
+      outcome: 'yes',  // Default to YES
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -370,24 +384,31 @@ export default function GroupsPage() {
     if (existing) {
       setSelectedMarkets(selectedMarkets.filter(m => m.market_id !== market.id));
     } else {
-      setSelectedMarkets([...selectedMarkets, {
+      // Calculate initial ratio for even distribution
+      const newRatio = selectedMarkets.length > 0 ? 1 / (selectedMarkets.length + 1) : 1;
+      // Adjust existing ratios proportionally
+      const adjustedMarkets = selectedMarkets.map(m => ({
+        ...m,
+        ratio: m.ratio * (selectedMarkets.length / (selectedMarkets.length + 1))
+      }));
+      setSelectedMarkets([...adjustedMarkets, {
         market_id: market.id,
         market,
-        weight: 1,
-        outcome: 'both'  // Default to BOTH for flexibility
+        ratio: newRatio,
+        outcome: 'yes'  // Default to YES
       }]);
     }
   };
 
-  // Update market weight
-  const updateMarketWeight = (marketId: string, weight: number) => {
+  // Update market ratio
+  const updateMarketRatio = (marketId: string, ratio: number) => {
     setSelectedMarkets(selectedMarkets.map(m => 
-      m.market_id === marketId ? { ...m, weight } : m
+      m.market_id === marketId ? { ...m, ratio } : m
     ));
   };
 
   // Update market outcome
-  const updateMarketOutcome = (marketId: string, outcome: 'yes' | 'no' | 'both') => {
+  const updateMarketOutcome = (marketId: string, outcome: 'yes' | 'no') => {
     setSelectedMarkets(selectedMarkets.map(m => 
       m.market_id === marketId ? { ...m, outcome } : m
     ));
@@ -398,6 +419,15 @@ export default function GroupsPage() {
     if (!newGroup.title.trim()) {
       setError('Please enter a group title');
       return;
+    }
+
+    // Validate ratios sum to 1 if markets are selected and it's an index group
+    if (selectedMarkets.length > 0 && newGroup.group_type === 'index') {
+      const totalRatio = selectedMarkets.reduce((sum, m) => sum + m.ratio, 0);
+      if (Math.abs(totalRatio - 1) > 0.001) {
+        setError(`Market ratios must sum to 1.0. Current total: ${totalRatio.toFixed(3)}`);
+        return;
+      }
     }
 
     if (isCreating) {
@@ -415,7 +445,7 @@ export default function GroupsPage() {
         if (selectedMarkets.length > 0) {
           const marketsToAdd = selectedMarkets.map(m => ({
             market_id: m.market_id,
-            weight: m.weight,
+            weight: m.ratio,  // Convert ratio back to weight for API
             position_type: 'long' as const,
             outcome: m.outcome
           }));
@@ -807,7 +837,7 @@ export default function GroupsPage() {
                                     type="text"
                                     value={editSearchQuery}
                                     onChange={(e) => setEditSearchQuery(e.target.value)}
-                                    onKeyPress={(e) => e.key === 'Enter' && handleEditSearchMarkets()}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleEditSearchMarkets()}
                                     className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-primary"
                                     placeholder="Search to add markets..."
                                   />
@@ -884,7 +914,7 @@ export default function GroupsPage() {
                                               )}
                                               {(market.market_close_time || market.closes_at || market.expiration_date) && (
                                                 <span className="text-xs text-gray-600">
-                                                  Ends: {new Date(market.market_close_time || market.closes_at || market.expiration_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                  Ends: {new Date(market.market_close_time || market.closes_at || market.expiration_date || '').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                                 </span>
                                               )}
                                             </div>
@@ -918,22 +948,22 @@ export default function GroupsPage() {
                                         </span>
                                         {(groupMarket.market_expiration_date || groupMarket.market_close_time || groupMarket.market_closes_at) && (
                                           <span className="text-xs text-gray-600">
-                                            Ends: {new Date(groupMarket.market_expiration_date || groupMarket.market_close_time || groupMarket.market_closes_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                            Ends: {new Date(groupMarket.market_expiration_date || groupMarket.market_close_time || groupMarket.market_closes_at || '').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                           </span>
                                         )}
                                         {isEditing ? (
                                           <>
                                             {displayGroup.group_type === 'index' && (
                                               <div className="flex items-center gap-1">
-                                                <label className="text-xs text-gray-600">Weight:</label>
+                                                <label className="text-xs text-gray-600">Ratio:</label>
                                                 <input
                                                   type="number"
                                                   value={groupMarket.weight}
                                                   onChange={(e) => updateEditingMarketWeight(groupMarket.market_id, parseFloat(e.target.value) || 1)}
                                                   className="w-16 text-xs px-1 py-0.5 border border-gray-300 rounded text-black"
-                                                  min="0.1"
-                                                  max="10"
-                                                  step="0.1"
+                                                  min="0"
+                                                  max="1"
+                                                  step="0.001"
                                                 />
                                               </div>
                                             )}
@@ -946,7 +976,6 @@ export default function GroupsPage() {
                                               >
                                                 <option value="yes" className="font-medium">YES</option>
                                                 <option value="no" className="font-medium">NO</option>
-                                                <option value="both" className="font-medium">BOTH</option>
                                               </select>
                                             </div>
                                           </>
@@ -954,13 +983,12 @@ export default function GroupsPage() {
                                           <>
                                             {displayGroup.group_type === 'index' && groupMarket.weight !== 1 && (
                                               <span className="text-xs font-semibold text-blue-600">
-                                                {groupMarket.weight}x weight
+                                                {(groupMarket.weight * 100).toFixed(1)}% ratio
                                               </span>
                                             )}
                                             <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
                                               groupMarket.outcome === 'yes' ? 'bg-green-100 text-green-700' :
                                               groupMarket.outcome === 'no' ? 'bg-red-100 text-red-700' :
-                                              groupMarket.outcome === 'both' ? 'bg-blue-100 text-blue-700' :
                                               'bg-gray-100 text-gray-700'
                                             }`}>
                                               {(groupMarket.outcome || 'yes').toUpperCase()}
@@ -970,7 +998,7 @@ export default function GroupsPage() {
                                       </div>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                      {groupMarket.market_current_price !== null && (
+                                      {groupMarket.market_current_price !== null && groupMarket.market_current_price !== undefined && (
                                         <div className="text-right">
                                           <div className={`text-lg font-bold ${
                                             groupMarket.outcome === 'yes' ? 'text-green-600' :
@@ -1059,7 +1087,7 @@ export default function GroupsPage() {
                   </select>
                   {newGroup.group_type === 'index' && (
                     <p className="mt-2 text-xs text-gray-600">
-                      Index groups allow you to set custom weights for each market
+                      Index groups require ratios that sum to 1.0
                     </p>
                   )}
                 </div>
@@ -1077,12 +1105,18 @@ export default function GroupsPage() {
                       </button>
                     </h3>
                     <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
-                      {selectedMarkets.map((selected) => (
+                      {selectedMarkets.map((selected, index) => (
                         <div key={selected.market_id} className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
-                              <div className="text-sm font-medium text-gray-900 line-clamp-1">
-                                {selected.market.title}
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                                      style={{ backgroundColor: MARKET_COLORS[index % MARKET_COLORS.length] }}>
+                                  {index + 1}
+                                </span>
+                                <div className="text-sm font-medium text-gray-900 line-clamp-1 flex-1">
+                                  {selected.market.title}
+                                </div>
                               </div>
                               <div className="flex items-center gap-2 mt-1">
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getPlatformBadgeClass(selected.market.platform)}`}>
@@ -1099,7 +1133,7 @@ export default function GroupsPage() {
                                 )}
                                 {(selected.market.market_close_time || selected.market.closes_at || selected.market.expiration_date) && (
                                   <span className="text-xs text-gray-600">
-                                    Ends: {new Date(selected.market.market_close_time || selected.market.closes_at || selected.market.expiration_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                    Ends: {new Date(selected.market.market_close_time || selected.market.closes_at || selected.market.expiration_date || '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                   </span>
                                 )}
                               </div>
@@ -1113,20 +1147,19 @@ export default function GroupsPage() {
                                   >
                                     <option value="yes" className="font-semibold">YES</option>
                                     <option value="no" className="font-semibold">NO</option>
-                                    <option value="both" className="font-semibold">BOTH</option>
                                   </select>
                                 </div>
                                 {newGroup.group_type === 'index' && (
                                   <div className="flex items-center gap-2">
-                                    <label className="text-xs text-gray-600">Weight:</label>
+                                    <label className="text-xs text-gray-600">Ratio:</label>
                                     <input
                                       type="number"
-                                      value={selected.weight}
-                                      onChange={(e) => updateMarketWeight(selected.market_id, parseFloat(e.target.value) || 1)}
+                                      value={selected.ratio}
+                                      onChange={(e) => updateMarketRatio(selected.market_id, parseFloat(e.target.value) || 0)}
                                       className="w-16 text-xs px-2 py-1 border border-gray-300 rounded text-black"
-                                      min="0.1"
-                                      max="10"
-                                      step="0.1"
+                                      min="0"
+                                      max="1"
+                                      step="0.001"
                                     />
                                   </div>
                                 )}
@@ -1144,6 +1177,21 @@ export default function GroupsPage() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* Interactive Pie Chart for Index Groups */}
+                {newGroup.group_type === 'index' && selectedMarkets.length > 0 && (
+                  <div className="border-t pt-4">
+                    <InteractivePieChart
+                      markets={selectedMarkets.map(m => ({
+                        market_id: m.market_id,
+                        market_title: m.market.title,
+                        ratio: m.ratio
+                      }))}
+                      onRatioChange={updateMarketRatio}
+                      height={300}
+                    />
                   </div>
                 )}
 
