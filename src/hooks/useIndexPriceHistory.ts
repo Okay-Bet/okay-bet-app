@@ -78,3 +78,64 @@ export function useIndexPriceHistory(
   return useIndexPrice(groupId);
 }
 
+/**
+ * Aggregated index price data (average across all active indexes)
+ */
+export interface AggregatedIndexPriceData {
+  averagePrice: number | null;
+  indexes: Array<{
+    groupId: string;
+    title: string;
+    price: number;
+    marketCount: number;
+  }>;
+  count: number;
+  totalIndexes?: number;
+  timestamp: string;
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Hook to fetch aggregated price across all active index funds
+ * Uses the same /api/index-prices endpoint without groupId parameter
+ */
+export function useAggregatedIndexPrice(refreshInterval: number = 60000) {
+  const [data, setData] = useState<AggregatedIndexPriceData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchAggregatedPrice = async () => {
+      try {
+        // Call endpoint without groupId to get aggregated data
+        const response = await fetch('/api/index-prices');
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to fetch aggregated index price');
+        }
+
+        const priceData = await response.json();
+        setData(priceData);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching aggregated index price:', err);
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Initial fetch
+    fetchAggregatedPrice();
+
+    // Set up auto-refresh
+    const intervalId = setInterval(fetchAggregatedPrice, refreshInterval);
+
+    return () => clearInterval(intervalId);
+  }, [refreshInterval]);
+
+  return { data, loading, error };
+}
+

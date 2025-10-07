@@ -83,6 +83,34 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
   const indexPrice = calculateIndexPrice();
 
 
+  // Determine color based on price sentiment
+  const getPriceColorClasses = () => {
+    if (indexPrice >= 0.55) {
+      return {
+        bg: 'bg-green-50',
+        border: 'border-green-200',
+        text: 'text-green-700',
+        accent: 'text-green-600'
+      };
+    } else if (indexPrice <= 0.45) {
+      return {
+        bg: 'bg-red-50',
+        border: 'border-red-200',
+        text: 'text-red-700',
+        accent: 'text-red-600'
+      };
+    } else {
+      return {
+        bg: 'bg-gray-50',
+        border: 'border-gray-200',
+        text: 'text-gray-700',
+        accent: 'text-gray-600'
+      };
+    }
+  };
+
+  const priceColors = getPriceColorClasses();
+
   return (
     <div className="bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-100">
       {/* Card Header */}
@@ -92,7 +120,7 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
             <div className="flex items-center gap-3 mb-2">
               <h3 className="text-xl font-bold text-gray-900">{group.title}</h3>
               <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                group.group_type === 'index' 
+                group.group_type === 'index'
                   ? 'bg-blue-100 text-blue-700'
                   : 'bg-gray-100 text-gray-700'
               }`}>
@@ -100,6 +128,19 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
               </span>
             </div>
             <p className="text-sm text-gray-900 line-clamp-2">{group.description}</p>
+          </div>
+
+          {/* Large Index Price Display */}
+          <div className={`ml-6 px-6 py-4 ${priceColors.bg} rounded-xl border-2 ${priceColors.border} min-w-[140px]`}>
+            <div className="text-center">
+              <div className="text-xs font-medium text-gray-600 mb-1">Index Price</div>
+              <div className={`text-4xl font-bold ${priceColors.text} tabular-nums`}>
+                {(indexPrice * 100).toFixed(1)}%
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Weighted Avg
+              </div>
+            </div>
           </div>
         </div>
 
@@ -234,12 +275,6 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
             <div>
               <div className="text-xs text-gray-700 font-medium">Markets</div>
               <div className="text-lg font-semibold text-gray-900">{group.market_count}</div>
-            </div>
-            <div>
-              <div className="text-xs text-gray-700 font-medium">Avg Price</div>
-              <div className="text-lg font-semibold text-gray-900">
-                {(indexPrice * 100).toFixed(1)}¢
-              </div>
             </div>
           </div>
         </div>

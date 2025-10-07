@@ -22,19 +22,9 @@ export default function Home() {
     try {
       const response = await spmcClient.listGroups({ limit: 100 });
       if (response.success && response.data) {
-        // Filter to only get indexes with deployed funds in active phases
+        // Filter to only get index type groups (show all indexes regardless of fund deployment)
         const indexGroups = response.data.groups.filter(
-          (group) => {
-            if (group.group_type !== "index") return false;
-
-            // Only show groups with deployed funds
-            const metadata = group.metadata as GroupFundMetadata;
-            if (!metadata?.fund_deployment) return false;
-
-            // Only show active phases (deposit, trading, redemption)
-            const status = metadata.fund_deployment.status;
-            return status === 'deposit' || status === 'trading' || status === 'redemption';
-          }
+          (group) => group.group_type === "index"
         );
 
         // Load details for each index to get market information
@@ -76,30 +66,20 @@ export default function Home() {
                           const priceData = pricesMap[market.market_id];
                           let currentPrice = market.market_current_price || 0.5;
 
-                          if (priceData) {
-                            // SPMC API returns prices in the format:
-                            // { yes: { ask: 0.xx, bid: 0.xx, last: 0.xx, mid: 0.xx }, no: {...} }
-                            // We want the price for the outcome specified in the market
+                          if (priceData && priceData.prices) {
+                            // SPMC batch API returns prices in the format:
+                            // { platform, prices: { bid, ask, last, mid } }
                             const outcome = market.outcome || "yes";
 
-                            if (outcome === "yes" && priceData.yes) {
-                              // For YES outcome, use ask price (what you'd pay to buy)
-                              currentPrice =
-                                priceData.yes.ask ||
-                                priceData.yes.last ||
-                                currentPrice;
-                            } else if (outcome === "no" && priceData.no) {
-                              // For NO outcome, use ask price
-                              currentPrice =
-                                priceData.no.ask ||
-                                priceData.no.last ||
-                                currentPrice;
-                            } else if (priceData.yes) {
-                              // Default to YES price if outcome not specified
-                              currentPrice =
-                                priceData.yes.ask ||
-                                priceData.yes.last ||
-                                currentPrice;
+                            // Use mid price as base
+                            const basePrice = priceData.prices.mid;
+
+                            if (outcome === "no") {
+                              // For NO positions, invert the price
+                              currentPrice = 1 - basePrice;
+                            } else {
+                              // For YES positions, use price directly
+                              currentPrice = basePrice;
                             }
                           }
 
