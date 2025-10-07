@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
-import { SPMCGroup } from '@/services/spmc/types';
+import React, { useState, useEffect } from 'react';
+import { SPMCGroup, SPMCGroupMarket } from '@/services/spmc/types';
 import { CreateFundModal } from '@/components/funds/CreateFundModal';
 import { useFundMetrics, useFundPhaseDisplay } from '@/hooks/useFundMetrics';
 import { FundPhase, weiToUsdc } from '@/services/funds/types';
 import { InvestmentFlow } from '@/components/funds/InvestmentFlow';
+import { useIndexPriceHistory } from '@/hooks/useSPMCMarkets';
+import { LineChart, Line, ResponsiveContainer, YAxis, XAxis, Tooltip, CartesianGrid } from 'recharts';
+import { spmcClient } from '@/services/spmc';
 
 interface IndexCardProps {
   group: SPMCGroup;
@@ -32,19 +35,69 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
   const [showCalculator, setShowCalculator] = useState(false);
   const [showCreateFund, setShowCreateFund] = useState(false);
   const [showInvestFlow, setShowInvestFlow] = useState(false);
-  
+  const [timeRange, setTimeRange] = useState<'1d' | '1w' | 'max'>('1d');
+  const [marketsWithPrices, setMarketsWithPrices] = useState<SPMCGroupMarket[]>(group.markets || []);
+  const [loadingPrices, setLoadingPrices] = useState(false);
+
   // Fetch fund metrics if fund address exists
   const { metrics: fundMetrics, loading: fundLoading, error: fundError } = useFundMetrics(fundAddress);
   const phaseDisplay = useFundPhaseDisplay(fundMetrics?.currentPhase || null);
-  
+
+  // Fetch index price history
+  const { history, loading: historyLoading } = useIndexPriceHistory(group.markets || [], timeRange, group.title);
+
+  // Fetch real-time prices for static calculation
+  useEffect(() => {
+    const fetchPrices = async () => {
+      if (!group.markets || group.markets.length === 0) return;
+
+      setLoadingPrices(true);
+      try {
+        const marketIds = group.markets.map(m => m.market_id);
+        const pricesResponse = await spmcClient.getMarketPrices({ marketIds });
+
+        if (pricesResponse.success && pricesResponse.data?.prices) {
+          const pricesMap = pricesResponse.data.prices;
+
+          const updated = group.markets.map((market) => {
+            const priceData = pricesMap[market.market_id];
+            let currentPrice = market.market_current_price || 0.5;
+
+            if (priceData && priceData.prices) {
+              const outcome = market.outcome?.toLowerCase() || 'yes';
+              const basePrice = priceData.prices.mid;
+
+              // Invert price for NO outcomes
+              currentPrice = outcome === 'no' ? (1 - basePrice) : basePrice;
+            }
+
+            return {
+              ...market,
+              market_current_price: currentPrice
+            };
+          });
+
+          setMarketsWithPrices(updated);
+        }
+      } catch (error) {
+        console.error('Failed to fetch real-time prices:', error);
+        setMarketsWithPrices(group.markets || []);
+      } finally {
+        setLoadingPrices(false);
+      }
+    };
+
+    fetchPrices();
+  }, [group.markets]);
+
   // Get fund details for investment flow
   const minInvestmentAmount = fundMetrics ? weiToUsdc(BigInt(5 * 10 ** 6)) : 5; // Default 5 USDC
   const entryFee = 100; // Default 1%
 
-  // Calculate index metrics and market percentages
-  const totalWeight = group.markets?.reduce((sum, m) => sum + (m.weight || 1), 0) || 1;
-  
-  const marketAllocations = group.markets?.map((market) => {
+  // Calculate index metrics and market percentages using markets with fetched prices
+  const totalWeight = marketsWithPrices?.reduce((sum, m) => sum + (m.weight || 1), 0) || 1;
+
+  const marketAllocations = marketsWithPrices?.map((market) => {
     const weight = market.weight || 1;
     const percentage = (weight / totalWeight) * 100;
     const amount = parseFloat(investmentAmount) || 0;
@@ -66,20 +119,20 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
 
   // Calculate weighted average price for the index
   const calculateIndexPrice = () => {
-    if (!group.markets || group.markets.length === 0) return 0;
-    
-    const totalWeight = group.markets.reduce((sum, m) => sum + (m.weight || 1), 0);
+    if (!marketsWithPrices || marketsWithPrices.length === 0) return 0;
+
+    const totalWeight = marketsWithPrices.reduce((sum, m) => sum + (m.weight || 1), 0);
     if (totalWeight === 0) return 0;
-    
-    const weightedSum = group.markets.reduce((sum, m) => {
+
+    const weightedSum = marketsWithPrices.reduce((sum, m) => {
       const price = m.market_current_price || 0;
       const weight = m.weight || 1;
       return sum + (price * weight);
     }, 0);
-    
+
     return weightedSum / totalWeight;
   };
-  
+
   const indexPrice = calculateIndexPrice();
 
 
@@ -111,6 +164,77 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
 
   const priceColors = getPriceColorClasses();
 
+  // Calculate price change in cents
+  const priceChange = history.length >= 2
+    ? (history[history.length - 1].p - history[0].p) * 100
+    : 0;
+
+  // Determine chart color based on trend
+  const chartColor = priceChange >= 0 ? '#10b981' : '#ef4444'; // green-500 : red-500
+  const changeTextColor = priceChange >= 0 ? 'text-green-600' : 'text-red-600';
+
+  // Simple Moving Average (SMA) filter to smooth data
+  const applySMA = (data: typeof history, period: number = 3) => {
+    if (data.length < period) return data;
+
+    const smoothed = data.map((point, idx) => {
+      // For first few points, use available data
+      const start = Math.max(0, idx - Math.floor(period / 2));
+      const end = Math.min(data.length, idx + Math.ceil(period / 2));
+      const window = data.slice(start, end);
+
+      const avgPrice = window.reduce((sum, p) => sum + p.p, 0) / window.length;
+
+      return {
+        t: point.t,
+        p: avgPrice
+      };
+    });
+
+    return smoothed;
+  };
+
+  // Apply SMA filter to smooth lumpy data
+  const smoothedHistory = applySMA(history, 5);
+
+  // Format time for display
+  const formatTime = (timestamp: number) => {
+    const date = new Date(timestamp * 1000);
+    if (timeRange === '1d') {
+      return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    } else if (timeRange === '1w') {
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } else {
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+  };
+
+  // Custom tooltip component
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white px-3 py-2 border border-gray-200 rounded-lg shadow-lg">
+          <div className="text-xs text-gray-600 mb-1">
+            {new Date(data.time * 1000).toLocaleString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit'
+            })}
+          </div>
+          <div className="text-sm font-bold text-gray-900">
+            {data.price.toFixed(1)}¢
+          </div>
+          <div className="text-xs text-gray-500">
+            Index Price
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-100">
       {/* Card Header */}
@@ -135,7 +259,7 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
             <div className="text-center">
               <div className="text-xs font-medium text-gray-600 mb-1">Index Price</div>
               <div className={`text-4xl font-bold ${priceColors.text} tabular-nums`}>
-                {(indexPrice * 100).toFixed(1)}%
+                {(indexPrice * 100).toFixed(1)}¢
               </div>
               <div className="text-xs text-gray-500 mt-1">
                 Weighted Avg
@@ -143,6 +267,88 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
             </div>
           </div>
         </div>
+
+        {/* Price History Chart */}
+        {!historyLoading && history.length > 0 && (
+          <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <div className="text-sm font-semibold text-gray-700">Price History</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {timeRange === '1d' ? '24 hours' : timeRange === '1w' ? '7 days' : 'All time'}
+                </div>
+              </div>
+
+              {/* Time Range Selector */}
+              <div className="flex gap-1 bg-white rounded-lg p-1 border border-gray-200">
+                {(['1d', '1w', 'max'] as const).map((range) => (
+                  <button
+                    key={range}
+                    onClick={() => setTimeRange(range)}
+                    className={`px-3 py-1 text-xs font-medium rounded transition ${
+                      timeRange === range
+                        ? 'bg-primary text-white'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {range === '1d' ? '24H' : range === '1w' ? '7D' : 'ALL'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Chart */}
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={smoothedHistory.map(point => ({
+                    time: point.t,
+                    price: point.p * 100
+                  }))}
+                  margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                  <XAxis
+                    dataKey="time"
+                    tickFormatter={formatTime}
+                    tick={{ fontSize: 11, fill: '#6b7280' }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#e5e7eb' }}
+                    minTickGap={50}
+                  />
+                  <YAxis
+                    domain={[0, 100]}
+                    tick={{ fontSize: 11, fill: '#6b7280' }}
+                    tickFormatter={(value) => `${value}¢`}
+                    tickLine={false}
+                    axisLine={{ stroke: '#e5e7eb' }}
+                    width={40}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Line
+                    type="monotone"
+                    dataKey="price"
+                    stroke={chartColor}
+                    strokeWidth={2.5}
+                    dot={false}
+                    activeDot={{ r: 4, fill: chartColor }}
+                    animationDuration={300}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* Loading state for chart */}
+        {historyLoading && (
+          <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
+              <div className="h-24 bg-gray-200 rounded"></div>
+            </div>
+          </div>
+        )}
 
         {/* Fund Status Section - Always Show */}
         <div className="mb-4 p-4 bg-gradient-to-r from-gray-50 to-white rounded-lg border border-gray-200">

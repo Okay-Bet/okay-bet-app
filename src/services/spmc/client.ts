@@ -5,9 +5,9 @@
  * Designed to handle rapid API changes during active development.
  */
 
-import { 
-  SPMCConfig, 
-  SPMCResponse, 
+import {
+  SPMCConfig,
+  SPMCResponse,
   SPMCError,
   SPMCMarketsRequest,
   SPMCMarketsResponse,
@@ -16,6 +16,8 @@ import {
   SPMCPricesRequest,
   SPMCPricesResponse,
   SPMCQuotesRequest,
+  SPMCHistoryRequest,
+  SPMCHistoryResponse,
   SPMCMarket,
   SPMCTicker,
   SPMCGroup,
@@ -411,6 +413,29 @@ export class SPMCClient {
       method: 'POST',
       body: JSON.stringify(params),
     });
+  }
+
+  /**
+   * Get historical market data
+   */
+  async getMarketHistory(params: SPMCHistoryRequest): Promise<SPMCResponse<SPMCHistoryResponse>> {
+    const queryParams = new URLSearchParams();
+
+    if (params.interval) {
+      queryParams.append('interval', params.interval);
+    }
+    if (params.fidelity) {
+      queryParams.append('fidelity', params.fidelity.toString());
+    }
+    if (params.startTime) {
+      queryParams.append('start_time', params.startTime.toString());
+    }
+    if (params.endTime) {
+      queryParams.append('end_time', params.endTime.toString());
+    }
+
+    const endpoint = `/markets/market/${params.marketId}/history${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.request<SPMCHistoryResponse>(endpoint);
   }
 
   /**

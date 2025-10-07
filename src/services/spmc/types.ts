@@ -212,6 +212,27 @@ export interface SPMCQuotesRequest {
   amount?: number;
 }
 
+export interface SPMCHistoryRequest {
+  marketId: string;
+  interval?: '1m' | '1h' | '6h' | '1d' | '1w' | 'max';
+  fidelity?: number; // Resolution in minutes (1-1440)
+  startTime?: number; // Unix timestamp (UTC)
+  endTime?: number; // Unix timestamp (UTC)
+}
+
+export interface SPMCHistoryDataPoint {
+  t: number; // Unix timestamp
+  p: number; // Price
+}
+
+export interface SPMCHistoryResponse {
+  market_id: string;
+  platform: Platform;
+  history: {
+    history: SPMCHistoryDataPoint[];
+  };
+}
+
 // Response Types
 export interface SPMCMarketsResponse {
   markets: SPMCMarket[];

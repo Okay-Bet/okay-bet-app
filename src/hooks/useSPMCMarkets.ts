@@ -4,8 +4,15 @@
 
 import { useState, useEffect } from 'react';
 import { spmcClient } from '@/services/spmc';
-import { SPMCMarketsRequest, SPMCMarket, SPMCSearchRequest, Platform } from '@/services/spmc/types';
+import {
+  SPMCMarketsRequest,
+  SPMCMarket,
+  SPMCSearchRequest,
+  SPMCHistoryDataPoint,
+  Platform
+} from '@/services/spmc/types';
 import { transformMarketData } from '@/services/spmc/transformers';
+import { SPMCGroupMarket } from '@/services/spmc/types';
 
 interface UseSPMCMarketsOptions extends SPMCMarketsRequest {
   autoFetch?: boolean;
@@ -226,5 +233,134 @@ export function useSPMCMarket(marketId: string, platform?: Platform) {
     loading,
     error,
     refresh: fetchMarket,
+  };
+}
+
+/**
+ * Hook for fetching index price history from SPMC
+ * Aggregates historical data for all markets in an index
+ */
+export function useIndexPriceHistory(
+  markets: SPMCGroupMarket[],
+  interval: '1h' | '6h' | '1d' | '1w' | 'max' = '1d',
+  groupTitle?: string
+) {
+  const [history, setHistory] = useState<SPMCHistoryDataPoint[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchHistory = async () => {
+    if (!markets || markets.length === 0) {
+      setHistory([]);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Fetch history for all markets in parallel, keeping track of which market each promise belongs to
+      const historyResults = await Promise.allSettled(
+        markets.map(market =>
+          spmcClient.getMarketHistory({
+            marketId: market.market_id,
+            interval,
+            fidelity: 60 // 1 hour resolution
+          })
+        )
+      );
+
+      // Count successful responses
+      const successfulCount = historyResults.filter(
+        r => r.status === 'fulfilled' && r.value.success && r.value.data
+      ).length;
+
+      if (successfulCount === 0) {
+        throw new Error('No historical data available');
+      }
+
+      // Calculate total weight for normalization
+      const totalWeight = markets.reduce((sum, m) => sum + (m.weight || 1), 0);
+
+      // Aggregate histories into a single weighted index history
+      // First, collect all market histories with their metadata
+      const marketHistories: Array<{
+        market: SPMCGroupMarket;
+        weight: number;
+        outcome: string;
+        history: Array<{ t: number; p: number }>;
+      }> = [];
+
+      historyResults.forEach((result, idx) => {
+        if (result.status === 'fulfilled' && result.value.success && result.value.data) {
+          const market = markets[idx];
+          const weight = (market.weight || 1) / totalWeight;
+          const marketHistory = result.value.data.history?.history || [];
+          const outcome = market.outcome?.toLowerCase() || 'yes';
+
+          marketHistories.push({
+            market,
+            weight,
+            outcome,
+            history: marketHistory
+          });
+        }
+      });
+
+      // Create a map to track the last known price for each market (for forward filling)
+      const lastKnownPrices = new Map<string, number>();
+
+      // Get all unique timestamps
+      const allTimestamps = new Set<number>();
+      marketHistories.forEach(mh => {
+        mh.history.forEach(point => allTimestamps.add(point.t));
+      });
+
+      const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b);
+
+      // For each timestamp, calculate the weighted average using last known prices
+      const aggregatedHistory = sortedTimestamps.map(timestamp => {
+        let weightedSum = 0;
+
+        marketHistories.forEach(({ market, weight, outcome, history }) => {
+          // Find the price at this timestamp, or use the last known price
+          const dataPoint = history.find(p => p.t === timestamp);
+
+          if (dataPoint) {
+            // Update last known price for this market
+            const adjustedPrice = outcome === 'no' ? (1 - dataPoint.p) : dataPoint.p;
+            lastKnownPrices.set(market.market_id, adjustedPrice);
+            weightedSum += adjustedPrice * weight;
+          } else if (lastKnownPrices.has(market.market_id)) {
+            // Use last known price (forward fill)
+            weightedSum += lastKnownPrices.get(market.market_id)! * weight;
+          }
+          // If no data yet for this market, skip it (don't contribute to weighted sum)
+        });
+
+        return {
+          t: timestamp,
+          p: weightedSum
+        };
+      });
+
+      setHistory(aggregatedHistory);
+    } catch (err) {
+      setError(err as Error);
+      console.error('Error fetching index price history:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHistory();
+  }, [JSON.stringify(markets.map(m => m.market_id)), interval]);
+
+  return {
+    history,
+    loading,
+    error,
+    refresh: fetchHistory,
   };
 }
