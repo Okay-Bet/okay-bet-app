@@ -415,27 +415,19 @@ export class SPMCClient {
 
   /**
    * Get real-time market prices
+   * Note: API expects market_ids (snake_case), not marketIds (camelCase)
    */
   async getMarketPrices(params: SPMCPricesRequest): Promise<SPMCResponse<SPMCPricesResponse>> {
-    const response = await this.request<any>('/markets/prices', {
+    // Convert camelCase to snake_case for API
+    const requestBody = {
+      market_ids: params.marketIds
+    };
+
+    const response = await this.request<SPMCPricesResponse>('/markets/prices', {
       method: 'POST',
-      body: JSON.stringify(params),
+      body: JSON.stringify(requestBody),
     });
-    
-    // Handle wrapped response from SPMC API
-    if (response.success && response.data) {
-      // If the response has a nested data structure (status, data, meta)
-      if (response.data.status === 'success' && response.data.data) {
-        return {
-          success: true,
-          data: response.data.data,
-          timestamp: response.timestamp
-        };
-      }
-      // Otherwise return as is
-      return response as SPMCResponse<SPMCPricesResponse>;
-    }
-    
+
     return response;
   }
 

@@ -62,6 +62,7 @@ export interface SPMCMarket {
   metrics?: SPMCMarketMetrics;
 }
 
+// Legacy price data structure (kept for backwards compatibility)
 export interface SPMCPriceData {
   yes?: {
     bid?: number;
@@ -74,6 +75,20 @@ export interface SPMCPriceData {
     last?: number;
   };
   timestamp?: string;
+}
+
+// Actual batch price response structure from SPMC API
+export interface SPMCBatchPriceData {
+  platform: Platform;
+  platform_market_id?: string;
+  status: string;
+  prices: {
+    bid: number | null;
+    ask: number | null;
+    last: number | null;
+    mid: number;
+  };
+  updated_at: string;
 }
 
 export interface SPMCMarketMetrics {
@@ -217,7 +232,7 @@ export interface SPMCSearchResponse {
 
 export interface SPMCPricesResponse {
   prices: {
-    [marketId: string]: SPMCPriceData;
+    [marketId: string]: SPMCBatchPriceData;
   };
   timestamp: string;
 }

@@ -34,13 +34,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     const response = await spmcClient.createGroup({
       title: body.title,
       description: body.description,
       group_type: body.group_type || 'watchlist',
-      metadata: body.metadata || {},
-      display_settings: body.display_settings || {}
+      markets: body.markets || []
     });
 
     if (response.success) {

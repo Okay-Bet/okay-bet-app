@@ -75,8 +75,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
   
   if (activeWallet) {
     // Check different possible chainId locations
-    const rawChainId = activeWallet.chainId || 
-                       activeWallet.chain?.id ||
+    const rawChainId = activeWallet.chainId ||
                        walletClient?.chain?.id;
     
     if (rawChainId !== undefined && rawChainId !== null) {

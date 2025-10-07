@@ -266,7 +266,7 @@ export default function GroupsPage() {
       weight: 1,
       position_type: 'long',
       outcome: 'yes',  // Default to YES
-      created_at: new Date().toISOString(),
+      added_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
     
