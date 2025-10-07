@@ -475,16 +475,6 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
             </div>
           </div>
 
-        {/* Quick Stats */}
-        <div className="flex items-center justify-between mb-4 py-3 px-4 bg-gray-50 rounded-lg">
-          <div className="flex items-center gap-8">
-            <div>
-              <div className="text-xs text-gray-700 font-medium">Markets</div>
-              <div className="text-lg font-semibold text-gray-900">{group.market_count}</div>
-            </div>
-          </div>
-        </div>
-
         {/* Two Main Action Options */}
         <div className="space-y-3">
           {/* Fund-based actions when fund exists */}
@@ -552,25 +542,6 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
             </>
           )}
 
-          {/* Fallback to original buy index when no fund */}
-          {!fundAddress && (
-            <div className="border-2 border-primary rounded-lg p-4 bg-primary/5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-semibold text-gray-900 mb-1">Direct Market Investment</div>
-                  <div className="text-sm text-gray-800">
-                    Calculate allocation across all {group.market_count} markets
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowCalculator(true)}
-                  className="px-6 py-2.5 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition whitespace-nowrap"
-                >
-                  Show Calculator
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Option 2: Custom Amount with Market Breakdown */}
           <div className="border-2 border-gray-200 rounded-lg p-4">
@@ -601,8 +572,8 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
                 </button>
                 {!fundAddress && (
                   <button
-                    onClick={() => setShowCreateFund(true)}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                    disabled
+                    className="px-4 py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed border border-gray-300"
                   >
                     Create Fund
                   </button>
@@ -613,6 +584,29 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
             {/* Market Breakdown */}
             {showCalculator && marketAllocations.length > 0 && (
               <div className="border-t pt-3 mt-3">
+                {/* Summary and Instructions - Moved Above Table */}
+                <div className="mb-4 px-3">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div>
+                        <div className="font-semibold text-gray-900 mb-1">
+                          To follow this index with ${parseFloat(investmentAmount || '0').toFixed(2)}
+                        </div>
+                        <p className="text-sm text-gray-700 leading-relaxed">
+                          You would need to allocate the amounts shown below to each market in the index.
+                          This maintains the index weighting and diversification strategy.
+                        </p>
+                        <div className="mt-2 text-xs text-gray-600">
+                          <span className="font-medium">Coming soon:</span> Direct market links and native execution for one-click index investing.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Column Headers */}
                 <div className="grid grid-cols-12 gap-3 px-3 pb-2 border-b border-gray-200 text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   <div className="col-span-4">Market Question</div>
@@ -622,7 +616,7 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
                   <div className="col-span-2 text-right">Price</div>
                   <div className="col-span-2 text-right">Allocation</div>
                 </div>
-                
+
                 {/* Market Rows */}
                 <div className="divide-y divide-gray-100 max-h-72 overflow-y-auto">
                   {marketAllocations.map((allocation) => {
@@ -634,13 +628,13 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
                       const now = new Date();
                       const diffTime = date.getTime() - now.getTime();
                       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                      
+
                       if (diffDays < 0) return 'Closed';
                       if (diffDays === 0) return 'Today';
                       if (diffDays === 1) return 'Tomorrow';
                       if (diffDays <= 7) return `${diffDays} days`;
                       if (diffDays <= 30) return `${Math.ceil(diffDays / 7)} weeks`;
-                      
+
                       // Format as MMM DD
                       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                     };
@@ -658,18 +652,18 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
                             </span>
                           </div>
                         </div>
-                        
+
                         {/* Outcome (Yes/No) */}
                         <div className="col-span-1 flex items-center justify-center">
                           <span className={`px-2 py-1 text-xs font-bold rounded ${
-                            allocation.outcome.toLowerCase() === 'yes' 
+                            allocation.outcome.toLowerCase() === 'yes'
                               ? 'bg-green-100 text-green-700 border border-green-200'
                               : 'bg-red-100 text-red-700 border border-red-200'
                           }`}>
                             {allocation.outcome.toUpperCase()}
                           </span>
                         </div>
-                        
+
                         {/* Resolution Date */}
                         <div className="col-span-2 flex items-center justify-center">
                           <div className="text-center">
@@ -678,8 +672,8 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
                             </div>
                             {allocation.resolutionDate && (
                               <div className="text-xs text-gray-500">
-                                {new Date(allocation.resolutionDate).toLocaleDateString('en-US', { 
-                                  month: 'numeric', 
+                                {new Date(allocation.resolutionDate).toLocaleDateString('en-US', {
+                                  month: 'numeric',
                                   day: 'numeric',
                                   year: '2-digit'
                                 })}
@@ -687,7 +681,7 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
                             )}
                           </div>
                         </div>
-                        
+
                         {/* Index Weighting */}
                         <div className="col-span-1 flex items-center justify-center">
                           <div className="flex flex-col items-center">
@@ -695,14 +689,14 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
                               {allocation.percentage.toFixed(0)}%
                             </span>
                             <div className="w-full bg-gray-200 rounded-full h-1 mt-1">
-                              <div 
+                              <div
                                 className="bg-primary h-1 rounded-full transition-all"
                                 style={{ width: `${allocation.percentage}%` }}
                               />
                             </div>
                           </div>
                         </div>
-                        
+
                         {/* Current Price */}
                         <div className="col-span-2 flex flex-col items-end justify-center">
                           <div className="text-sm font-bold text-gray-900">
@@ -712,7 +706,7 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
                             per share
                           </div>
                         </div>
-                        
+
                         {/* Allocation Amount */}
                         <div className="col-span-2 flex flex-col items-end justify-center">
                           <div className="text-sm font-bold text-primary">
@@ -726,30 +720,10 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
                     );
                   })}
                 </div>
-                
-                {/* Summary and Instructions */}
+
+                {/* Total Summary Below Table */}
                 <div className="border-t border-gray-200 mt-2 pt-4 px-3">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <div>
-                        <div className="font-semibold text-gray-900 mb-1">
-                          To follow this index with ${parseFloat(investmentAmount || '0').toFixed(2)}
-                        </div>
-                        <p className="text-sm text-gray-700 leading-relaxed">
-                          You would need to allocate the amounts shown above to each market in the index. 
-                          This maintains the index weighting and diversification strategy.
-                        </p>
-                        <div className="mt-2 text-xs text-gray-600">
-                          <span className="font-medium">Coming soon:</span> Direct market links and native execution for one-click index investing.
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-3 flex items-center justify-between">
+                  <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-600">
                       Total across {marketAllocations.length} markets
                     </div>
