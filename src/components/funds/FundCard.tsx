@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  FundPhase, 
+import {
+  FundPhase,
   FundMetrics,
-  getPhaseName, 
-  getPhaseColor, 
+  getPhaseName,
+  getPhaseColor,
   weiToUsdc,
-  basisPointsToPercentage 
+  basisPointsToPercentage
 } from '@/services/funds/types';
 import { InvestmentFundService } from '@/services/funds/investmentFund.service';
+import { formatDate, formatAddress } from '@/utils/formatting';
 
 interface FundCardProps {
   fundAddress: string;
@@ -73,20 +74,6 @@ export const FundCard: React.FC<FundCardProps> = ({
     const interval = setInterval(fetchMetrics, 30000);
     return () => clearInterval(interval);
   }, [fundAddress]);
-
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
-  };
-
-  const formatAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
-  };
 
   const canInvest = metrics && metrics.currentPhase === FundPhase.DEPOSIT;
   const canRedeem = metrics && metrics.currentPhase === FundPhase.REDEMPTION;
