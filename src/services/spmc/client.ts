@@ -45,7 +45,8 @@ export class SPMCClient {
       baseUrl: process.env.FASTAPI_BASE_URL || process.env.NEXT_PUBLIC_SPMC_URL || 'https://api.spmc.dev',
       apiVersion: process.env.SPMC_API_VERSION || 'v1',
       // Use shorter timeout in serverless to avoid function timeouts
-      timeout: isServerless ? 5000 : 30000,
+      // 7s gives enough time for slow API responses while staying under 8s guard
+      timeout: isServerless ? 7000 : 30000,
       // Reduce retries in serverless
       retryAttempts: isServerless ? 1 : 3,
       retryDelay: isServerless ? 500 : 1000,
@@ -117,9 +118,19 @@ export class SPMCClient {
         };
       } catch (error) {
         lastError = error as Error;
-        
-        // Don't retry on client errors (4xx)
+
+        // Check if error is an abort error
+        const isAbortError = error instanceof Error &&
+          (error.name === 'AbortError' || error.message.includes('aborted'));
+
+        // Don't retry on client errors (4xx) or abort errors in serverless
         if ((error as SPMCError).status && (error as SPMCError).status >= 400 && (error as SPMCError).status < 500) {
+          break;
+        }
+
+        // In serverless, don't retry on abort errors (we're out of time)
+        const isServerless = typeof process !== 'undefined' && process.env.VERCEL === '1';
+        if (isAbortError && isServerless) {
           break;
         }
 
@@ -131,11 +142,16 @@ export class SPMCClient {
     }
 
     // All retries failed
-    const finalError: SPMCError = lastError && 'status' in lastError 
+    const isAbortError = lastError instanceof Error &&
+      (lastError.name === 'AbortError' || lastError.message.includes('aborted'));
+
+    const finalError: SPMCError = lastError && 'status' in lastError
       ? lastError as SPMCError
       : {
-          status: 500,
-          message: lastError?.message || 'Request failed after all retries',
+          status: isAbortError ? 504 : 500,
+          message: isAbortError
+            ? 'Request timeout - SPMC API took too long to respond'
+            : (lastError?.message || 'Request failed after all retries'),
           endpoint,
           timestamp: new Date().toISOString(),
         };
