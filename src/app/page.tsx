@@ -22,9 +22,28 @@ export default function Home() {
     try {
       // Use API proxy instead of direct SPMC client call
       const response = await fetch('/api/groups?limit=100');
-      const data = await response.json();
 
-      if (response.ok && data) {
+      if (!response.ok) {
+        // Try to extract error message from response
+        let errorMessage = `Failed to load groups (${response.status})`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // Response isn't JSON, use default message
+        }
+        throw new Error(errorMessage);
+      }
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        console.error('Failed to parse groups response:', parseError);
+        throw new Error('Invalid response format from server');
+      }
+
+      if (data && data.groups) {
         // Filter to only get index type groups (show all indexes regardless of fund deployment)
         const indexGroups = data.groups.filter(
           (group: SPMCGroup) => group.group_type === "index"
@@ -36,9 +55,22 @@ export default function Home() {
             try {
               // Use API proxy for group details
               const detailResponse = await fetch(`/api/groups/${group.id}`);
-              const groupWithDetails: SPMCGroup = await detailResponse.json();
 
-              if (detailResponse.ok && groupWithDetails) {
+              if (!detailResponse.ok) {
+                // Failed to fetch group details, return group without details
+                console.warn(`Failed to fetch details for group ${group.id}: ${detailResponse.status}`);
+                return group;
+              }
+
+              let groupWithDetails: SPMCGroup;
+              try {
+                groupWithDetails = await detailResponse.json();
+              } catch (parseError) {
+                console.warn(`Failed to parse group details for ${group.id}:`, parseError);
+                return group;
+              }
+
+              if (groupWithDetails) {
 
                 // Fetch accurate prices for each market in the group
                 if (
@@ -71,8 +103,9 @@ export default function Home() {
                     });
 
                     if (pricesResponse.ok) {
-                      const pricesData = await pricesResponse.json();
-                      const pricesMap = pricesData.prices;
+                      try {
+                        const pricesData = await pricesResponse.json();
+                        const pricesMap = pricesData.prices;
 
                       const marketsWithPrices = groupWithDetails.markets.map(
                         (market) => {
@@ -107,9 +140,14 @@ export default function Home() {
                         ...groupWithDetails,
                         markets: marketsWithPrices,
                       };
+                      } catch (jsonError) {
+                        // JSON parsing failed, log and continue
+                        console.warn('Failed to parse prices response:', jsonError);
+                      }
                     }
                   } catch (err) {
                     // Batch price fetch failed, falling back to individual fetches
+                    console.warn('Batch price fetch failed:', err);
                   }
 
                   // Fallback to individual market fetches if batch fails
