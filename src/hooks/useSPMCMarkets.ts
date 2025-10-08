@@ -259,15 +259,25 @@ export function useIndexPriceHistory(
     setError(null);
 
     try {
-      // Fetch history for all markets in parallel, keeping track of which market each promise belongs to
+      // Fetch history for all markets in parallel using API proxy to avoid CORS
       const historyResults = await Promise.allSettled(
-        markets.map(market =>
-          spmcClient.getMarketHistory({
-            marketId: market.market_id,
+        markets.map(async market => {
+          const params = new URLSearchParams({
             interval,
-            fidelity: 60 // 1 hour resolution
-          })
-        )
+            fidelity: '60' // 1 hour resolution
+          });
+          const response = await fetch(`/api/markets/${market.market_id}/history?${params}`);
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch history for market ${market.market_id}`);
+          }
+
+          const data = await response.json();
+          return {
+            success: true,
+            data
+          };
+        })
       );
 
       // Count successful responses
