@@ -25,9 +25,9 @@ export const IndexCardHeader: React.FC<IndexCardHeaderProps> = ({
   onToggleExpand
 }) => {
   return (
-    <div className="flex items-start justify-between mb-4">
+    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
       <div className="flex-1">
-        <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center flex-wrap gap-2 sm:gap-3 mb-2">
           <h3 className="text-xl font-bold text-gray-900">{group.title}</h3>
           <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
             group.group_type === 'index'
@@ -39,21 +39,23 @@ export const IndexCardHeader: React.FC<IndexCardHeaderProps> = ({
           {onToggleExpand && (
             <button
               onClick={onToggleExpand}
-              className="ml-2 px-3 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition flex items-center gap-1"
+              className="px-3 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition flex items-center gap-1"
             >
               {isExpanded ? (
                 <>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
                   </svg>
-                  Hide Chart
+                  <span className="hidden sm:inline">Hide Chart</span>
+                  <span className="sm:hidden">Hide</span>
                 </>
               ) : (
                 <>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
-                  Show Chart
+                  <span className="hidden sm:inline">Show Chart</span>
+                  <span className="sm:hidden">Chart</span>
                 </>
               )}
             </button>
@@ -63,7 +65,7 @@ export const IndexCardHeader: React.FC<IndexCardHeaderProps> = ({
       </div>
 
       {/* Large Index Price Display */}
-      <div className={`ml-6 px-6 py-4 ${priceColors.bg} rounded-xl border-2 ${priceColors.border} min-w-[140px]`}>
+      <div className={`w-full sm:w-auto px-6 py-4 ${priceColors.bg} rounded-xl border-2 ${priceColors.border} sm:min-w-[140px]`}>
         <div className="text-center">
           <div className="text-xs font-medium text-gray-600 mb-1">Index Price</div>
           <div className={`text-4xl font-bold ${priceColors.text} tabular-nums`}>

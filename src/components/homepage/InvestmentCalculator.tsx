@@ -27,8 +27,8 @@ export const InvestmentCalculator: React.FC<InvestmentCalculatorProps> = ({
         </div>
 
         {/* Investment Input */}
-        <div className="flex gap-2">
-          <div className="relative flex-1">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1 w-full">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-900 font-medium">$</span>
             <input
               type="number"
@@ -41,14 +41,14 @@ export const InvestmentCalculator: React.FC<InvestmentCalculatorProps> = ({
           </div>
           <button
             onClick={() => setShowCalculator(!showCalculator)}
-            className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+            className="w-full sm:w-auto px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition whitespace-nowrap"
           >
             {showCalculator ? 'Hide' : 'Show'} Breakdown
           </button>
           {!fundAddress && (
             <button
               disabled
-              className="px-4 py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed border border-gray-300"
+              className="w-full sm:w-auto px-4 py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed border border-gray-300 whitespace-nowrap"
             >
               Create Fund
             </button>

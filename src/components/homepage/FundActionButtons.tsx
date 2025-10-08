@@ -27,7 +27,7 @@ export const FundActionButtons: React.FC<FundActionButtonsProps> = ({
       {/* Deposit Phase Actions */}
       {fundMetrics.currentPhase === FundPhase.DEPOSIT && (
         <div className="border-2 border-green-500 rounded-lg p-4 bg-green-50">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <div className="font-semibold text-gray-900 mb-1">Invest in Fund</div>
               <div className="text-sm text-gray-800">
@@ -36,7 +36,7 @@ export const FundActionButtons: React.FC<FundActionButtonsProps> = ({
             </div>
             <button
               onClick={onShowInvestFlow}
-              className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition whitespace-nowrap"
+              className="w-full sm:w-auto px-6 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition whitespace-nowrap"
             >
               Invest Now
             </button>
@@ -47,7 +47,7 @@ export const FundActionButtons: React.FC<FundActionButtonsProps> = ({
       {/* Trading Phase Actions */}
       {fundMetrics.currentPhase === FundPhase.TRADING && (
         <div className="border-2 border-blue-500 rounded-lg p-4 bg-blue-50">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <div className="font-semibold text-gray-900 mb-1">Fund is Trading</div>
               <div className="text-sm text-gray-800">
@@ -56,7 +56,7 @@ export const FundActionButtons: React.FC<FundActionButtonsProps> = ({
             </div>
             <button
               onClick={() => window.location.href = `/funds/${fundAddress}`}
-              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition whitespace-nowrap"
+              className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition whitespace-nowrap"
             >
               View Details
             </button>
@@ -67,7 +67,7 @@ export const FundActionButtons: React.FC<FundActionButtonsProps> = ({
       {/* Redemption Phase Actions */}
       {fundMetrics.currentPhase === FundPhase.REDEMPTION && (
         <div className="border-2 border-purple-500 rounded-lg p-4 bg-purple-50">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <div className="font-semibold text-gray-900 mb-1">Withdraw Available</div>
               <div className="text-sm text-gray-800">
@@ -76,7 +76,7 @@ export const FundActionButtons: React.FC<FundActionButtonsProps> = ({
             </div>
             <button
               onClick={() => window.location.href = `/funds/${fundAddress}`}
-              className="px-6 py-2.5 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition whitespace-nowrap"
+              className="w-full sm:w-auto px-6 py-2.5 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition whitespace-nowrap"
             >
               Withdraw Funds
             </button>

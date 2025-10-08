@@ -43,8 +43,8 @@ export const MarketAllocationTable: React.FC<MarketAllocationTableProps> = ({
         </div>
       </div>
 
-      {/* Column Headers */}
-      <div className="grid grid-cols-12 gap-3 px-3 pb-2 border-b border-gray-200 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+      {/* Column Headers - Desktop Only */}
+      <div className="hidden md:grid grid-cols-12 gap-3 px-3 pb-2 border-b border-gray-200 text-xs font-semibold text-gray-600 uppercase tracking-wider">
         <div className="col-span-4">Market Question</div>
         <div className="col-span-1 text-center">Side</div>
         <div className="col-span-2 text-center">Resolution</div>
@@ -53,8 +53,8 @@ export const MarketAllocationTable: React.FC<MarketAllocationTableProps> = ({
         <div className="col-span-2 text-right">Allocation</div>
       </div>
 
-      {/* Market Rows */}
-      <div className="divide-y divide-gray-100 max-h-72 overflow-y-auto">
+      {/* Market Rows - Desktop Table View */}
+      <div className="hidden md:block divide-y divide-gray-100 max-h-72 overflow-y-auto">
         {marketAllocations.map((allocation) => (
           <div key={allocation.marketId} className="grid grid-cols-12 gap-3 px-3 py-3 hover:bg-gray-50 transition-colors group">
             {/* Market Question */}
@@ -131,6 +131,57 @@ export const MarketAllocationTable: React.FC<MarketAllocationTableProps> = ({
               <div className="text-xs text-gray-600">
                 ≈ {allocation.expectedShares.toFixed(1)} shares
               </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-3 max-h-[500px] overflow-y-auto px-1">
+        {marketAllocations.map((allocation) => (
+          <div key={allocation.marketId} className="border border-gray-200 rounded-lg p-3 bg-white hover:border-primary transition-colors">
+            {/* Market Title & Platform */}
+            <div className="mb-2">
+              <div className="font-medium text-gray-900 text-sm leading-tight mb-1">
+                {allocation.marketTitle}
+              </div>
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <span className="capitalize">{allocation.platform.toLowerCase()}</span>
+                <span className={`px-2 py-0.5 font-bold rounded ${
+                  allocation.outcome.toLowerCase() === 'yes'
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-red-100 text-red-700'
+                }`}>
+                  {allocation.outcome.toUpperCase()}
+                </span>
+              </div>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div>
+                <div className="text-xs text-gray-500">Weight</div>
+                <div className="font-bold text-gray-900">{allocation.percentage.toFixed(0)}%</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500">Price</div>
+                <div className="font-bold text-gray-900">{(allocation.currentPrice * 100).toFixed(1)}¢</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500">Resolution</div>
+                <div className="font-medium text-gray-900 text-xs">
+                  {formatResolutionDate(allocation.resolutionDate)}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500">Allocation</div>
+                <div className="font-bold text-primary">${allocation.allocationAmount.toFixed(2)}</div>
+              </div>
+            </div>
+
+            {/* Shares Info */}
+            <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-600">
+              ≈ {allocation.expectedShares.toFixed(1)} shares
             </div>
           </div>
         ))}
