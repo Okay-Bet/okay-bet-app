@@ -12,8 +12,10 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems = [
-    ...(authenticated ? [{ label: "Create", href: "/groups" }] : []),
-    { label: "Funds", href: "/funds" },
+    ...(authenticated ? [
+      { label: "Groups", href: "/groups" },
+      { label: "Funds", href: "/funds" }
+    ] : []),
   ];
 
   const isActive = (href: string) => {
