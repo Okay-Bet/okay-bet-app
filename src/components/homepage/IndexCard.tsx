@@ -40,14 +40,15 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
   const [showCalculator, setShowCalculator] = useState(false);
   const [showCreateFund, setShowCreateFund] = useState(false);
   const [showInvestFlow, setShowInvestFlow] = useState(false);
-  const [timeRange, setTimeRange] = useState<'1d' | '1w' | 'max'>('1d');
+  const [timeRange, setTimeRange] = useState<'1d' | '1w' | 'max'>('1w');
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // Fetch fund metrics if fund address exists
   const { metrics: fundMetrics, loading: fundLoading, error: fundError } = useFundMetrics(fundAddress);
   const phaseDisplay = useFundPhaseDisplay(fundMetrics?.currentPhase || null);
 
-  // Fetch index price history
-  const { history, loading: historyLoading } = useIndexPriceHistory(group.markets || [], timeRange, group.title);
+  // Fetch index price history - only when expanded
+  const { history, loading: historyLoading } = useIndexPriceHistory(group.markets || [], timeRange, group.title, isExpanded);
 
   // Get calculated data from hook
   const { indexPrice, priceColors, marketAllocations } = useIndexCardData({
@@ -63,15 +64,23 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
     <div className="bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-100">
       <div className="p-6">
         {/* Card Header */}
-        <IndexCardHeader group={group} indexPrice={indexPrice} priceColors={priceColors} />
-
-        {/* Price History Chart */}
-        <IndexPriceChart
-          history={history}
-          timeRange={timeRange}
-          setTimeRange={setTimeRange}
-          loading={historyLoading}
+        <IndexCardHeader
+          group={group}
+          indexPrice={indexPrice}
+          priceColors={priceColors}
+          isExpanded={isExpanded}
+          onToggleExpand={() => setIsExpanded(!isExpanded)}
         />
+
+        {/* Price History Chart - Only render when expanded */}
+        {isExpanded && (
+          <IndexPriceChart
+            history={history}
+            timeRange={timeRange}
+            setTimeRange={setTimeRange}
+            loading={historyLoading}
+          />
+        )}
 
         {/* Fund Status Section */}
         <FundStatusSection

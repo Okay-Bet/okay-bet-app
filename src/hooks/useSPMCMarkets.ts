@@ -243,14 +243,15 @@ export function useSPMCMarket(marketId: string, platform?: Platform) {
 export function useIndexPriceHistory(
   markets: SPMCGroupMarket[],
   interval: '1h' | '6h' | '1d' | '1w' | 'max' = '1d',
-  groupTitle?: string
+  groupTitle?: string,
+  enabled: boolean = true
 ) {
   const [history, setHistory] = useState<SPMCHistoryDataPoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   const fetchHistory = async () => {
-    if (!markets || markets.length === 0) {
+    if (!enabled || !markets || markets.length === 0) {
       setHistory([]);
       return;
     }
@@ -262,9 +263,11 @@ export function useIndexPriceHistory(
       // Fetch history for all markets in parallel using API proxy to avoid CORS
       const historyResults = await Promise.allSettled(
         markets.map(async market => {
+          // Use lower fidelity for faster loading (2-4 hour resolution for visual purposes)
+          const fidelity = interval === '1d' ? '120' : interval === '1w' ? '240' : '360';
           const params = new URLSearchParams({
             interval,
-            fidelity: '60' // 1 hour resolution
+            fidelity // 2-6 hour resolution depending on time range
           });
           const response = await fetch(`/api/markets/${market.market_id}/history?${params}`);
 
@@ -364,8 +367,10 @@ export function useIndexPriceHistory(
   };
 
   useEffect(() => {
-    fetchHistory();
-  }, [JSON.stringify(markets.map(m => m.market_id)), interval]);
+    if (enabled) {
+      fetchHistory();
+    }
+  }, [JSON.stringify(markets.map(m => m.market_id)), interval, enabled]);
 
   return {
     history,
