@@ -11,10 +11,10 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
         {/* Hero */}
         <div className="text-center mb-10">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 tracking-tight">
-            Invest in trends, not single events
+            ETFs for Prediction Markets
           </h1>
           <p className="mt-4 text-lg sm:text-xl text-gray-700 max-w-3xl mx-auto">
-            Baskets of{" "}
+            Baskets of {" "}
             <span className="font-semibold">prediction market</span> positions that track
             global themes and managed strategies.
           </p>
@@ -65,8 +65,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
               Index exposure
             </h3>
             <p className="text-gray-600 text-sm">
-              Own a broad set of markets to reduce single-outcome risk and
-              capture broader themes.
+              Hedge over a broad set of markets to reduce single-outcome risk.
             </p>
           </div>
 
@@ -91,7 +90,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
               Managed funds
             </h3>
             <p className="text-gray-600 text-sm">
-              Passive access to expert strategies with automated
+              Passive access to professional strategies with automated
               rebalancing.
             </p>
           </div>
@@ -122,14 +121,6 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
           </div>
         </div>
 
-        {/* Value Props */}
-        <div className="mt-12 text-center">
-          <p className="text-gray-700">
-            <span className="font-semibold">Diversified exposure</span> •
-            <span className="font-semibold"> Passive investment</span> •
-            <span className="font-semibold"> Automatic rebalancing</span>
-          </p>
-        </div>
       </div>
     </section>
   );
