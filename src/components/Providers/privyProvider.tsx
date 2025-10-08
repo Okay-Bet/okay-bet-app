@@ -13,9 +13,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       config={{
         embeddedWallets: {
           createOnLogin: "all-users",
-          // Configure embedded wallets to use Polygon Amoy by default
-          defaultChain: polygonAmoy,
         },
+        // Configure embedded wallets to use Polygon Amoy by default
         defaultChain: polygonAmoy,
         supportedChains: [polygonAmoy, polygon, base, optimism, arbitrum],
         // solanaClusters: [

@@ -113,7 +113,7 @@ export function useSPMCSearch(query: string, options?: Omit<SPMCSearchRequest, '
       });
 
       if (response.success && response.data) {
-        setResults(response.data.results);
+        setResults(response.data.results || []);
       } else {
         throw new Error(response.error?.message || 'Search failed');
       }

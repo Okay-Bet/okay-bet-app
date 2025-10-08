@@ -73,22 +73,22 @@ export const publicClients = {
 
 export const createPrivyWalletClient = (provider: any, chainId?: number, address?: string): WalletClient | null => {
   if (!provider) return null;
-  
+
   try {
     // Select chain based on chainId, default to polygonAmoy
-    let chain = polygonAmoy; // default to Polygon Amoy
+    let chain: any = polygonAmoy; // default to Polygon Amoy
     if (chainId === 137) chain = polygon;
     else if (chainId === 80002) chain = polygonAmoy;
     else if (chainId === 8453) chain = base;
     else if (chainId === 10) chain = optimism;
     else if (chainId === 42161) chain = arbitrum;
-    
+
     const client = createWalletClient({
       chain,
       transport: custom(provider),
       account: address as `0x${string}` | undefined
     });
-    
+
     return client;
   } catch (error) {
     console.error('Failed to create wallet client:', error);

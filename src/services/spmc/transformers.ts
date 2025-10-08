@@ -40,29 +40,29 @@ export function transformToKalshiMarket(market: SPMCMarket): KalshiMarket {
       decimals: 2,
     },
     metrics: market.metrics || {
-      volume: String(market.volume || 0),
-      volumeRaw: String(market.volume || 0),
+      volume: String(market.volume_24h || 0),
+      volumeRaw: String(market.volume_24h || 0),
       liquidity: String(market.liquidity || 0),
       liquidityRaw: String(market.liquidity || 0),
-      openInterest: String(market.openInterest || 0),
-      openInterestRaw: String(market.openInterest || 0),
+      openInterest: String(market.open_interest || 0),
+      openInterestRaw: String(market.open_interest || 0),
     },
-    volume24H: market.metrics?.volume24h || market.volume || 0,
+    volume24H: market.metrics?.volume24h || market.volume_24h || 0,
     prices: {
       yes: {
-        bid: market.prices?.yes?.bid,
-        ask: market.prices?.yes?.ask,
+        bid: market.prices?.bid ?? undefined,
+        ask: market.prices?.ask ?? undefined,
       },
       no: {
-        bid: market.prices?.no?.bid,
-        ask: market.prices?.no?.ask,
+        bid: market.prices?.bid != null ? 1 - market.prices.bid : undefined,
+        ask: market.prices?.ask != null ? 1 - market.prices.ask : undefined,
       },
     },
     contract: {
       address: market.id,
       network: 'kalshi',
     },
-    openInterest: market.openInterest || 0,
+    openInterest: market.open_interest || 0,
   };
 }
 
@@ -77,9 +77,9 @@ export function transformToPolymarketMarket(market: SPMCMarket): PolymarketMarke
     description: market.description || '',
     slug: market.slug || market.id,
     status: 'ACTIVE',
-    expirationDate: market.expirationDate || '',
+    expirationDate: market.expiration_date || market.market_close_time || market.closes_at || '',
     timestamps: {
-      created: market.createdAt || new Date().toISOString(),
+      created: market.created_at || new Date().toISOString(),
     },
     collateral: {
       address: '',
@@ -87,21 +87,21 @@ export function transformToPolymarketMarket(market: SPMCMarket): PolymarketMarke
       decimals: 6,
     },
     metrics: market.metrics || {
-      volume: String(market.volume || 0),
-      volumeRaw: String(market.volume || 0),
+      volume: String(market.volume_24h || 0),
+      volumeRaw: String(market.volume_24h || 0),
       liquidity: String(market.liquidity || 0),
       liquidityRaw: String(market.liquidity || 0),
-      openInterest: String(market.openInterest || 0),
-      openInterestRaw: String(market.openInterest || 0),
+      openInterest: String(market.open_interest || 0),
+      openInterestRaw: String(market.open_interest || 0),
     },
     prices: {
       yes: {
-        bid: market.prices?.yes?.bid,
-        ask: market.prices?.yes?.ask,
+        bid: market.prices?.bid ?? undefined,
+        ask: market.prices?.ask ?? undefined,
       },
       no: {
-        bid: market.prices?.no?.bid,
-        ask: market.prices?.no?.ask,
+        bid: market.prices?.bid != null ? 1 - market.prices.bid : undefined,
+        ask: market.prices?.ask != null ? 1 - market.prices.ask : undefined,
       },
     },
     contract: {
@@ -112,10 +112,10 @@ export function transformToPolymarketMarket(market: SPMCMarket): PolymarketMarke
       yes: '',
       no: '',
     },
-    yesBestAsk: market.prices?.yes?.ask,
-    noBestAsk: market.prices?.no?.ask,
-    yesBestBid: market.prices?.yes?.bid,
-    noBestBid: market.prices?.no?.bid,
+    yesBestAsk: market.prices?.ask ?? undefined,
+    noBestAsk: market.prices?.ask != null ? 1 - market.prices.ask : undefined,
+    yesBestBid: market.prices?.bid ?? undefined,
+    noBestBid: market.prices?.bid != null ? 1 - market.prices.bid : undefined,
   };
 }
 
@@ -130,10 +130,10 @@ export function transformToLimitlessMarket(market: SPMCMarket): LimitlessMarket 
     description: market.description || '',
     status: (market.status as MarketStatus) || 'ACTIVE',
     slug: market.slug || market.id,
-    expirationDate: market.expirationDate || '',
+    expirationDate: market.expiration_date || market.market_close_time || market.closes_at || '',
     timestamps: {
-      created: market.createdAt || new Date().toISOString(),
-      updated: market.updatedAt || new Date().toISOString(),
+      created: market.created_at || new Date().toISOString(),
+      updated: market.updated_at || new Date().toISOString(),
     },
     collateral: {
       address: '',
@@ -141,21 +141,21 @@ export function transformToLimitlessMarket(market: SPMCMarket): LimitlessMarket 
       decimals: 18,
     },
     metrics: market.metrics || {
-      volume: String(market.volume || 0),
-      volumeRaw: String(market.volume || 0),
+      volume: String(market.volume_24h || 0),
+      volumeRaw: String(market.volume_24h || 0),
       liquidity: String(market.liquidity || 0),
       liquidityRaw: String(market.liquidity || 0),
-      openInterest: String(market.openInterest || 0),
-      openInterestRaw: String(market.openInterest || 0),
+      openInterest: String(market.open_interest || 0),
+      openInterestRaw: String(market.open_interest || 0),
     },
     prices: {
       yes: {
-        bid: market.prices?.yes?.bid,
-        ask: market.prices?.yes?.ask,
+        bid: market.prices?.bid ?? undefined,
+        ask: market.prices?.ask ?? undefined,
       },
       no: {
-        bid: market.prices?.no?.bid,
-        ask: market.prices?.no?.ask,
+        bid: market.prices?.bid != null ? 1 - market.prices.bid : undefined,
+        ask: market.prices?.ask != null ? 1 - market.prices.ask : undefined,
       },
     },
     contract: {
@@ -171,11 +171,11 @@ export function transformToLimitlessMarket(market: SPMCMarket): LimitlessMarket 
  */
 export function transformMarketData(market: SPMCMarket) {
   switch (market.platform) {
-    case 'KALSHI':
+    case 'kalshi':
       return transformToKalshiMarket(market);
-    case 'POLYMARKET':
+    case 'polymarket':
       return transformToPolymarketMarket(market);
-    case 'LIMITLESS':
+    case 'limitless':
       return transformToLimitlessMarket(market);
     default:
       // Default to Polymarket format for unknown platforms
