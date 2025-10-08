@@ -127,11 +127,14 @@ function GroupsPageContent() {
     setLoading(true);
     setError(null);
     try {
-      const response = await spmcClient.listGroups({ limit: 100 });
-      if (response.success && response.data) {
+      // Use API proxy instead of direct SPMC client call
+      const response = await fetch('/api/groups?limit=100');
+      const data = await response.json();
+
+      if (response.ok && data) {
         // Filter to only show index and portfolio groups
-        const filteredGroups = response.data.groups.filter(
-          group => group.group_type === 'index' || group.group_type === 'portfolio'
+        const filteredGroups = data.groups.filter(
+          (group: SPMCGroup) => group.group_type === 'index' || group.group_type === 'portfolio'
         );
         setGroups(filteredGroups);
       } else {
@@ -148,16 +151,19 @@ function GroupsPageContent() {
   // Load group details
   const loadGroupDetails = async (groupId: string) => {
     try {
-      const response = await spmcClient.getGroup(groupId);
-      if (response.success && response.data) {
-        setGroups(prevGroups => 
-          prevGroups.map(g => g.id === groupId ? response.data! : g)
+      // Use API proxy instead of direct SPMC client call
+      const response = await fetch(`/api/groups/${groupId}`);
+      const data: SPMCGroup = await response.json();
+
+      if (response.ok && data) {
+        setGroups(prevGroups =>
+          prevGroups.map(g => g.id === groupId ? data : g)
         );
         // If we're editing this group, update the editing group as well
         if (editingGroupId === groupId) {
-          setEditingGroup(response.data);
+          setEditingGroup(data);
         }
-        return response.data;
+        return data;
       }
     } catch (err) {
       console.error('Error loading group details:', err);
@@ -290,10 +296,11 @@ function GroupsPageContent() {
           description: editingGroup.description
         });
       }
-      
+
       // Get original markets from the server
-      const response = await spmcClient.getGroup(editingGroupId);
-      const originalMarkets = response.data?.markets || [];
+      const response = await fetch(`/api/groups/${editingGroupId}`);
+      const groupData: SPMCGroup = await response.json();
+      const originalMarkets = groupData?.markets || [];
       
       // Find markets to remove (in original but not in edited)
       const marketsToRemove = originalMarkets.filter(

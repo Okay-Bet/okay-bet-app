@@ -34,15 +34,17 @@ export default function FundsPage() {
     setLoading(true);
     setError(null);
     try {
-      // Load all groups from SPMC
-      const groupsResponse = await spmcClient.listGroups({ limit: 100 });
-      if (!groupsResponse.success || !groupsResponse.data) {
+      // Load all groups from SPMC via API proxy
+      const response = await fetch('/api/groups?limit=100');
+      const data = await response.json();
+
+      if (!response.ok || !data) {
         throw new Error('Failed to load groups');
       }
 
       // Filter to index and portfolio groups
-      const filteredGroups = groupsResponse.data.groups.filter(
-        group => group.group_type === 'index' || group.group_type === 'portfolio'
+      const filteredGroups = data.groups.filter(
+        (group: SPMCGroup) => group.group_type === 'index' || group.group_type === 'portfolio'
       );
       setGroups(filteredGroups);
 
@@ -50,14 +52,14 @@ export default function FundsPage() {
       const fundService = new InvestmentFundService();
 
       // Extract fund addresses from groups that have deployed funds
-      const groupsWithFunds = filteredGroups.filter(group => {
+      const groupsWithFunds = filteredGroups.filter((group: SPMCGroup) => {
         const metadata = group.metadata as GroupFundMetadata;
         return metadata?.fund_deployment?.contract_address;
       });
 
       // Load details for each deployed fund
       const fundsData = await Promise.all(
-        groupsWithFunds.map(async (group) => {
+        groupsWithFunds.map(async (group: SPMCGroup) => {
           const metadata = group.metadata as GroupFundMetadata;
           const address = metadata.fund_deployment!.contract_address;
           try {

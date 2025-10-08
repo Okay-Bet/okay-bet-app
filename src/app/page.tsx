@@ -20,27 +20,32 @@ export default function Home() {
     setLoading(true);
     setError(null);
     try {
-      const response = await spmcClient.listGroups({ limit: 100 });
-      if (response.success && response.data) {
+      // Use API proxy instead of direct SPMC client call
+      const response = await fetch('/api/groups?limit=100');
+      const data = await response.json();
+
+      if (response.ok && data) {
         // Filter to only get index type groups (show all indexes regardless of fund deployment)
-        const indexGroups = response.data.groups.filter(
-          (group) => group.group_type === "index"
+        const indexGroups = data.groups.filter(
+          (group: SPMCGroup) => group.group_type === "index"
         );
 
         // Load details for each index to get market information
         const groupsWithDetails = await Promise.all(
-          indexGroups.map(async (group) => {
+          indexGroups.map(async (group: SPMCGroup) => {
             try {
-              const detailResponse = await spmcClient.getGroup(group.id);
-              if (detailResponse.success && detailResponse.data) {
-                const groupWithDetails = detailResponse.data;
+              // Use API proxy for group details
+              const detailResponse = await fetch(`/api/groups/${group.id}`);
+              const groupWithDetails: SPMCGroup = await detailResponse.json();
+
+              if (detailResponse.ok && groupWithDetails) {
 
                 // Fetch accurate prices for each market in the group
                 if (
                   groupWithDetails.markets &&
                   groupWithDetails.markets.length > 0
                 ) {
-                  // Try batch price fetching first using SPMC prices endpoint
+                  // Try batch price fetching first using SPMC prices endpoint via API proxy
                   try {
                     const marketIds = groupWithDetails.markets.map(
                       (m) => m.market_id
@@ -53,13 +58,21 @@ export default function Home() {
                       ),
                     ];
 
-                    const pricesResponse = await spmcClient.getMarketPrices({
-                      marketIds: marketIds,
-                      platforms: platforms.length > 0 ? platforms : undefined,
+                    // Use API proxy for prices
+                    const pricesResponse = await fetch('/api/spmc/prices', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        marketIds: marketIds,
+                        platforms: platforms.length > 0 ? platforms : undefined,
+                      }),
                     });
 
-                    if (pricesResponse.success && pricesResponse.data?.prices) {
-                      const pricesMap = pricesResponse.data.prices;
+                    if (pricesResponse.ok) {
+                      const pricesData = await pricesResponse.json();
+                      const pricesMap = pricesData.prices;
 
                       const marketsWithPrices = groupWithDetails.markets.map(
                         (market) => {
