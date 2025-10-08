@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { usePrivy } from "@privy-io/react-auth";
 import { spmcClient } from '@/services/spmc/client';
@@ -60,7 +60,7 @@ const getFundStatusBadge = (metadata: GroupFundMetadata | undefined) => {
   );
 };
 
-export default function GroupsPage() {
+function GroupsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { ready, authenticated, login } = usePrivy();
@@ -1483,5 +1483,25 @@ export default function GroupsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function GroupsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-500">Loading...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    }>
+      <GroupsPageContent />
+    </Suspense>
   );
 }

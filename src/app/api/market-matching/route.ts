@@ -1,9 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { ProgressTracker } from "./utils/progressTracker";
 import { fetchQualifyingLimitlessMarkets } from "./services/limitless";
 import { fetchPolymarketMarkets } from "./services/polymarket";
 import * as MatchingService from "./services/matching";
+
+export const dynamic = 'force-dynamic';
 
 interface PolymarketMarket {
   condition_id: string;
@@ -29,11 +31,11 @@ interface MatchingStats {
 const SIMILARITY_THRESHOLD = 0.8;
 const prisma = new PrismaClient();
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const progress = new ProgressTracker();
 
   try {
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const threshold = parseFloat(
       searchParams.get("threshold") || SIMILARITY_THRESHOLD.toString()
     );

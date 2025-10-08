@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import type {
   GroupedMarketCard,
   LimitlessMarket,
@@ -10,10 +10,11 @@ import type {
 import { MarketStatus } from "@/components/types/core";
 import { fetchGroupedMarkets } from "@/services/spmc/grouped-markets";
 
+export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
     const offset = (page - 1) * limit;
