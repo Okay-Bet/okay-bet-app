@@ -30,6 +30,12 @@ export interface IndexPriceData {
   validMarketsCount: number;
   totalMarketsCount: number;
   timestamp: string;
+  missingPriceMarkets: Array<{
+    id: string;
+    platform: Platform;
+    weight: number;
+  }>;
+  priceDataCompleteness: number; // Percentage of markets with valid prices (0-100)
 }
 
 /**
@@ -57,6 +63,13 @@ export async function calculateIndexPrice(
   const { prices, timestamp } = pricesResponse.data;
 
   // Process each market and calculate weighted prices
+  // Track markets with missing price data
+  const missingPriceMarkets: Array<{
+    id: string;
+    platform: Platform;
+    weight: number;
+  }> = [];
+
   const processedMarkets = markets.map(market => {
     const batchPriceData = prices[market.market_id];
 
@@ -95,6 +108,18 @@ export async function calculateIndexPrice(
         // For YES positions, use price directly
         currentPrice = basePrice;
       }
+    } else {
+      // Track markets without price data
+      const marketWeight = market.weight || 1;
+      missingPriceMarkets.push({
+        id: market.market_id,
+        platform: market.market_platform as Platform,
+        weight: marketWeight,
+      });
+
+      console.warn(
+        `[IndexPrices] Missing price data for market ${market.market_id} (${market.market_platform}) with weight ${marketWeight}`
+      );
     }
 
     return {
@@ -112,8 +137,23 @@ export async function calculateIndexPrice(
 
   // Calculate weighted average from valid prices
   const validMarkets = processedMarkets.filter(m => m.currentPrice !== null);
+  const priceDataCompleteness = markets.length > 0
+    ? (validMarkets.length / markets.length) * 100
+    : 0;
+
+  // Log summary of missing prices if any
+  if (missingPriceMarkets.length > 0) {
+    const missingWeight = missingPriceMarkets.reduce((sum, m) => sum + m.weight, 0);
+    console.warn(
+      `[IndexPrices] ${missingPriceMarkets.length} of ${markets.length} markets missing prices ` +
+      `(${priceDataCompleteness.toFixed(1)}% complete). Missing total weight: ${missingWeight}`
+    );
+  }
 
   if (validMarkets.length === 0) {
+    console.error(
+      `[IndexPrices] No valid market prices available. All ${markets.length} markets are missing price data.`
+    );
     return {
       currentPrice: 0,
       markets: processedMarkets,
@@ -121,6 +161,8 @@ export async function calculateIndexPrice(
       validMarketsCount: 0,
       totalMarketsCount: markets.length,
       timestamp,
+      missingPriceMarkets,
+      priceDataCompleteness,
     };
   }
 
@@ -140,6 +182,8 @@ export async function calculateIndexPrice(
     validMarketsCount: validMarkets.length,
     totalMarketsCount: markets.length,
     timestamp,
+    missingPriceMarkets,
+    priceDataCompleteness,
   };
 }
 

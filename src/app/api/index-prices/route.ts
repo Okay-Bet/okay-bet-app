@@ -78,9 +78,11 @@ export async function GET(request: NextRequest) {
       totalMarketsCount: indexPriceData.totalMarketsCount,
       totalWeight: indexPriceData.totalWeight,
       timestamp: indexPriceData.timestamp,
+      priceDataCompleteness: indexPriceData.priceDataCompleteness,
+      missingPriceMarkets: indexPriceData.missingPriceMarkets,
       // Include warning if not all markets have prices
       warning: indexPriceData.validMarketsCount < indexPriceData.totalMarketsCount
-        ? `Only ${indexPriceData.validMarketsCount} of ${indexPriceData.totalMarketsCount} markets have valid prices`
+        ? `Only ${indexPriceData.validMarketsCount} of ${indexPriceData.totalMarketsCount} markets have valid prices (${indexPriceData.priceDataCompleteness.toFixed(1)}% complete)`
         : undefined
     });
 
