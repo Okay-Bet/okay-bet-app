@@ -35,16 +35,24 @@ export class SPMCClient {
   private retryDelay: number;
 
   constructor(config?: Partial<SPMCConfig>) {
+    // Detect if running in serverless environment (Vercel, AWS Lambda, etc.)
+    const isServerless = typeof process !== 'undefined' && (
+      process.env.VERCEL === '1' ||
+      process.env.AWS_LAMBDA_FUNCTION_NAME !== undefined
+    );
+
     const defaultConfig: SPMCConfig = {
       baseUrl: process.env.FASTAPI_BASE_URL || process.env.NEXT_PUBLIC_SPMC_URL || 'https://api.spmc.dev',
       apiVersion: process.env.SPMC_API_VERSION || 'v1',
-      timeout: 30000,
-      retryAttempts: 3,
-      retryDelay: 1000,
+      // Use shorter timeout in serverless to avoid function timeouts
+      timeout: isServerless ? 5000 : 30000,
+      // Reduce retries in serverless
+      retryAttempts: isServerless ? 1 : 3,
+      retryDelay: isServerless ? 500 : 1000,
     };
 
     const finalConfig = { ...defaultConfig, ...config };
-    
+
     this.baseUrl = finalConfig.baseUrl;
     this.apiVersion = finalConfig.apiVersion;
     this.timeout = finalConfig.timeout;

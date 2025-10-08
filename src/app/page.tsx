@@ -21,11 +21,18 @@ export default function Home() {
     setError(null);
     try {
       // Use API proxy instead of direct SPMC client call
-      const response = await fetch('/api/groups?limit=100');
+      // Reduce limit to avoid timeouts on slower networks
+      const response = await fetch('/api/groups?limit=50&group_type=index');
 
       if (!response.ok) {
         // Try to extract error message from response
         let errorMessage = `Failed to load groups (${response.status})`;
+
+        // Provide helpful message for common errors
+        if (response.status === 504) {
+          errorMessage = 'The market data service is temporarily slow. Please try refreshing the page.';
+        }
+
         try {
           const errorData = await response.json();
           errorMessage = errorData.error || errorMessage;

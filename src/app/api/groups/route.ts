@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { spmcClient } from '@/services/spmc/client';
 
+// Vercel serverless function timeout configuration
+export const maxDuration = 10; // Max duration in seconds for Hobby plan
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -8,18 +11,34 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
     const group_type = searchParams.get('group_type') || undefined;
 
-    const response = await spmcClient.listGroups({ 
-      limit, 
-      offset, 
-      group_type 
+    // Create a timeout promise to ensure we don't exceed Vercel limits
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Request timeout')), 8000); // 8s to leave buffer
     });
+
+    // Race between the API call and timeout
+    const response = await Promise.race([
+      spmcClient.listGroups({
+        limit,
+        offset,
+        group_type
+      }),
+      timeoutPromise
+    ]).catch((error) => {
+      console.error('SPMC API timeout or error:', error);
+      return {
+        success: false,
+        error: { status: 504, message: 'SPMC API timeout' }
+      };
+    }) as any;
 
     if (response.success) {
       return NextResponse.json(response.data);
     } else {
+      const status = response.error?.status || 500;
       return NextResponse.json(
-        { error: response.error || 'Failed to fetch groups' },
-        { status: 500 }
+        { error: response.error?.message || 'Failed to fetch groups' },
+        { status }
       );
     }
   } catch (error) {
