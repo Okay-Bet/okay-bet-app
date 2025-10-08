@@ -1,0 +1,708 @@
+import { 
+  createPublicClient, 
+  createWalletClient, 
+  http, 
+  parseUnits,
+  formatUnits,
+  type PublicClient,
+  type WalletClient,
+  type Address
+} from 'viem';
+import { polygonAmoy } from '@/lib/viem';
+import { INVESTMENT_FUND_ABI } from '@/constants/investmentFundABI';
+import { 
+  Fund, 
+  FundPhase,
+  FundMetrics,
+  UserPosition,
+  USDC_DECIMALS,
+  MIN_INVESTMENT_USDC,
+  usdcToWei,
+  weiToUsdc
+} from './types';
+
+// USDC ABI for approval
+const USDC_ABI = [
+  {
+    "inputs": [
+      { "internalType": "address", "name": "spender", "type": "address" },
+      { "internalType": "uint256", "name": "amount", "type": "uint256" }
+    ],
+    "name": "approve",
+    "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "owner", "type": "address" },
+      { "internalType": "address", "name": "spender", "type": "address" }
+    ],
+    "name": "allowance",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "account", "type": "address" }],
+    "name": "balanceOf",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  }
+] as const;
+
+export class InvestmentFundService {
+  public publicClient: PublicClient;
+  private usdcAddress: Address;
+
+  constructor() {
+    this.usdcAddress = (process.env.NEXT_PUBLIC_USDC_ADDRESS_AMOY || 
+      '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582') as Address;
+
+    this.publicClient = createPublicClient({
+      chain: polygonAmoy,
+      transport: http(process.env.NEXT_PUBLIC_POLYGON_AMOY_RPC || 'https://rpc-amoy.polygon.technology')
+    });
+  }
+
+  // Get current phase of the fund
+  async getCurrentPhase(fundAddress: Address): Promise<FundPhase> {
+    try {
+      const phase = await this.publicClient.readContract({
+        address: fundAddress,
+        abi: INVESTMENT_FUND_ABI,
+        functionName: 'getCurrentPhase'
+      }) as number;
+
+      return phase as FundPhase;
+    } catch (error) {
+      console.error('Error fetching fund phase:', error);
+      throw error;
+    }
+  }
+
+  // Get fund metrics
+  async getFundMetrics(fundAddress: Address): Promise<FundMetrics> {
+    try {
+      // First get the required fields
+      const [
+        totalDeposits,
+        targetRaise,
+        currentPhase,
+        depositDeadline,
+        totalSupply
+      ] = await Promise.all([
+        this.publicClient.readContract({
+          address: fundAddress,
+          abi: INVESTMENT_FUND_ABI,
+          functionName: 'totalDeposits'
+        }) as Promise<bigint>,
+        this.publicClient.readContract({
+          address: fundAddress,
+          abi: INVESTMENT_FUND_ABI,
+          functionName: 'targetRaise'
+        }) as Promise<bigint>,
+        this.publicClient.readContract({
+          address: fundAddress,
+          abi: INVESTMENT_FUND_ABI,
+          functionName: 'getCurrentPhase'
+        }) as Promise<number>,
+        this.publicClient.readContract({
+          address: fundAddress,
+          abi: INVESTMENT_FUND_ABI,
+          functionName: 'depositDeadline'
+        }) as Promise<bigint>,
+        this.publicClient.readContract({
+          address: fundAddress,
+          abi: INVESTMENT_FUND_ABI,
+          functionName: 'totalSupply'
+        }) as Promise<bigint>
+      ]);
+
+      // Try to get tradingEndTime separately (it might not exist on all contracts)
+      let tradingEndTime: bigint | undefined;
+      try {
+        tradingEndTime = await this.publicClient.readContract({
+          address: fundAddress,
+          abi: INVESTMENT_FUND_ABI,
+          functionName: 'tradingEndTime'
+        }) as bigint;
+      } catch (err) {
+        // tradingEndTime not available on this contract version
+        tradingEndTime = undefined;
+      }
+
+      const progressPercentage = targetRaise > 0n 
+        ? Number((totalDeposits * 100n) / targetRaise)
+        : 0;
+
+      return {
+        totalDeposits,
+        targetRaise,
+        progressPercentage,
+        currentPhase: currentPhase as FundPhase,
+        depositDeadline: new Date(Number(depositDeadline) * 1000),
+        tradingEndTime: tradingEndTime && tradingEndTime > 0n ? new Date(Number(tradingEndTime) * 1000) : undefined,
+        totalSupply
+      };
+    } catch (error) {
+      console.error('Error fetching fund metrics:', error);
+      throw error;
+    }
+  }
+
+  // Get user's share balance
+  async getShareBalance(fundAddress: Address, userAddress: Address): Promise<bigint> {
+    try {
+      const balance = await this.publicClient.readContract({
+        address: fundAddress,
+        abi: INVESTMENT_FUND_ABI,
+        functionName: 'balanceOf',
+        args: [userAddress]
+      }) as bigint;
+
+      return balance;
+    } catch (error) {
+      console.error('Error fetching share balance:', error);
+      throw error;
+    }
+  }
+
+  // Get user's USDC balance
+  async getUsdcBalance(userAddress: Address): Promise<bigint> {
+    try {
+      const balance = await this.publicClient.readContract({
+        address: this.usdcAddress,
+        abi: USDC_ABI,
+        functionName: 'balanceOf',
+        args: [userAddress]
+      }) as bigint;
+
+      return balance;
+    } catch (error) {
+      console.error('Error fetching USDC balance:', error);
+      throw error;
+    }
+  }
+
+  // Check USDC allowance
+  async checkAllowance(
+    ownerAddress: Address, 
+    spenderAddress: Address
+  ): Promise<bigint> {
+    try {
+      const allowance = await this.publicClient.readContract({
+        address: this.usdcAddress,
+        abi: USDC_ABI,
+        functionName: 'allowance',
+        args: [ownerAddress, spenderAddress]
+      }) as bigint;
+
+      return allowance;
+    } catch (error) {
+      console.error('Error checking allowance:', error);
+      throw error;
+    }
+  }
+
+  // Approve USDC spending
+  async approveUsdc(
+    fundAddress: Address,
+    amount: bigint,
+    walletClient: WalletClient
+  ): Promise<string> {
+    const account = walletClient.account;
+    if (!account) throw new Error('Wallet not connected');
+
+    try {
+      const { request } = await this.publicClient.simulateContract({
+        address: this.usdcAddress,
+        abi: USDC_ABI,
+        functionName: 'approve',
+        args: [fundAddress, amount],
+        account: account.address
+      });
+
+      const hash = await walletClient.writeContract(request);
+      await this.publicClient.waitForTransactionReceipt({ hash });
+      
+      return hash;
+    } catch (error) {
+      console.error('Error approving USDC:', error);
+      throw error;
+    }
+  }
+
+  // Check max deposit allowed
+  async getMaxDeposit(fundAddress: Address, userAddress: Address): Promise<bigint> {
+    try {
+      const maxDeposit = await this.publicClient.readContract({
+        address: fundAddress,
+        abi: INVESTMENT_FUND_ABI,
+        functionName: 'maxDeposit',
+        args: [userAddress]
+      }) as bigint;
+      return maxDeposit;
+    } catch (error) {
+      console.error('Error fetching max deposit:', error);
+      throw error;
+    }
+  }
+
+  // Check max withdraw allowed
+  async getMaxWithdraw(fundAddress: Address, userAddress: Address): Promise<bigint> {
+    try {
+      const maxWithdraw = await this.publicClient.readContract({
+        address: fundAddress,
+        abi: INVESTMENT_FUND_ABI,
+        functionName: 'maxWithdraw',
+        args: [userAddress]
+      }) as bigint;
+      return maxWithdraw;
+    } catch (error) {
+      console.error('Error fetching max withdraw:', error);
+      throw error;
+    }
+  }
+
+  // Check max redeem allowed
+  async getMaxRedeem(fundAddress: Address, userAddress: Address): Promise<bigint> {
+    try {
+      const maxRedeem = await this.publicClient.readContract({
+        address: fundAddress,
+        abi: INVESTMENT_FUND_ABI,
+        functionName: 'maxRedeem',
+        args: [userAddress]
+      }) as bigint;
+      return maxRedeem;
+    } catch (error) {
+      console.error('Error fetching max redeem:', error);
+      throw error;
+    }
+  }
+
+  // Preview deposit - returns expected shares
+  async previewDeposit(fundAddress: Address, assets: bigint): Promise<bigint> {
+    try {
+      const shares = await this.publicClient.readContract({
+        address: fundAddress,
+        abi: INVESTMENT_FUND_ABI,
+        functionName: 'previewDeposit',
+        args: [assets]
+      }) as bigint;
+      return shares;
+    } catch (error) {
+      console.error('Error previewing deposit:', error);
+      throw error;
+    }
+  }
+
+  // Preview redeem - returns expected assets
+  async previewRedeem(fundAddress: Address, shares: bigint): Promise<bigint> {
+    try {
+      const assets = await this.publicClient.readContract({
+        address: fundAddress,
+        abi: INVESTMENT_FUND_ABI,
+        functionName: 'previewRedeem',
+        args: [shares]
+      }) as bigint;
+      return assets;
+    } catch (error) {
+      console.error('Error previewing redeem:', error);
+      throw error;
+    }
+  }
+
+  // Preview withdraw - returns expected shares
+  async previewWithdraw(fundAddress: Address, assets: bigint): Promise<bigint> {
+    try {
+      const shares = await this.publicClient.readContract({
+        address: fundAddress,
+        abi: INVESTMENT_FUND_ABI,
+        functionName: 'previewWithdraw',
+        args: [assets]
+      }) as bigint;
+      return shares;
+    } catch (error) {
+      console.error('Error previewing withdraw:', error);
+      throw error;
+    }
+  }
+
+  // Get total assets in the vault
+  async getTotalAssets(fundAddress: Address): Promise<bigint> {
+    try {
+      const totalAssets = await this.publicClient.readContract({
+        address: fundAddress,
+        abi: INVESTMENT_FUND_ABI,
+        functionName: 'totalAssets'
+      }) as bigint;
+      return totalAssets;
+    } catch (error) {
+      console.error('Error fetching total assets:', error);
+      throw error;
+    }
+  }
+
+  // Get estimated value (during trading phase)
+  async getEstimatedValue(fundAddress: Address): Promise<{ value: bigint; lastUpdate: Date | undefined }> {
+    try {
+      const [estimatedValue, lastValuationTime] = await Promise.all([
+        this.publicClient.readContract({
+          address: fundAddress,
+          abi: INVESTMENT_FUND_ABI,
+          functionName: 'estimatedValue'
+        }) as Promise<bigint>,
+        this.publicClient.readContract({
+          address: fundAddress,
+          abi: INVESTMENT_FUND_ABI,
+          functionName: 'lastValuationTime'
+        }) as Promise<bigint>
+      ]);
+
+      return {
+        value: estimatedValue,
+        lastUpdate: lastValuationTime > 0n ? new Date(Number(lastValuationTime) * 1000) : undefined
+      };
+    } catch (error) {
+      console.error('Error fetching estimated value:', error);
+      throw error;
+    }
+  }
+
+  // Deposit USDC into fund (ERC-4626 compliant)
+  async deposit(
+    fundAddress: Address,
+    amountUsdc: number,
+    walletClient: WalletClient,
+    receiverAddress?: Address
+  ): Promise<{ hash: string; shares?: bigint }> {
+    const account = walletClient.account;
+    if (!account) throw new Error('Wallet not connected');
+
+    const receiver = receiverAddress || account.address;
+
+    if (amountUsdc < MIN_INVESTMENT_USDC) {
+      throw new Error(`Minimum investment is ${MIN_INVESTMENT_USDC} USDC`);
+    }
+
+    const amount = usdcToWei(amountUsdc);
+
+    try {
+      // Check max deposit
+      const maxDeposit = await this.getMaxDeposit(fundAddress, receiver);
+      if (maxDeposit === 0n) {
+        throw new Error('Deposits are currently closed');
+      }
+      if (amount > maxDeposit) {
+        throw new Error(`Amount exceeds maximum deposit of ${weiToUsdc(maxDeposit)} USDC`);
+      }
+
+      // Check USDC balance
+      const balance = await this.getUsdcBalance(account.address);
+      if (balance < amount) {
+        throw new Error('Insufficient USDC balance');
+      }
+
+      // Preview expected shares
+      const expectedShares = await this.previewDeposit(fundAddress, amount);
+      console.log(`Expected shares from deposit: ${formatUnits(expectedShares, 18)}`);
+
+      // Check and approve if needed
+      const allowance = await this.checkAllowance(account.address, fundAddress);
+      if (allowance < amount) {
+        await this.approveUsdc(fundAddress, amount, walletClient);
+      }
+
+      // Deposit with receiver parameter
+      const { request } = await this.publicClient.simulateContract({
+        address: fundAddress,
+        abi: INVESTMENT_FUND_ABI,
+        functionName: 'deposit',
+        args: [amount, receiver],
+        account: account.address
+      });
+
+      const hash = await walletClient.writeContract(request);
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+
+      // Parse Deposit event to get actual shares issued
+      // ERC-4626 Deposit event signature: Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares)
+      const depositEventSignature = '0xdcbc1c05240f31ff3ad067ef1ee35ce4997762752e3a095284754544f4c709d7';
+      const depositEvent = receipt.logs.find(
+        log => log.topics[0] === depositEventSignature
+      );
+
+      let shares: bigint | undefined;
+      if (depositEvent && depositEvent.data) {
+        // The event data contains assets and shares (both uint256)
+        const decodedData = {
+          assets: BigInt('0x' + depositEvent.data.slice(2, 66)),
+          shares: BigInt('0x' + depositEvent.data.slice(66, 130))
+        };
+        shares = decodedData.shares;
+      }
+
+      return { hash, shares };
+    } catch (error) {
+      console.error('Error depositing to fund:', error);
+      throw error;
+    }
+  }
+
+  // Redeem shares for USDC (ERC-4626 compliant)
+  async redeem(
+    fundAddress: Address,
+    shares: bigint,
+    walletClient: WalletClient,
+    receiverAddress?: Address
+  ): Promise<{ hash: string; assets?: bigint }> {
+    const account = walletClient.account;
+    if (!account) throw new Error('Wallet not connected');
+
+    const receiver = receiverAddress || account.address;
+    const owner = account.address;
+
+    try {
+      // Check max redeem
+      const maxRedeem = await this.getMaxRedeem(fundAddress, owner);
+      if (maxRedeem === 0n) {
+        throw new Error('Redemptions are not available yet');
+      }
+      if (shares > maxRedeem) {
+        throw new Error(`Cannot redeem more than ${formatUnits(maxRedeem, 18)} shares`);
+      }
+
+      // Preview expected assets
+      const expectedAssets = await this.previewRedeem(fundAddress, shares);
+      console.log(`Expected USDC from redemption: ${weiToUsdc(expectedAssets)} USDC`);
+
+      // Redeem shares
+      const { request } = await this.publicClient.simulateContract({
+        address: fundAddress,
+        abi: INVESTMENT_FUND_ABI,
+        functionName: 'redeem',
+        args: [shares, receiver, owner],
+        account: account.address
+      });
+
+      const hash = await walletClient.writeContract(request);
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+      
+      // Parse Withdraw event to get actual assets
+      // ERC-4626 Withdraw event signature: Withdraw(address indexed sender, address indexed receiver, address indexed owner, uint256 assets, uint256 shares)
+      const withdrawEventSignature = '0xfbde797d201c681b91056529119e0b02407c7bb96a4a2c75c01fc9667232c8db';
+      const withdrawEvent = receipt.logs.find(
+        log => log.topics[0] === withdrawEventSignature
+      );
+
+      let assets: bigint | undefined;
+      if (withdrawEvent && withdrawEvent.data) {
+        // The event data contains assets and shares (both uint256)
+        const decodedData = {
+          assets: BigInt('0x' + withdrawEvent.data.slice(2, 66)),
+          shares: BigInt('0x' + withdrawEvent.data.slice(66, 130))
+        };
+        assets = decodedData.assets;
+      }
+
+      return { hash, assets };
+    } catch (error) {
+      console.error('Error redeeming from fund:', error);
+      throw error;
+    }
+  }
+
+  // Withdraw specific asset amount (alternative to redeem)
+  async withdraw(
+    fundAddress: Address,
+    assetAmount: bigint,
+    walletClient: WalletClient,
+    receiverAddress?: Address
+  ): Promise<{ hash: string; shares?: bigint }> {
+    const account = walletClient.account;
+    if (!account) throw new Error('Wallet not connected');
+
+    const receiver = receiverAddress || account.address;
+    const owner = account.address;
+
+    try {
+      // Check max withdraw
+      const maxWithdraw = await this.getMaxWithdraw(fundAddress, owner);
+      if (maxWithdraw === 0n) {
+        throw new Error('Withdrawals are not available yet');
+      }
+      if (assetAmount > maxWithdraw) {
+        throw new Error(`Cannot withdraw more than ${weiToUsdc(maxWithdraw)} USDC`);
+      }
+
+      // Preview expected shares to burn
+      const expectedShares = await this.previewWithdraw(fundAddress, assetAmount);
+      console.log(`Expected shares to burn: ${formatUnits(expectedShares, 18)}`);
+
+      // Withdraw assets
+      const { request } = await this.publicClient.simulateContract({
+        address: fundAddress,
+        abi: INVESTMENT_FUND_ABI,
+        functionName: 'withdraw',
+        args: [assetAmount, receiver, owner],
+        account: account.address
+      });
+
+      const hash = await walletClient.writeContract(request);
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+      
+      // Parse Withdraw event
+      const withdrawEventSignature = '0xfbde797d201c681b91056529119e0b02407c7bb96a4a2c75c01fc9667232c8db';
+      const withdrawEvent = receipt.logs.find(
+        log => log.topics[0] === withdrawEventSignature
+      );
+
+      let shares: bigint | undefined;
+      if (withdrawEvent && withdrawEvent.data) {
+        const decodedData = {
+          assets: BigInt('0x' + withdrawEvent.data.slice(2, 66)),
+          shares: BigInt('0x' + withdrawEvent.data.slice(66, 130))
+        };
+        shares = decodedData.shares;
+      }
+
+      return { hash, shares };
+    } catch (error) {
+      console.error('Error withdrawing from fund:', error);
+      throw error;
+    }
+  }
+
+  // Convenience method to redeem all shares
+  async redeemAll(
+    fundAddress: Address,
+    walletClient: WalletClient,
+    receiverAddress?: Address
+  ): Promise<{ hash: string; assets?: bigint }> {
+    const account = walletClient.account;
+    if (!account) throw new Error('Wallet not connected');
+
+    // Get user's share balance
+    const shares = await this.getShareBalance(fundAddress, account.address);
+    if (shares === 0n) {
+      throw new Error('No shares to redeem');
+    }
+
+    return this.redeem(fundAddress, shares, walletClient, receiverAddress);
+  }
+
+  // Get user position
+  async getUserPosition(
+    fundAddress: Address, 
+    userAddress: Address
+  ): Promise<UserPosition> {
+    try {
+      const [shares, depositAmount] = await Promise.all([
+        this.getShareBalance(fundAddress, userAddress),
+        this.publicClient.readContract({
+          address: fundAddress,
+          abi: INVESTMENT_FUND_ABI,
+          functionName: 'userDeposits',
+          args: [userAddress]
+        }) as Promise<bigint>
+      ]);
+
+      // Calculate current value if in redemption phase
+      let currentValue: bigint | undefined;
+      let profit: bigint | undefined;
+
+      const phase = await this.getCurrentPhase(fundAddress);
+      if (phase === FundPhase.REDEMPTION || phase === FundPhase.COMPLETED) {
+        const [finalFundValue, totalDeposits, totalSupply] = await Promise.all([
+          this.publicClient.readContract({
+            address: fundAddress,
+            abi: INVESTMENT_FUND_ABI,
+            functionName: 'finalFundValue'
+          }) as Promise<bigint>,
+          this.publicClient.readContract({
+            address: fundAddress,
+            abi: INVESTMENT_FUND_ABI,
+            functionName: 'totalDeposits'
+          }) as Promise<bigint>,
+          this.publicClient.readContract({
+            address: fundAddress,
+            abi: INVESTMENT_FUND_ABI,
+            functionName: 'totalSupply'
+          }) as Promise<bigint>
+        ]);
+
+        if (totalSupply > 0n) {
+          currentValue = (shares * finalFundValue) / totalSupply;
+          profit = currentValue > depositAmount ? currentValue - depositAmount : 0n;
+        }
+      }
+
+      return {
+        fundAddress,
+        shares,
+        depositAmount,
+        currentValue,
+        profit
+      };
+    } catch (error) {
+      console.error('Error fetching user position:', error);
+      throw error;
+    }
+  }
+
+  // Start trading (manager only)
+  async startTrading(
+    fundAddress: Address,
+    walletClient: WalletClient
+  ): Promise<string> {
+    const account = walletClient.account;
+    if (!account) throw new Error('Wallet not connected');
+
+    try {
+      const { request } = await this.publicClient.simulateContract({
+        address: fundAddress,
+        abi: INVESTMENT_FUND_ABI,
+        functionName: 'startTrading',
+        account: account.address
+      });
+
+      const hash = await walletClient.writeContract(request);
+      await this.publicClient.waitForTransactionReceipt({ hash });
+      
+      return hash;
+    } catch (error) {
+      console.error('Error starting trading:', error);
+      throw error;
+    }
+  }
+
+  // Return funds (agent only)
+  async returnFunds(
+    fundAddress: Address,
+    amount: bigint,
+    walletClient: WalletClient
+  ): Promise<string> {
+    const account = walletClient.account;
+    if (!account) throw new Error('Wallet not connected');
+
+    try {
+      const { request } = await this.publicClient.simulateContract({
+        address: fundAddress,
+        abi: INVESTMENT_FUND_ABI,
+        functionName: 'returnFunds',
+        args: [amount],
+        account: account.address
+      });
+
+      const hash = await walletClient.writeContract(request);
+      await this.publicClient.waitForTransactionReceipt({ hash });
+      
+      return hash;
+    } catch (error) {
+      console.error('Error returning funds:', error);
+      throw error;
+    }
+  }
+}

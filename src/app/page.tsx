@@ -1,159 +1,333 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
-import Logo from "@/components/Logo/Logo";
+import { useRouter } from "next/navigation";
+import { spmcClient } from "@/services/spmc/client";
+import { SPMCGroup, Platform } from "@/services/spmc/types";
+import { GroupFundMetadata } from "@/services/funds/groupFundIntegration.service";
+import Navbar from "@/components/Common/Navbar";
+import { HeroSection } from "@/components/homepage/HeroSection";
+import { IndexShowcase } from "@/components/homepage/IndexShowcase";
+import { MarketAllocation } from "@/components/homepage/IndexCard";
 
 export default function Home() {
-  const [email, setEmail] = useState("");
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [waitlistCount, setWaitlistCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const [groups, setGroups] = useState<SPMCGroup[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadGroups = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Use API proxy instead of direct SPMC client call
+      // Reduce limit to avoid timeouts on slower networks
+      const response = await fetch('/api/groups?limit=50&group_type=index');
+
+      if (!response.ok) {
+        // Try to extract error message from response
+        let errorMessage = `Failed to load groups (${response.status})`;
+
+        // Provide helpful message for common errors
+        if (response.status === 504) {
+          errorMessage = 'The market data service is temporarily slow. Please try refreshing the page.';
+        }
+
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // Response isn't JSON, use default message
+        }
+        throw new Error(errorMessage);
+      }
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        console.error('Failed to parse groups response:', parseError);
+        throw new Error('Invalid response format from server');
+      }
+
+      if (data && data.groups) {
+        // Filter to only get index type groups (show all indexes regardless of fund deployment)
+        const indexGroups = data.groups.filter(
+          (group: SPMCGroup) => group.group_type === "index"
+        );
+
+        // Load details for each index to get market information
+        const groupsWithDetails = await Promise.all(
+          indexGroups.map(async (group: SPMCGroup) => {
+            try {
+              // Use API proxy for group details
+              const detailResponse = await fetch(`/api/groups/${group.id}`);
+
+              if (!detailResponse.ok) {
+                // Failed to fetch group details, return group without details
+                console.warn(`Failed to fetch details for group ${group.id}: ${detailResponse.status}`);
+                return group;
+              }
+
+              let groupWithDetails: SPMCGroup;
+              try {
+                groupWithDetails = await detailResponse.json();
+              } catch (parseError) {
+                console.warn(`Failed to parse group details for ${group.id}:`, parseError);
+                return group;
+              }
+
+              if (groupWithDetails) {
+
+                // Fetch accurate prices for each market in the group
+                if (
+                  groupWithDetails.markets &&
+                  groupWithDetails.markets.length > 0
+                ) {
+                  // Try batch price fetching first using SPMC prices endpoint via API proxy
+                  try {
+                    const marketIds = groupWithDetails.markets.map(
+                      (m) => m.market_id
+                    );
+                    const platforms = [
+                      ...new Set(
+                        groupWithDetails.markets
+                          .map((m) => m.market_platform)
+                          .filter((p): p is Platform => Boolean(p))
+                      ),
+                    ];
+
+                    // Use API proxy for prices
+                    const pricesResponse = await fetch('/api/spmc/prices', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        marketIds: marketIds,
+                        platforms: platforms.length > 0 ? platforms : undefined,
+                      }),
+                    });
+
+                    if (pricesResponse.ok) {
+                      try {
+                        const pricesData = await pricesResponse.json();
+                        const pricesMap = pricesData.prices;
+
+                      const marketsWithPrices = groupWithDetails.markets.map(
+                        (market) => {
+                          const priceData = pricesMap[market.market_id];
+                          let currentPrice = market.market_current_price || 0.5;
+
+                          if (priceData && priceData.prices) {
+                            // SPMC batch API returns prices in the format:
+                            // { platform, prices: { bid, ask, last, mid } }
+                            const outcome = market.outcome || "yes";
+
+                            // Use mid price as base
+                            const basePrice = priceData.prices.mid;
+
+                            if (outcome === "no") {
+                              // For NO positions, invert the price
+                              currentPrice = 1 - basePrice;
+                            } else {
+                              // For YES positions, use price directly
+                              currentPrice = basePrice;
+                            }
+                          }
+
+                          return {
+                            ...market,
+                            market_current_price: currentPrice,
+                          };
+                        }
+                      );
+
+                      return {
+                        ...groupWithDetails,
+                        markets: marketsWithPrices,
+                      };
+                      } catch (jsonError) {
+                        // JSON parsing failed, log and continue
+                        console.warn('Failed to parse prices response:', jsonError);
+                      }
+                    }
+                  } catch (err) {
+                    // Batch price fetch failed, use markets with existing prices
+                    console.warn('Batch price fetch failed, using default prices:', err);
+                  }
+                }
+
+                return groupWithDetails;
+              }
+              return group;
+            } catch {
+              return group;
+            }
+          })
+        );
+
+        setGroups(groupsWithDetails);
+      } else {
+        setError("Failed to load market indexes");
+      }
+    } catch (err) {
+      setError(
+        `Error loading market indexes: ${
+          err instanceof Error ? err.message : "Unknown error"
+        }`
+      );
+      console.error("Error loading groups:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInvest = async (
+    groupId: string,
+    allocations: MarketAllocation[]
+  ) => {
+    console.log("Investing in group:", groupId);
+    console.log("Allocations:", allocations);
+
+    // In a real implementation, this would:
+    // 1. Connect to user's wallet
+    // 2. Execute trades on each platform
+    // 3. Track the investment
+    // 4. Show confirmation
+
+    // For now, just show an alert
+    const totalAmount = allocations.reduce(
+      (sum, a) => sum + a.allocationAmount,
+      0
+    );
+    alert(
+      `Investment of $${totalAmount.toFixed(2)} across ${
+        allocations.length
+      } markets would be executed here.`
+    );
+  };
+
+  const handleCreateIndex = () => {
+    // Route to groups page with create tab active
+    router.push("/groups?tab=create");
+  };
 
   useEffect(() => {
-    fetchWaitlistCount();
+    loadGroups();
   }, []);
 
-  const fetchWaitlistCount = async () => {
-    try {
-      const response = await fetch('/api/waitlist');
-      if (response.ok) {
-        const data = await response.json();
-        setWaitlistCount(data.count || 0);
-      }
-    } catch (error) {
-      console.error('Error fetching waitlist count:', error);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email && !isLoading) {
-      setIsLoading(true);
-      try {
-        const response = await fetch('/api/waitlist', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email }),
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setIsSubmitted(true);
-          setEmail("");
-          setWaitlistCount(data.count || waitlistCount + 1);
-          setTimeout(() => setIsSubmitted(false), 3000);
-        } else {
-          console.error('Failed to submit email');
-        }
-      } catch (error) {
-        console.error('Error submitting email:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-  };
-
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 py-16">
-      <div className="max-w-5xl w-full text-center relative z-10">
-        <div className="mb-8">
-          <Logo />
-        </div>
-        
-        <div className="mb-6 inline-flex items-center px-5 py-2 bg-white/90 backdrop-blur-sm border border-accent-gray-200 rounded-full shadow-sharp">
-          <span className="w-2 h-2 bg-accent-red-500 rounded-full animate-pulse mr-3"></span>
-          <span className="text-sm font-body font-medium text-accent-gray-700">Coming Soon</span>
-        </div>
-        
-        <h1 className="text-6xl md:text-8xl font-heading mb-4 text-primary leading-none">
-          Apps on 
-          <span className="block gradient-text mt-2">
-            Prediction Markets
-          </span>
-        </h1>
-        
-        <p className="text-xl md:text-2xl font-body text-accent-gray-700 mb-12 max-w-3xl mx-auto font-medium">
-          Markets are infrastructure, we are building products on the prediction market layer to drive more liquidity and make forecasts better. 
-        </p>
-        
-        <form onSubmit={handleSubmit} className="max-w-lg mx-auto mb-8">
-          <div className="flex flex-col sm:flex-row gap-3 p-2 bg-white/95 backdrop-blur-sm rounded-xl shadow-aggressive border border-accent-gray-200">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email for early access"
-              className="flex-1 px-6 py-4 bg-transparent text-primary placeholder-accent-gray-400 focus:outline-none font-body"
-              required
-            />
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="btn-primary font-header text-lg tracking-wide min-w-[150px] disabled:opacity-50"
-            >
-              {isLoading ? 'JOINING...' : 'JOIN WAITLIST'}
-            </button>
-          </div>
-          {isSubmitted && (
-            <p className="mt-4 text-accent-red-500 font-body font-semibold animate-pulse">
-              You&apos;re on the list! We&apos;ll notify you when we launch.
-            </p>
-          )}
-        </form>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto mt-16">
-          <a 
-            href="https://github.com/theSchein/pamela" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="bg-white/90 backdrop-blur-sm p-6 rounded-xl border border-accent-gray-200 shadow-sharp hover:shadow-aggressive transition-shadow block"
-          >
-            <div className="w-12 h-12 mx-auto mb-4 relative overflow-hidden rounded-lg">
-              <Image 
-                src="/pamela.jpg" 
-                alt="AI Agents" 
-                width={48} 
-                height={48}
-                className="object-cover w-full h-full"
-              />
-            </div>
-            <h3 className="font-header text-lg text-primary mb-2">AI Agents</h3>
-            <p className="text-accent-gray-600 font-body text-sm">Invest in agents that trade faster and sharper</p>
-          </a>
-          
-          <a 
-            href="https://www.spmc.dev/" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="bg-white/90 backdrop-blur-sm p-6 rounded-xl border border-accent-gray-200 shadow-sharp hover:shadow-aggressive transition-shadow block"
-          >
-            <div className="w-12 h-12 mx-auto mb-4 relative overflow-hidden rounded-lg">
-              <Image 
-                src="/spmc.png" 
-                alt="Aggregation" 
-                width={48} 
-                height={48}
-                className="object-cover w-full h-full"
-              />
-            </div>
-            <h3 className="font-header text-lg text-primary mb-2">Aggregation</h3>
-            <p className="text-accent-gray-600 font-body text-sm">A single touchpoint to trade all prediction markets</p>
-          </a>
-          
-          <div className="bg-white/90 backdrop-blur-sm p-6 rounded-xl border border-accent-gray-200 shadow-sharp hover:shadow-aggressive transition-shadow">
-            <div className="w-12 h-12 mx-auto mb-4 bg-gradient-aggressive from-neon-pink to-accent-red-500 rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h3 className="font-header text-lg text-primary mb-2">Parlays</h3>
-            <p className="text-accent-gray-600 font-body text-sm">Leverage multiple event outcomes for higher payouts</p>
-          </div>
-        </div>
+    <main className="min-h-screen bg-white">
+      {/* Navigation Bar */}
+      <Navbar />
+
+      {/* Hero Section */}
+      <div className="pt-16">
+        <HeroSection />
       </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-700">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Funds Section - This is where "Browse Funds" button links to */}
+      <section id="funds" className="scroll-mt-16">
+        <IndexShowcase
+          groups={groups}
+          loading={loading}
+          onInvest={handleInvest}
+          onCreateIndex={handleCreateIndex}
+          fundAddresses={
+            // Extract fund addresses from group metadata
+            groups.reduce((acc, group) => {
+              const metadata = group.metadata as GroupFundMetadata;
+              if (metadata?.fund_deployment?.contract_address) {
+                acc[group.id] = metadata.fund_deployment.contract_address;
+              }
+              return acc;
+            }, {} as Record<string, string>)
+          }
+        />
+      </section>
+
+      {/* How It Works Section */}
+      <section
+        id="how-it-works"
+        className="relative bg-gradient-to-b from-white to-gray-50 py-16 scroll-mt-16"
+      >
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Section Header */}
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
+              How it works
+            </h2>
+            
+            {/* 
+            REPLACE WITH GRAPHIC
+            <p className="mt-4 text-lg text-gray-700 max-w-2xl mx-auto">
+              Deposit USDC into a strategy vault that will issue you shares. The funds will be used to enter Polymarket positions and will be redeemable after the set period.
+            </p> */}
+          </div>
+
+          {/* Steps Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {/* Browse */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+              <div className="text-xs font-semibold text-secondary mb-2">
+                Browse Funds
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Deposit
+              </h3>
+              <p className="text-gray-600 text-sm">
+                Select the strategy you like and deposit USDC in exchange for token shares
+              </p>
+            </div>
+
+            {/* Step 2: Invest */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+              <div className="text-xs font-semibold text-secondary mb-2">
+                Monitor
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Trade
+              </h3>
+              <p className="text-gray-600 text-sm">
+                The funds are managed by agents to place prediction market positions along set indexes and strategies.
+              </p>
+            </div>
+
+            {/* Step 3: Track */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+              <div className="text-xs font-semibold text-secondary mb-2">
+                Redeem
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Track & withdraw
+              </h3>
+              <p className="text-gray-600 text-sm">
+                After the trading period redeem your shares for the equivalent size of the fund.
+              </p>
+            </div>
+          </div>
+
+
+          {/* Additional Info */}
+          <div className="mt-8 text-center">
+            <p className="text-sm text-gray-600">
+              <span className="font-semibold">No minimums</span> •
+              <span className="font-semibold"> Transparent fees</span> •
+              <span className="font-semibold"> Non-custodial</span>
+            </p>
+          </div>
+        </div>
+      </section>
     </main>
   );
 }

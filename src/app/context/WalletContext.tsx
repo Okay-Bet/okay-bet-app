@@ -16,7 +16,7 @@ interface WalletContextType {
   chainId?: number;
 }
 
-const WalletContext = createContext<WalletContextType | undefined>(undefined);
+export const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -31,7 +31,32 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
       if (activeWallet) {
         try {
           const provider = await activeWallet.getEthereumProvider();
-          const client = createPrivyWalletClient(provider);
+          
+          // Parse chainId properly (same logic as below)
+          let chainId: number | undefined;
+          const rawChainId = activeWallet.chainId;
+          
+          if (rawChainId) {
+            if (typeof rawChainId === 'string') {
+              // Handle CAIP-2 format like "eip155:80002"
+              if (rawChainId.includes(':')) {
+                const parts = rawChainId.split(':');
+                chainId = parseInt(parts[1], 10);
+              }
+              // Handle hex string like "0x13882"
+              else if (rawChainId.startsWith('0x')) {
+                chainId = parseInt(rawChainId, 16);
+              }
+              // Handle regular string number
+              else {
+                chainId = parseInt(rawChainId, 10);
+              }
+            } else {
+              chainId = Number(rawChainId);
+            }
+          }
+          
+          const client = createPrivyWalletClient(provider, chainId, activeWallet.address);
           setWalletClient(client);
         } catch (error) {
           console.error("Failed to setup wallet client:", error);
@@ -45,6 +70,35 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
     setupWalletClient();
   }, [activeWallet]);
 
+  // Parse chainId - it might come as hex string, number, or CAIP-2 format
+  let parsedChainId: number | undefined;
+  
+  if (activeWallet) {
+    // Check different possible chainId locations
+    const rawChainId = activeWallet.chainId ||
+                       walletClient?.chain?.id;
+    
+    if (rawChainId !== undefined && rawChainId !== null) {
+      if (typeof rawChainId === 'string') {
+        // Handle CAIP-2 format like "eip155:80002"
+        if (rawChainId.includes(':')) {
+          const parts = rawChainId.split(':');
+          parsedChainId = parseInt(parts[1], 10);
+        }
+        // Handle hex string like "0x13882"
+        else if (rawChainId.startsWith('0x')) {
+          parsedChainId = parseInt(rawChainId, 16);
+        }
+        // Handle regular string number
+        else {
+          parsedChainId = parseInt(rawChainId, 10);
+        }
+      } else {
+        parsedChainId = Number(rawChainId);
+      }
+    }
+  }
+
   const value: WalletContextType = {
     isConnected: authenticated && !!activeWallet?.address,
     address: activeWallet?.address as `0x${string}` | undefined,
@@ -52,7 +106,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
     walletClient,
     ready,
     authenticated,
-    chainId: activeWallet?.chainId ? Number(activeWallet.chainId) : undefined, // Convert string to number
+    chainId: parsedChainId,
   };
 
   return (

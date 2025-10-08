@@ -1,6 +1,5 @@
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { useState } from "react";
-import { base } from "viem/chains";
 
 interface WalletType {
   address: string;
