@@ -617,6 +617,55 @@ export class SPMCClient {
     });
   }
 
+  /**
+   * Get group index historical data
+   * Returns pre-aggregated weighted index history for all markets in the group
+   */
+  async getGroupIndexHistory(params: {
+    groupId: string;
+    interval?: '1m' | '1h' | '6h' | '1d' | '1w' | 'max';
+    fidelity?: number;
+    startTime?: number;
+    endTime?: number;
+  }): Promise<SPMCResponse<{
+    group_id: string;
+    title: string;
+    history: Array<{ t: number; p: number }>;
+    params: {
+      interval: string | null;
+      fidelity: number | null;
+      start_time: number | null;
+      end_time: number | null;
+    };
+    metadata: {
+      market_count: number;
+      successful_fetches: number;
+      data_points: number;
+      interval: string;
+      fidelity: number;
+      source: string;
+    };
+    timestamp: string;
+  }>> {
+    const queryParams = new URLSearchParams();
+
+    if (params.interval) {
+      queryParams.append('interval', params.interval);
+    }
+    if (params.fidelity) {
+      queryParams.append('fidelity', params.fidelity.toString());
+    }
+    if (params.startTime) {
+      queryParams.append('start_time', params.startTime.toString());
+    }
+    if (params.endTime) {
+      queryParams.append('end_time', params.endTime.toString());
+    }
+
+    const endpoint = `/groups/${params.groupId}/index-value${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.request(endpoint);
+  }
+
   // ============= Legacy/Compatibility Endpoints =============
 
   /**

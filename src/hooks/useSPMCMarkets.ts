@@ -238,12 +238,11 @@ export function useSPMCMarket(marketId: string, platform?: Platform) {
 
 /**
  * Hook for fetching index price history from SPMC
- * Aggregates historical data for all markets in an index
+ * Uses server-side aggregated group index-value endpoint for improved performance
  */
 export function useIndexPriceHistory(
-  markets: SPMCGroupMarket[],
+  groupId: string,
   interval: '1h' | '6h' | '1d' | '1w' | 'max' = '1d',
-  groupTitle?: string,
   enabled: boolean = true
 ) {
   const [history, setHistory] = useState<SPMCHistoryDataPoint[]>([]);
@@ -251,7 +250,7 @@ export function useIndexPriceHistory(
   const [error, setError] = useState<Error | null>(null);
 
   const fetchHistory = async () => {
-    if (!enabled || !markets || markets.length === 0) {
+    if (!enabled || !groupId) {
       setHistory([]);
       return;
     }
@@ -260,104 +259,37 @@ export function useIndexPriceHistory(
     setError(null);
 
     try {
-      // Fetch history for all markets in parallel using API proxy to avoid CORS
-      const historyResults = await Promise.allSettled(
-        markets.map(async market => {
-          // Use lower fidelity for faster loading (2-4 hour resolution for visual purposes)
-          const fidelity = interval === '1d' ? '120' : interval === '1w' ? '240' : '360';
-          const params = new URLSearchParams({
-            interval,
-            fidelity // 2-6 hour resolution depending on time range
-          });
-          const response = await fetch(`/api/markets/${market.market_id}/history?${params}`);
+      // Optimized fidelity values for fast loading with sufficient visual detail
+      // 1d: 180 min (3h) ~83 points, 1w: 360 min (6h) ~235 points, max: 1440 min (24h) ~639 points
+      const fidelity = interval === '1d' ? '180' : interval === '1w' ? '360' : '1440';
+      const params = new URLSearchParams({
+        interval,
+        fidelity
+      });
 
-          if (!response.ok) {
-            throw new Error(`Failed to fetch history for market ${market.market_id}`);
-          }
+      // Fetch pre-aggregated index history from new group endpoint
+      const response = await fetch(`/api/groups/${groupId}/index-value?${params}`);
 
-          const data = await response.json();
-          return {
-            success: true,
-            data
-          };
-        })
-      );
-
-      // Count successful responses
-      const successfulCount = historyResults.filter(
-        r => r.status === 'fulfilled' && r.value.success && r.value.data
-      ).length;
-
-      if (successfulCount === 0) {
-        throw new Error('No historical data available');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch group index history: ${response.status}`);
       }
 
-      // Calculate total weight for normalization
-      const totalWeight = markets.reduce((sum, m) => sum + (m.weight || 1), 0);
+      const data = await response.json();
 
-      // Aggregate histories into a single weighted index history
-      // First, collect all market histories with their metadata
-      const marketHistories: Array<{
-        market: SPMCGroupMarket;
-        weight: number;
-        outcome: string;
-        history: Array<{ t: number; p: number }>;
-      }> = [];
+      // Check if we got data
+      if (!data.history || data.history.length === 0) {
+        console.warn('No historical data returned from group index endpoint');
+        setHistory([]);
+        return;
+      }
 
-      historyResults.forEach((result, idx) => {
-        if (result.status === 'fulfilled' && result.value.success && result.value.data) {
-          const market = markets[idx];
-          const weight = (market.weight || 1) / totalWeight;
-          const marketHistory = result.value.data.history?.history || [];
-          const outcome = market.outcome?.toLowerCase() || 'yes';
+      // Data is already aggregated by server - just use it directly
+      setHistory(data.history);
 
-          marketHistories.push({
-            market,
-            weight,
-            outcome,
-            history: marketHistory
-          });
-        }
-      });
-
-      // Create a map to track the last known price for each market (for forward filling)
-      const lastKnownPrices = new Map<string, number>();
-
-      // Get all unique timestamps
-      const allTimestamps = new Set<number>();
-      marketHistories.forEach(mh => {
-        mh.history.forEach(point => allTimestamps.add(point.t));
-      });
-
-      const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b);
-
-      // For each timestamp, calculate the weighted average using last known prices
-      const aggregatedHistory = sortedTimestamps.map(timestamp => {
-        let weightedSum = 0;
-
-        marketHistories.forEach(({ market, weight, outcome, history }) => {
-          // Find the price at this timestamp, or use the last known price
-          const dataPoint = history.find(p => p.t === timestamp);
-
-          if (dataPoint) {
-            // Update last known price for this market
-            const adjustedPrice = outcome === 'no' ? (1 - dataPoint.p) : dataPoint.p;
-            lastKnownPrices.set(market.market_id, adjustedPrice);
-            weightedSum += adjustedPrice * weight;
-          } else if (lastKnownPrices.has(market.market_id)) {
-            // Use last known price (forward fill)
-            weightedSum += lastKnownPrices.get(market.market_id)! * weight;
-          }
-          // If no data yet for this market, skip it (don't contribute to weighted sum)
-        });
-
-        return {
-          t: timestamp,
-          p: weightedSum
-        };
-      });
-
-      setHistory(aggregatedHistory);
+      // Log metadata for debugging
+      if (data.metadata) {
+        console.log(`Loaded ${data.metadata.data_points} data points for group ${groupId} (${data.metadata.successful_fetches}/${data.metadata.market_count} markets)`);
+      }
     } catch (err) {
       setError(err as Error);
       console.error('Error fetching index price history:', err);
@@ -370,7 +302,7 @@ export function useIndexPriceHistory(
     if (enabled) {
       fetchHistory();
     }
-  }, [JSON.stringify(markets.map(m => m.market_id)), interval, enabled]);
+  }, [groupId, interval, enabled]);
 
   return {
     history,

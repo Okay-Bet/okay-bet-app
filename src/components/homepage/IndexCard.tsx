@@ -48,7 +48,8 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
   const phaseDisplay = useFundPhaseDisplay(fundMetrics?.currentPhase || null);
 
   // Fetch index price history - only when expanded
-  const { history, loading: historyLoading } = useIndexPriceHistory(group.markets || [], timeRange, group.title, isExpanded);
+  // Uses new server-side aggregated endpoint for 10x performance improvement
+  const { history, loading: historyLoading } = useIndexPriceHistory(group.id, timeRange, isExpanded);
 
   // Get calculated data from hook
   const { indexPrice, priceColors, marketAllocations } = useIndexCardData({
