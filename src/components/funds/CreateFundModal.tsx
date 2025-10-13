@@ -38,6 +38,7 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
   const walletContext = useContext(WalletContext);
   const { login } = usePrivy();
   const walletClient = walletContext?.walletClient || null;
+  const address = walletContext?.address;
   const chainId = walletContext?.chainId;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,20 +60,28 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
   });
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [deployedFundAddress, setDeployedFundAddress] = useState<string | null>(null);
 
   // Calculate suggested parameters when group changes
   useEffect(() => {
     if (group && isOpen) {
+      // Auto-populate fund name from group title
+      setFormData(prev => ({
+        ...prev,
+        fundName: group.title,
+      }));
+
       groupFundIntegrationService.calculateSuggestedParameters(group).then(params => {
         setSuggestedParams({
           targetRaise: params.suggestedTargetRaise,
           tradingDays: params.suggestedTradingDays,
           totalLiquidity: params.totalMarketLiquidity,
         });
-        
+
         // Update form with suggestions if user hasn't modified them
         setFormData(prev => ({
           ...prev,
+          fundName: group.title, // Keep fund name synced with group
           targetRaise: params.suggestedTargetRaise.toString(),
           tradingDays: params.suggestedTradingDays.toString(),
         }));
@@ -83,14 +92,12 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
 
-    // Fund Name
-    if (!formData.fundName.trim()) {
-      errors.fundName = 'Fund name is required';
-    }
+    // Fund Name - auto-populated from group, no validation needed
+    // (will use group title if empty)
 
-    // Agent Wallet
-    if (!formData.agentWallet || !/^0x[a-fA-F0-9]{40}$/.test(formData.agentWallet)) {
-      errors.agentWallet = 'Valid wallet address is required';
+    // Agent Wallet - optional, but must be valid if provided
+    if (formData.agentWallet && !/^0x[a-fA-F0-9]{40}$/.test(formData.agentWallet)) {
+      errors.agentWallet = 'Invalid wallet address format';
     }
 
     // Target Raise
@@ -156,18 +163,81 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
       setError(null);
 
       const factoryService = new FundFactoryService();
-      
-      // Check if agent is whitelisted
-      const isWhitelisted = await factoryService.isAgentWhitelisted(formData.agentWallet as `0x${string}`);
-      if (!isWhitelisted) {
-        setError('Agent wallet is not whitelisted. Please contact admin.');
+
+      // Use group title as fund name, fallback to form data
+      const finalFundName = group?.title || formData.fundName || 'Untitled Fund';
+
+      // Use provided agent wallet or deployer's wallet as placeholder
+      // Note: If using deployer wallet, they'll be both manager and agent
+      const finalAgentWallet = formData.agentWallet || address;
+
+      if (!finalAgentWallet) {
+        setError('No agent wallet provided and wallet not connected');
         return;
+      }
+
+      // Check if agent is whitelisted
+      const isWhitelisted = await factoryService.isAgentWhitelisted(finalAgentWallet as `0x${string}`);
+      if (!isWhitelisted) {
+        // Check if current user is the owner
+        let isOwner = false;
+        try {
+          const owner = await factoryService.getOwner();
+          isOwner = owner.toLowerCase() === address?.toLowerCase();
+        } catch (err) {
+          console.log('Could not check owner:', err);
+        }
+
+        if (isOwner) {
+          // User is owner - offer to whitelist themselves
+          const shouldWhitelist = window.confirm(
+            `Your wallet ${address?.slice(0, 6)}...${address?.slice(-4)} is not whitelisted.\n\n` +
+            'You are the contract owner. Would you like to whitelist yourself now?'
+          );
+
+          if (shouldWhitelist) {
+            try {
+              setError('Whitelisting your address...');
+              const hash = await factoryService.whitelistAgent(finalAgentWallet as `0x${string}`, true, walletClient);
+              console.log('Whitelist transaction:', hash);
+
+              // Wait a bit for transaction to be mined
+              await new Promise(resolve => setTimeout(resolve, 3000));
+
+              // Retry the fund creation
+              setError(null);
+              // Continue with fund creation below
+            } catch (whitelistError: any) {
+              setError(`Failed to whitelist: ${whitelistError.message || 'Unknown error'}`);
+              setLoading(false);
+              return;
+            }
+          } else {
+            setLoading(false);
+            return;
+          }
+        } else {
+          // User is not owner
+          if (formData.agentWallet) {
+            setError(
+              `Agent wallet ${finalAgentWallet.slice(0, 6)}...${finalAgentWallet.slice(-4)} is not whitelisted. ` +
+              'Please contact the contract owner to whitelist this address.'
+            );
+          } else {
+            setError(
+              `Your wallet ${address?.slice(0, 6)}...${address?.slice(-4)} is not whitelisted. ` +
+              'Please contact the contract owner to whitelist your address before deploying.'
+            );
+          }
+          setLoading(false);
+          return;
+        }
       }
 
       // Prepare parameters
       const params: CreateFundParams = {
-        fundName: formData.fundName,
-        agentWallet: formData.agentWallet,
+        fundName: finalFundName,
+        agentWallet: finalAgentWallet,
         targetRaise: usdcToWei(parseFloat(formData.targetRaise)),
         tradingDuration: parseInt(formData.tradingDays) * 86400, // Convert days to seconds
         entryFee: percentageToBasisPoints(parseFloat(formData.entryFee)),
@@ -178,9 +248,9 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
 
       // Create fund
       const { hash, fundAddress } = await factoryService.createFund(params, walletClient);
-      
+
       console.log('Fund created successfully!', { hash, fundAddress });
-      
+
       // Link fund to group if group is provided
       if (fundAddress && groupId) {
         try {
@@ -200,12 +270,15 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
           // Don't fail the whole operation if linking fails
         }
       }
-      
-      if (fundAddress && onSuccess) {
-        onSuccess(fundAddress);
+
+      // Show success state with fund address
+      if (fundAddress) {
+        setDeployedFundAddress(fundAddress);
+      } else if (onSuccess) {
+        // Fallback if no fund address returned
+        onSuccess(fundAddress || '');
+        onClose();
       }
-      
-      onClose();
     } catch (err: any) {
       console.error('Error creating fund:', err);
       setError(err.message || 'Failed to create fund');
@@ -216,12 +289,60 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
 
   if (!isOpen) return null;
 
+  // Success state - show deployed fund info
+  if (deployedFundAddress) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-8">
+          <div className="text-center">
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+              <svg className="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Fund Deployed!</h3>
+            <p className="text-gray-600 mb-6">
+              Your investment fund has been successfully deployed on Polygon Amoy
+            </p>
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <p className="text-sm text-gray-600 mb-1">Fund Address</p>
+              <p className="text-xs font-mono text-gray-900 break-all">{deployedFundAddress}</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  if (onSuccess) onSuccess(deployedFundAddress);
+                  setDeployedFundAddress(null);
+                  onClose();
+                }}
+                className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-medium"
+              >
+                View Fund
+              </button>
+              <button
+                onClick={() => {
+                  setDeployedFundAddress(null);
+                  onClose();
+                }}
+                className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6 border-b pb-4">
-            <h2 className="text-2xl font-bold text-gray-900">Create Investment Fund</h2>
+            <h2 className="text-2xl font-bold text-gray-900">
+              {group ? `Deploy Fund for ${group.title}` : 'Create Investment Fund'}
+            </h2>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors duration-200 p-1 hover:bg-gray-100 rounded-full"
@@ -262,53 +383,128 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Fund Name */}
-            <div className="group relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
-                Fund Name
-                {group && (
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                    Set from group
-                  </span>
-                )}
-                <div className="inline-block">
-                  <svg className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {/* Fund Name - Show info but don't show input field when group is set */}
+            {group && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-10">
-                    {group ? 'Fund name is automatically set from the group title and cannot be changed.' : 'Choose a descriptive name for your fund that investors will recognize. This will be displayed publicly.'}
+                  <div>
+                    <p className="text-sm font-medium text-blue-900">Fund Name: {group.title}</p>
+                    <p className="text-xs text-blue-700 mt-0.5">Automatically set from group title</p>
                   </div>
                 </div>
-              </label>
-              <input
-                type="text"
-                value={formData.fundName}
-                onChange={(e) => !group && setFormData({ ...formData, fundName: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-md text-black focus:ring-blue-500 focus:border-blue-500 ${
-                  validationErrors.fundName ? 'border-red-500' : 'border-gray-300'
-                } ${group ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                placeholder="My Investment Fund"
-                disabled={loading || !!group}
-                readOnly={!!group}
-              />
-              {validationErrors.fundName && (
-                <p className="text-red-500 text-xs mt-1">{validationErrors.fundName}</p>
-              )}
-            </div>
+              </div>
+            )}
+
+            {!group && (
+              <div className="group relative">
+                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                  Fund Name
+                  <div className="inline-block">
+                    <svg className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-10">
+                      Choose a descriptive name for your fund that investors will recognize.
+                    </div>
+                  </div>
+                </label>
+                <input
+                  type="text"
+                  value={formData.fundName}
+                  onChange={(e) => setFormData({ ...formData, fundName: e.target.value })}
+                  className={`w-full px-3 py-2 border rounded-md text-black focus:ring-blue-500 focus:border-blue-500 ${
+                    validationErrors.fundName ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="My Investment Fund"
+                  disabled={loading}
+                />
+                {validationErrors.fundName && (
+                  <p className="text-red-500 text-xs mt-1">{validationErrors.fundName}</p>
+                )}
+              </div>
+            )}
 
             {/* Agent Wallet */}
             <div className="group relative">
               <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
                 Agent Wallet Address
+                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Optional</span>
                 <div className="inline-block">
                   <svg className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-10">
-                    The wallet address that will execute trades on behalf of the fund. This address must be whitelisted in the system.
+                  <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-72 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-10">
+                    Recommended: Deploy an AI trading agent for this fund. The agent will automatically execute trades based on your group&apos;s markets. Click &quot;Deploy Agent&quot; below for instructions.
                   </div>
                 </div>
               </label>
+
+              {/* Agent Deployment Helper */}
+              {!formData.agentWallet && group && (
+                <div className="mb-3 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                  <div className="flex items-start gap-2 mb-2">
+                    <svg className="w-5 h-5 text-purple-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-purple-900">Want an AI agent to trade for you?</p>
+                      <p className="text-xs text-purple-700 mt-1">
+                        Deploy an automated trading agent to execute trades based on your group&apos;s allocation
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Download agent config
+                      const config = {
+                        group_id: groupId,
+                        group_name: group.title,
+                        spmc_api_url: process.env.NEXT_PUBLIC_SPMC_URL || 'https://api.spmc.dev',
+                        markets: group.markets?.map(m => ({
+                          platform: m.market_platform,
+                          market_id: m.market_id,
+                          title: m.market_title
+                        })) || [],
+                        trading_config: {
+                          max_position_size: 100,
+                          min_confidence_threshold: 0.7,
+                          unsupervised_mode: false
+                        }
+                      };
+
+                      const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `agent-config-${groupId}.json`;
+                      a.click();
+
+                      // Show deployment instructions
+                      alert(
+                        'Agent Configuration Downloaded!\n\n' +
+                        'Next steps:\n' +
+                        '1. Clone: git clone https://github.com/Okay-Bet/trading-agents\n' +
+                        '2. Copy config file to trading-agents/.env\n' +
+                        '3. Run: ./deploy-phala.sh\n' +
+                        '4. Copy the agent wallet address\n' +
+                        '5. Paste it below and continue deploying fund\n\n' +
+                        'See GitHub for detailed instructions.'
+                      );
+                    }}
+                    className="w-full mt-2 px-3 py-2 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700 transition flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Download Agent Config & View Instructions
+                  </button>
+                </div>
+              )}
+
               <input
                 type="text"
                 value={formData.agentWallet}
@@ -316,11 +512,16 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
                 className={`w-full px-3 py-2 border rounded-md text-black focus:ring-blue-500 focus:border-blue-500 ${
                   validationErrors.agentWallet ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="0x..."
+                placeholder="0x... (leave empty to use your wallet)"
                 disabled={loading}
               />
               {validationErrors.agentWallet && (
                 <p className="text-red-500 text-xs mt-1">{validationErrors.agentWallet}</p>
+              )}
+              {!formData.agentWallet && (
+                <p className="text-blue-600 text-xs mt-1">
+                  Your wallet will be used as both manager and agent
+                </p>
               )}
             </div>
 
