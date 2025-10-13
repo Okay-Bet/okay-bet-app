@@ -284,3 +284,93 @@ export interface SPMCConsolidatedMarket {
   polymarketMarkets?: Record<string, SPMCMarket>;
   limitlessMarkets?: Record<string, SPMCMarket>;
 }
+
+// Agent Types
+export type AgentCharacter = 'pamela' | 'lib-out' | 'chalk-eater' | 'nothing-ever-happens' | 'trumped-up';
+export type DeploymentTarget = 'local' | 'tee';
+export type DeploymentStatus = 'pending' | 'cloning' | 'building' | 'deploying' | 'deployed' | 'ready' | 'failed';
+
+export interface TradingConfig {
+  max_position_size: number; // 1-10000, max $ per position
+  min_confidence_threshold: number; // 0.0-1.0, minimum confidence to trade
+  unsupervised_mode: boolean; // true = auto-trade, false = require approval
+}
+
+export interface SPMCAgent {
+  agent_id: string;
+  group_id: string;
+  agent_character: AgentCharacter;
+  git_tag: string;
+  git_commit_sha: string | null;
+  wallet_address: string | null;
+  telegram_bot_id: string;
+  telegram_chat_id: string | null;
+  deployment_status: DeploymentStatus;
+  deployment_target: DeploymentTarget;
+  tee_endpoint: string | null;
+  local_port: number | null;
+  container_id: string | null;
+  deployed_at: string | null;
+  wallet_retrieved_at: string | null;
+  whitelisted_at: string | null;
+  trading_config: TradingConfig;
+  error_message: string | null;
+}
+
+export interface CreateAgentRequest {
+  group_id: string;
+  agent_character?: AgentCharacter;
+  git_tag: string;
+  deployment_target?: DeploymentTarget;
+  telegram_bot_id: string;
+  telegram_chat_id?: string;
+  trading_config: TradingConfig;
+}
+
+export interface ContainerStats {
+  container_id: string;
+  name: string;
+  status: 'running' | 'exited' | 'paused';
+  created: string;
+  memory_usage_mb: number;
+  memory_limit_mb: number;
+  memory_percent: number;
+  cpu_usage: {
+    total_usage: number;
+    usage_in_kernelmode: number;
+    usage_in_usermode: number;
+  };
+}
+
+export interface AgentDeploymentStatusResponse {
+  agent_id: string;
+  group_id: string;
+  git_tag: string;
+  git_commit_sha: string | null;
+  deployment_status: DeploymentStatus;
+  tee_endpoint: string | null;
+  deployed_at: string | null;
+  error_message: string | null;
+  container_status: ContainerStats | null;
+}
+
+export interface AgentContainerStatusResponse {
+  agent_id: string;
+  group_id: string;
+  deployment_target: DeploymentTarget;
+  deployment_status: DeploymentStatus;
+  git_tag: string;
+  git_commit_sha: string | null;
+  deployed_at: string | null;
+  endpoint: string | null;
+  local_port: number | null;
+  container_id: string | null;
+  container_stats: ContainerStats | null;
+}
+
+export interface AgentLogsResponse {
+  agent_id: string;
+  container_id: string;
+  logs: string;
+  tail: number;
+}
