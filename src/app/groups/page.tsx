@@ -10,8 +10,8 @@ import { CreateFundModal } from '@/components/funds/CreateFundModal';
 import { GroupFundMetadata } from '@/services/funds/groupFundIntegration.service';
 import { InteractivePieChart } from '@/components/groups/InteractivePieChart';
 import { CreateAgentModal } from '@/components/agents/CreateAgentModal';
-import { AgentDeploymentProgress } from '@/components/agents/AgentDeploymentProgress';
 import { AgentStatusCard } from '@/components/agents/AgentStatusCard';
+import { AgentCapacityDisplay } from '@/components/agents/AgentCapacityDisplay';
 import { agentService } from '@/services/spmc/agent.service';
 
 // Market colors for consistent numbering
@@ -129,8 +129,6 @@ function GroupsPageContent() {
   // Agent deployment states
   const [showCreateAgentModal, setShowCreateAgentModal] = useState(false);
   const [selectedGroupForAgent, setSelectedGroupForAgent] = useState<SPMCGroup | null>(null);
-  const [showAgentDeploymentProgress, setShowAgentDeploymentProgress] = useState(false);
-  const [deployingAgentId, setDeployingAgentId] = useState<string | null>(null);
 
   // Load all groups
   const loadGroups = async () => {
@@ -523,44 +521,9 @@ function GroupsPageContent() {
   // Handle agent creation success
   const handleAgentCreated = async (agentId: string) => {
     setShowCreateAgentModal(false);
-    setDeployingAgentId(agentId);
 
-    // Start deployment
-    const response = await agentService.deployAgent(agentId);
-    if (response.success) {
-      setShowAgentDeploymentProgress(true);
-    } else {
-      setError(`Failed to start deployment: ${response.error?.message}`);
-      setDeployingAgentId(null);
-    }
-  };
-
-  // Handle agent deployment complete
-  const handleAgentDeploymentComplete = () => {
-    setShowAgentDeploymentProgress(false);
-    setDeployingAgentId(null);
-    setSuccessMessage('Agent deployed successfully!');
-    loadGroups(); // Reload to get updated agent status
-  };
-
-  // Handle agent deployment error
-  const handleAgentDeploymentError = (errorMsg: string) => {
-    setShowAgentDeploymentProgress(false);
-    setDeployingAgentId(null);
-    setError(errorMsg);
-  };
-
-  // Handle agent deployment retry
-  const handleAgentDeploymentRetry = () => {
-    // Close the deployment progress modal
-    setShowAgentDeploymentProgress(false);
-    setDeployingAgentId(null);
-
-    // Reload groups to show that agent was deleted
+    // Reload groups to show the new agent
     loadGroups();
-
-    // Show success message
-    setSuccessMessage('Agent removed. You can now create a new agent.');
   };
 
   // Check if group has an agent
@@ -690,11 +653,13 @@ function GroupsPageContent() {
         {/* All Groups Tab */}
         {activeTab === 'all' && (
           <div>
-            <div className="mb-4 flex justify-between items-center">
-              <div className="flex items-center gap-4">
+            <div className="mb-4 flex justify-between items-center flex-wrap gap-4">
+              <div className="flex items-center gap-4 flex-wrap">
                 <p className="text-sm font-medium text-gray-800">
                   {groups.length} group{groups.length !== 1 ? 's' : ''} total
                 </p>
+                {/* Agent Capacity Display */}
+                <AgentCapacityDisplay variant="compact" showQueue={true} />
                 {/* Fund Status Filter */}
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-600">Filter:</span>
@@ -1570,16 +1535,6 @@ function GroupsPageContent() {
           groupId={selectedGroupForAgent.id}
           groupName={selectedGroupForAgent.title}
           onSuccess={handleAgentCreated}
-        />
-      )}
-
-      {/* Agent Deployment Progress Modal */}
-      {showAgentDeploymentProgress && deployingAgentId && (
-        <AgentDeploymentProgress
-          agentId={deployingAgentId}
-          onComplete={handleAgentDeploymentComplete}
-          onError={handleAgentDeploymentError}
-          onRetry={handleAgentDeploymentRetry}
         />
       )}
 

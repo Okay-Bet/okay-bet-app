@@ -3,8 +3,9 @@ import { usePrivy } from '@privy-io/react-auth';
 import { WalletContext } from '@/app/context/WalletContext';
 import { FundFactoryService } from '@/services/funds/fundFactory.service';
 import { groupFundIntegrationService } from '@/services/funds/groupFundIntegration.service';
+import { agentService } from '@/services/spmc/agent.service';
 import { SPMCGroup } from '@/services/spmc/types';
-import { 
+import {
   CreateFundParams,
   usdcToWei,
   percentageToBasisPoints,
@@ -61,8 +62,9 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [deployedFundAddress, setDeployedFundAddress] = useState<string | null>(null);
+  const [agentWalletStatus, setAgentWalletStatus] = useState<'checking' | 'ready' | 'generating' | 'none' | 'error'>('none');
 
-  // Calculate suggested parameters when group changes
+  // Calculate suggested parameters and check agent status when group changes
   useEffect(() => {
     if (group && isOpen) {
       // Auto-populate fund name from group title
@@ -71,6 +73,7 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
         fundName: group.title,
       }));
 
+      // Get suggested parameters
       groupFundIntegrationService.calculateSuggestedParameters(group).then(params => {
         setSuggestedParams({
           targetRaise: params.suggestedTargetRaise,
@@ -86,8 +89,37 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
           tradingDays: params.suggestedTradingDays.toString(),
         }));
       });
+
+      // Check if group has an agent and get wallet address
+      if (groupId) {
+        setAgentWalletStatus('checking');
+        agentService.getAgentByGroupId(groupId).then(response => {
+          if (response.success && response.data) {
+            const agent = response.data;
+            if (agent.wallet_address) {
+              // Agent has wallet - auto-fill it
+              setFormData(prev => ({
+                ...prev,
+                agentWallet: agent.wallet_address || ''
+              }));
+              setAgentWalletStatus('ready');
+            } else if (agent.deployment_status === 'ready' || agent.deployment_status === 'deployed') {
+              // Agent deployed but wallet not yet generated
+              setAgentWalletStatus('generating');
+            } else {
+              // Agent exists but not deployed yet
+              setAgentWalletStatus('none');
+            }
+          } else {
+            // No agent found for this group
+            setAgentWalletStatus('none');
+          }
+        }).catch(() => {
+          setAgentWalletStatus('error');
+        });
+      }
     }
-  }, [group, isOpen]);
+  }, [group, isOpen, groupId]);
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
@@ -442,66 +474,40 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
                 </div>
               </label>
 
-              {/* Agent Deployment Helper */}
-              {!formData.agentWallet && group && (
-                <div className="mb-3 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                  <div className="flex items-start gap-2 mb-2">
-                    <svg className="w-5 h-5 text-purple-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              {/* Agent Status Messages */}
+              {agentWalletStatus === 'ready' && formData.agentWallet && (
+                <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <p className="text-sm font-semibold text-green-900">Agent wallet ready and loaded!</p>
+                  </div>
+                </div>
+              )}
+
+              {agentWalletStatus === 'generating' && (
+                <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-yellow-600 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
                     <div className="flex-1">
-                      <p className="text-sm font-semibold text-purple-900">Want an AI agent to trade for you?</p>
-                      <p className="text-xs text-purple-700 mt-1">
-                        Deploy an automated trading agent to execute trades based on your group&apos;s allocation
-                      </p>
+                      <p className="text-sm font-semibold text-yellow-900">Agent wallet is being generated...</p>
+                      <p className="text-xs text-yellow-700 mt-0.5">This takes about 5 minutes after deployment. Please wait or check back later.</p>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      // Download agent config
-                      const config = {
-                        group_id: groupId,
-                        group_name: group.title,
-                        spmc_api_url: process.env.NEXT_PUBLIC_SPMC_URL || 'https://api.spmc.dev',
-                        markets: group.markets?.map(m => ({
-                          platform: m.market_platform,
-                          market_id: m.market_id,
-                          title: m.market_title
-                        })) || [],
-                        trading_config: {
-                          max_position_size: 100,
-                          min_confidence_threshold: 0.7,
-                          unsupervised_mode: false
-                        }
-                      };
+                </div>
+              )}
 
-                      const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `agent-config-${groupId}.json`;
-                      a.click();
-
-                      // Show deployment instructions
-                      alert(
-                        'Agent Configuration Downloaded!\n\n' +
-                        'Next steps:\n' +
-                        '1. Clone: git clone https://github.com/Okay-Bet/trading-agents\n' +
-                        '2. Copy config file to trading-agents/.env\n' +
-                        '3. Run: ./deploy-phala.sh\n' +
-                        '4. Copy the agent wallet address\n' +
-                        '5. Paste it below and continue deploying fund\n\n' +
-                        'See GitHub for detailed instructions.'
-                      );
-                    }}
-                    className="w-full mt-2 px-3 py-2 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700 transition flex items-center justify-center gap-2"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              {agentWalletStatus === 'none' && !formData.agentWallet && (
+                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Download Agent Config & View Instructions
-                  </button>
+                    <p className="text-sm text-blue-900">No agent deployed for this group. Deploy one from the groups page or enter a wallet address manually.</p>
+                  </div>
                 </div>
               )}
 

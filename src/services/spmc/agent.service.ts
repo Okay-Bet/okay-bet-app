@@ -9,6 +9,9 @@ import {
   AgentDeploymentStatusResponse,
   AgentContainerStatusResponse,
   AgentLogsResponse,
+  CapacityInfo,
+  QueueStatus,
+  DiskUsageInfo,
   SPMCResponse
 } from './types';
 
@@ -190,6 +193,45 @@ class AgentService {
   }
 
   /**
+   * Get agent by group ID
+   * Uses the endpoint GET /api/v1/groups/{group_id}/agent
+   */
+  async getAgentByGroupId(groupId: string): Promise<SPMCResponse<SPMCAgent>> {
+    try {
+      const response = await fetch(`${this.baseUrl}/groups/${groupId}/agent`);
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+        return {
+          success: false,
+          error: {
+            status: response.status,
+            message: error.detail || `Failed to get agent for group: ${response.statusText}`
+          },
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      const data = await response.json();
+      return {
+        success: true,
+        data,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error getting agent by group ID:', error);
+      return {
+        success: false,
+        error: {
+          status: 500,
+          message: error instanceof Error ? error.message : 'Unknown error getting agent by group ID'
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
+
+  /**
    * Get deployment status of an agent
    */
   async getDeploymentStatus(agentId: string): Promise<SPMCResponse<AgentDeploymentStatusResponse>> {
@@ -345,20 +387,26 @@ class AgentService {
 
   /**
    * Delete an agent (does not stop running containers)
+   * Uses API proxy because SPMC CORS doesn't allow DELETE method yet
    */
-  async deleteAgent(agentId: string): Promise<SPMCResponse<void>> {
+  async deleteAgent(agentId: string, cleanupResources: boolean = true): Promise<SPMCResponse<void>> {
     try {
-      const response = await fetch(`${this.baseUrl}/agents/${agentId}`, {
+      const params = new URLSearchParams();
+      if (cleanupResources) {
+        params.append('cleanup_resources', 'true');
+      }
+
+      const response = await fetch(`/api/agents/${agentId}?${params.toString()}`, {
         method: 'DELETE',
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
         return {
           success: false,
           error: {
             status: response.status,
-            message: error.detail || `Failed to delete agent: ${response.statusText}`
+            message: error.error || error.detail || `Failed to delete agent: ${response.statusText}`
           },
           timestamp: new Date().toISOString()
         };
@@ -375,6 +423,120 @@ class AgentService {
         error: {
           status: 500,
           message: error instanceof Error ? error.message : 'Unknown error deleting agent'
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
+
+  /**
+   * Get agent capacity information
+   */
+  async getCapacity(): Promise<SPMCResponse<CapacityInfo>> {
+    try {
+      const response = await fetch(`${this.baseUrl}/agents/capacity`);
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+        return {
+          success: false,
+          error: {
+            status: response.status,
+            message: error.detail || `Failed to get capacity: ${response.statusText}`
+          },
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      const data = await response.json();
+      return {
+        success: true,
+        data,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error getting capacity:', error);
+      return {
+        success: false,
+        error: {
+          status: 500,
+          message: error instanceof Error ? error.message : 'Unknown error getting capacity'
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
+
+  /**
+   * Get deployment queue status
+   */
+  async getQueueStatus(): Promise<SPMCResponse<QueueStatus>> {
+    try {
+      const response = await fetch(`${this.baseUrl}/agents/queue-status`);
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+        return {
+          success: false,
+          error: {
+            status: response.status,
+            message: error.detail || `Failed to get queue status: ${response.statusText}`
+          },
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      const data = await response.json();
+      return {
+        success: true,
+        data,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error getting queue status:', error);
+      return {
+        success: false,
+        error: {
+          status: 500,
+          message: error instanceof Error ? error.message : 'Unknown error getting queue status'
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
+
+  /**
+   * Get Docker disk usage information (local deployments only)
+   */
+  async getDiskUsage(): Promise<SPMCResponse<DiskUsageInfo>> {
+    try {
+      const response = await fetch(`${this.baseUrl}/agents/disk-usage`);
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+        return {
+          success: false,
+          error: {
+            status: response.status,
+            message: error.detail || `Failed to get disk usage: ${response.statusText}`
+          },
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      const data = await response.json();
+      return {
+        success: true,
+        data,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error getting disk usage:', error);
+      return {
+        success: false,
+        error: {
+          status: 500,
+          message: error instanceof Error ? error.message : 'Unknown error getting disk usage'
         },
         timestamp: new Date().toISOString()
       };

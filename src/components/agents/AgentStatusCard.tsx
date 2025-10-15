@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { DeploymentStatus, DeploymentTarget } from '@/services/spmc/types';
+import { DeploymentStatus, DeploymentTarget, TradingStrategy, AgentTradingConfig } from '@/services/spmc/types';
 import { agentService } from '@/services/spmc/agent.service';
 
 interface AgentStatusCardProps {
@@ -12,6 +12,7 @@ interface AgentStatusCardProps {
 
 const statusColors: Record<DeploymentStatus, string> = {
   pending: 'bg-gray-100 text-gray-700',
+  queued: 'bg-gray-100 text-gray-700',
   cloning: 'bg-blue-100 text-blue-700',
   building: 'bg-yellow-100 text-yellow-700',
   deploying: 'bg-orange-100 text-orange-700',
@@ -22,6 +23,7 @@ const statusColors: Record<DeploymentStatus, string> = {
 
 const statusLabels: Record<DeploymentStatus, string> = {
   pending: 'Pending',
+  queued: 'Queued',
   cloning: 'Cloning',
   building: 'Building',
   deploying: 'Deploying',
@@ -39,6 +41,7 @@ export function AgentStatusCard({ agentId, groupId, onRefresh }: AgentStatusCard
   const [memoryPercent, setMemoryPercent] = useState<number | null>(null);
   const [containerStatus, setContainerStatus] = useState<string | null>(null);
   const [deployedAt, setDeployedAt] = useState<string | null>(null);
+  const [tradingConfig, setTradingConfig] = useState<AgentTradingConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showLogs, setShowLogs] = useState(false);
@@ -47,6 +50,7 @@ export function AgentStatusCard({ agentId, groupId, onRefresh }: AgentStatusCard
 
   const fetchStatus = async () => {
     try {
+      // Get container status for resource usage
       const response = await agentService.getContainerStatus(agentId);
 
       if (response.success && response.data) {
@@ -61,11 +65,14 @@ export function AgentStatusCard({ agentId, groupId, onRefresh }: AgentStatusCard
           setContainerStatus(response.data.container_stats.status);
         }
 
-        // Try to get wallet address from deployment status
-        const deployStatus = await agentService.getDeploymentStatus(agentId);
-        if (deployStatus.success && deployStatus.data) {
-          // Note: wallet_address is not in the deployment status response
-          // We'll need to get it from the full agent object if needed
+        // Get full agent data to fetch wallet address and trading config
+        // Only fetch when agent is deployed/ready (otherwise we'll get 404)
+        if (groupId && (response.data.deployment_status === 'ready' || response.data.deployment_status === 'deployed')) {
+          const agentResponse = await agentService.getAgentByGroupId(groupId);
+          if (agentResponse.success && agentResponse.data) {
+            setWalletAddress(agentResponse.data.wallet_address);
+            setTradingConfig(agentResponse.data.trading_config);
+          }
         }
       } else {
         setError(response.error?.message || 'Failed to load agent status');
@@ -201,6 +208,40 @@ export function AgentStatusCard({ agentId, groupId, onRefresh }: AgentStatusCard
       </div>
 
       <div className="space-y-2 text-xs">
+        {/* Trading Strategy */}
+        {tradingConfig && (
+          <div className="flex justify-between items-center pb-2 border-b border-gray-200">
+            <span className="text-gray-600">Strategy:</span>
+            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+              tradingConfig.trading_strategy === 'spmc_index'
+                ? 'bg-purple-100 text-purple-700'
+                : 'bg-blue-100 text-blue-700'
+            }`}>
+              {tradingConfig.trading_strategy === 'spmc_index' ? 'Index Following' : 'Custom AI Model'}
+            </span>
+          </div>
+        )}
+
+        {/* Index strategy details */}
+        {tradingConfig?.trading_strategy === 'spmc_index' && tradingConfig.spmc_index_id && (
+          <div className="space-y-1 pb-2 border-b border-gray-200">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Index ID:</span>
+              <span className="font-mono text-xs text-gray-900 truncate max-w-[120px]" title={tradingConfig.spmc_index_id}>
+                {tradingConfig.spmc_index_id.slice(0, 8)}...
+              </span>
+            </div>
+            {tradingConfig.index_rebalance_day && tradingConfig.index_rebalance_hour !== undefined && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Rebalance:</span>
+                <span className="font-medium text-gray-900">
+                  {tradingConfig.index_rebalance_day}s {tradingConfig.index_rebalance_hour}:00 UTC
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex justify-between">
           <span className="text-gray-600">Deployment:</span>
           <span className="font-medium text-gray-900">
@@ -223,6 +264,25 @@ export function AgentStatusCard({ agentId, groupId, onRefresh }: AgentStatusCard
             </span>
           </div>
         )}
+
+        {/* Wallet Address */}
+        <div className="flex justify-between items-center">
+          <span className="text-gray-600">Wallet:</span>
+          {walletAddress ? (
+            <span className="font-mono text-xs text-gray-900 truncate max-w-[150px]" title={walletAddress}>
+              {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+            </span>
+          ) : status === 'ready' || status === 'deployed' ? (
+            <span className="text-xs text-yellow-600 font-medium flex items-center gap-1">
+              <svg className="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Generating...
+            </span>
+          ) : (
+            <span className="text-xs text-gray-500">Pending deployment</span>
+          )}
+        </div>
 
         {deploymentTarget === 'local' && containerStatus && (
           <>

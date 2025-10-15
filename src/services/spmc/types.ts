@@ -288,13 +288,27 @@ export interface SPMCConsolidatedMarket {
 // Agent Types
 export type AgentCharacter = 'pamela' | 'lib-out' | 'chalk-eater' | 'nothing-ever-happens' | 'trumped-up';
 export type DeploymentTarget = 'local' | 'tee';
-export type DeploymentStatus = 'pending' | 'cloning' | 'building' | 'deploying' | 'deployed' | 'ready' | 'failed';
+export type DeploymentStatus = 'pending' | 'queued' | 'cloning' | 'building' | 'deploying' | 'deployed' | 'ready' | 'failed';
+export type TradingStrategy = 'custom_model' | 'spmc_index';
+export type RebalanceDay = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
 
-export interface TradingConfig {
-  max_position_size: number; // 1-10000, max $ per position
-  min_confidence_threshold: number; // 0.0-1.0, minimum confidence to trade
-  unsupervised_mode: boolean; // true = auto-trade, false = require approval
+// Trading configuration - supports both custom model and index strategies
+export interface AgentTradingConfig {
+  trading_strategy: TradingStrategy;
+
+  // Custom model strategy fields (optional, used when trading_strategy = 'custom_model')
+  max_position_size?: number; // 1-10000, max $ per position
+  min_confidence_threshold?: number; // 0.0-1.0, minimum confidence to trade
+  unsupervised_mode?: boolean; // true = auto-trade, false = require approval
+
+  // SPMC index strategy fields (required when trading_strategy = 'spmc_index')
+  spmc_index_id?: string; // Group ID to use as index
+  index_rebalance_day?: RebalanceDay; // Day of week to rebalance
+  index_rebalance_hour?: number; // Hour (0-23) to rebalance
 }
+
+// Legacy type alias for backward compatibility
+export type TradingConfig = AgentTradingConfig;
 
 export interface SPMCAgent {
   agent_id: string;
@@ -373,4 +387,29 @@ export interface AgentLogsResponse {
   container_id: string;
   logs: string;
   tail: number;
+}
+
+export interface CapacityInfo {
+  active_agents: number;
+  max_agents: number;
+  available_slots: number;
+  at_capacity: boolean;
+  active_agent_characters: AgentCharacter[];
+}
+
+export interface QueueStatus {
+  queue_length: number;
+  is_deploying: boolean;
+  current_deployment: {
+    agent_id: string;
+    started_at: string;
+  } | null;
+}
+
+export interface DiskUsageInfo {
+  images_size: string;
+  containers_size: string;
+  volumes_size: string;
+  total_size: string;
+  total_reclaimable: string;
 }

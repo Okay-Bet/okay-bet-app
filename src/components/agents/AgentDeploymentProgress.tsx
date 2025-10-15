@@ -11,10 +11,11 @@ interface AgentDeploymentProgressProps {
   onRetry?: () => void;
 }
 
-const deploymentStages: DeploymentStatus[] = ['pending', 'cloning', 'building', 'deploying', 'deployed', 'ready'];
+const deploymentStages: DeploymentStatus[] = ['pending', 'queued', 'cloning', 'building', 'deploying', 'deployed', 'ready'];
 
 const stageLabels: Record<DeploymentStatus, string> = {
   pending: 'Initializing...',
+  queued: 'Queued for deployment...',
   cloning: 'Cloning repository...',
   building: 'Building Docker image...',
   deploying: 'Deploying container...',
@@ -25,6 +26,7 @@ const stageLabels: Record<DeploymentStatus, string> = {
 
 const stageIcons: Record<DeploymentStatus, string> = {
   pending: '⏳',
+  queued: '📋',
   cloning: '📦',
   building: '🔨',
   deploying: '🚀',
@@ -242,7 +244,7 @@ export function AgentDeploymentProgress({ agentId, onComplete, onError, onRetry 
 
                   {/* Estimated Time */}
                   <div className="mt-4 text-xs text-gray-500">
-                    Estimated total time: 3-4 minutes
+                    Estimated total time: 16-20 minutes
                   </div>
                 </>
               )}
