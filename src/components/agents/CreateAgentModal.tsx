@@ -70,6 +70,13 @@ export function CreateAgentModal({ isOpen, onClose, groupId, groupName, onSucces
     e.preventDefault();
     setError(null);
 
+    // Validate character config exists
+    const characterConfig = AGENT_CONFIGS[agentCharacter];
+    if (!characterConfig) {
+      setError(`Invalid agent character: ${agentCharacter}`);
+      return;
+    }
+
     // Capacity validation - only block if at capacity AND trying to deploy a NEW agent
     // If character is already deployed (!canDeployCharacter), we'll try to create anyway
     // and let the server error tell us the agent ID for redeployment
@@ -86,14 +93,14 @@ export function CreateAgentModal({ isOpen, onClose, groupId, groupName, onSucces
       const createResponse = await agentService.createAgent({
         group_id: groupId,
         agent_character: agentCharacter,
-        git_tag: AGENT_CONFIGS[agentCharacter].defaultGitTag,
+        git_tag: characterConfig.defaultGitTag,
         deployment_target: deploymentTarget,
         // Server will use defaults for telegram_bot_id, trading_config, etc.
         telegram_bot_id: '', // Server assigns
         trading_config: {
-          trading_strategy: AGENT_CONFIGS[agentCharacter].strategy === 'Index Following' ? 'spmc_index' : 'custom_model',
+          trading_strategy: characterConfig.strategy === 'Index Following' ? 'spmc_index' : 'custom_model',
           // Server will fill in strategy-specific defaults
-          ...(AGENT_CONFIGS[agentCharacter].strategy === 'Index Following' ? {
+          ...(characterConfig.strategy === 'Index Following' ? {
             spmc_index_id: groupId, // Use current group as index
             index_rebalance_day: 'MONDAY',
             index_rebalance_hour: 9
@@ -155,6 +162,13 @@ export function CreateAgentModal({ isOpen, onClose, groupId, groupName, onSucces
   const handleRedeployConfirm = async () => {
     if (!existingAgentId) return;
 
+    // Validate character config exists
+    const characterConfig = AGENT_CONFIGS[agentCharacter];
+    if (!characterConfig) {
+      setError(`Invalid agent character: ${agentCharacter}`);
+      return;
+    }
+
     setShowRedeployConfirm(false);
     setIsCreating(true);
     setError(null);
@@ -176,12 +190,12 @@ export function CreateAgentModal({ isOpen, onClose, groupId, groupName, onSucces
       const createResponse = await agentService.createAgent({
         group_id: groupId,
         agent_character: agentCharacter,
-        git_tag: AGENT_CONFIGS[agentCharacter].defaultGitTag,
+        git_tag: characterConfig.defaultGitTag,
         deployment_target: deploymentTarget,
         telegram_bot_id: '',
         trading_config: {
-          trading_strategy: AGENT_CONFIGS[agentCharacter].strategy === 'Index Following' ? 'spmc_index' : 'custom_model',
-          ...(AGENT_CONFIGS[agentCharacter].strategy === 'Index Following' ? {
+          trading_strategy: characterConfig.strategy === 'Index Following' ? 'spmc_index' : 'custom_model',
+          ...(characterConfig.strategy === 'Index Following' ? {
             spmc_index_id: groupId,
             index_rebalance_day: 'MONDAY',
             index_rebalance_hour: 9
@@ -265,7 +279,7 @@ export function CreateAgentModal({ isOpen, onClose, groupId, groupName, onSucces
                   </h3>
                   <div className="mt-2">
                     <p className="text-sm text-gray-600">
-                      The <strong>{AGENT_CONFIGS[agentCharacter].label}</strong> agent is already deployed.
+                      The <strong>{AGENT_CONFIGS[agentCharacter]?.label || agentCharacter}</strong> agent is already deployed.
                     </p>
                     <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                       <p className="text-sm text-blue-900 font-semibold mb-2">What will happen:</p>
@@ -540,7 +554,7 @@ export function CreateAgentModal({ isOpen, onClose, groupId, groupName, onSucces
                           <p className="font-semibold mb-1">Agent Configuration</p>
                           <ul className="space-y-1 text-blue-800">
                             <li>• Telegram notifications, API keys, and trading parameters are pre-configured on the server</li>
-                            <li>• {AGENT_CONFIGS[agentCharacter].strategy === 'Index Following'
+                            <li>• {AGENT_CONFIGS[agentCharacter]?.strategy === 'Index Following'
                               ? 'This agent will automatically rebalance to match the group\'s market allocation'
                               : 'This agent will use AI to make trading decisions based on market analysis'}</li>
                             <li>• Deployment takes 16-20 minutes to complete</li>
