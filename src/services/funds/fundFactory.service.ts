@@ -247,21 +247,6 @@ export class FundFactoryService {
     }
   }
 
-  // Get contract owner
-  async getOwner(): Promise<Address> {
-    try {
-      const owner = await this.publicClient.readContract({
-        address: this.factoryAddress,
-        abi: FUND_FACTORY_ABI,
-        functionName: 'owner'
-      }) as Address;
-
-      return owner;
-    } catch (error) {
-      console.error('Error fetching owner:', error);
-      throw error;
-    }
-  }
 
   // Get protocol fee
   async getProtocolFee(): Promise<number> {

@@ -276,7 +276,7 @@ export function CreateAgentModal({ isOpen, onClose, groupId, groupName, onSucces
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="text-blue-600 font-bold">2.</span>
-                          <span>A new agent will be created and deployed for "{groupName}"</span>
+                          <span>A new agent will be created and deployed for &quot;{groupName}&quot;</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="text-blue-600 font-bold">3.</span>
@@ -380,7 +380,7 @@ export function CreateAgentModal({ isOpen, onClose, groupId, groupName, onSucces
                   onClick={handleCloseSuccessMessage}
                   className="w-full px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-medium"
                 >
-                  Got it - I'll check back later
+                  Got it - I&apos;ll check back later
                 </button>
               </div>
             </div>
@@ -481,7 +481,7 @@ export function CreateAgentModal({ isOpen, onClose, groupId, groupName, onSucces
                         })}
                       </div>
                       <p className="mt-2 text-xs text-gray-500">
-                        Agent will trade on the "{groupName}" group using its pre-configured strategy
+                        Agent will trade on the &quot;{groupName}&quot; group using its pre-configured strategy
                       </p>
                     </div>
 

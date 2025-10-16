@@ -5,6 +5,7 @@ import { FundFactoryService } from '@/services/funds/fundFactory.service';
 import { groupFundIntegrationService } from '@/services/funds/groupFundIntegration.service';
 import { agentService } from '@/services/spmc/agent.service';
 import { SPMCGroup } from '@/services/spmc/types';
+import { AgentSelector } from '@/components/agents/AgentSelector';
 import {
   CreateFundParams,
   usdcToWei,
@@ -63,6 +64,8 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [deployedFundAddress, setDeployedFundAddress] = useState<string | null>(null);
   const [agentWalletStatus, setAgentWalletStatus] = useState<'checking' | 'ready' | 'generating' | 'none' | 'error'>('none');
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [useAgentSelector, setUseAgentSelector] = useState(true);
 
   // Calculate suggested parameters and check agent status when group changes
   useEffect(() => {
@@ -90,14 +93,15 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
         }));
       });
 
-      // Check if group has an agent and get wallet address
+      // Check if group has an agent and pre-select it
       if (groupId) {
         setAgentWalletStatus('checking');
         agentService.getAgentByGroupId(groupId).then(response => {
           if (response.success && response.data) {
             const agent = response.data;
-            if (agent.wallet_address) {
-              // Agent has wallet - auto-fill it
+            if (agent.wallet_address && agent.deployment_status === 'ready') {
+              // Agent has wallet and is ready - pre-select it
+              setSelectedAgentId(agent.agent_id);
               setFormData(prev => ({
                 ...prev,
                 agentWallet: agent.wallet_address || ''
@@ -211,59 +215,19 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
       // Check if agent is whitelisted
       const isWhitelisted = await factoryService.isAgentWhitelisted(finalAgentWallet as `0x${string}`);
       if (!isWhitelisted) {
-        // Check if current user is the owner
-        let isOwner = false;
-        try {
-          const owner = await factoryService.getOwner();
-          isOwner = owner.toLowerCase() === address?.toLowerCase();
-        } catch (err) {
-          console.log('Could not check owner:', err);
-        }
-
-        if (isOwner) {
-          // User is owner - offer to whitelist themselves
-          const shouldWhitelist = window.confirm(
-            `Your wallet ${address?.slice(0, 6)}...${address?.slice(-4)} is not whitelisted.\n\n` +
-            'You are the contract owner. Would you like to whitelist yourself now?'
+        if (formData.agentWallet) {
+          setError(
+            `Agent wallet ${finalAgentWallet.slice(0, 6)}...${finalAgentWallet.slice(-4)} is not whitelisted. ` +
+            'Please contact the contract owner to whitelist this address.'
           );
-
-          if (shouldWhitelist) {
-            try {
-              setError('Whitelisting your address...');
-              const hash = await factoryService.whitelistAgent(finalAgentWallet as `0x${string}`, true, walletClient);
-              console.log('Whitelist transaction:', hash);
-
-              // Wait a bit for transaction to be mined
-              await new Promise(resolve => setTimeout(resolve, 3000));
-
-              // Retry the fund creation
-              setError(null);
-              // Continue with fund creation below
-            } catch (whitelistError: any) {
-              setError(`Failed to whitelist: ${whitelistError.message || 'Unknown error'}`);
-              setLoading(false);
-              return;
-            }
-          } else {
-            setLoading(false);
-            return;
-          }
         } else {
-          // User is not owner
-          if (formData.agentWallet) {
-            setError(
-              `Agent wallet ${finalAgentWallet.slice(0, 6)}...${finalAgentWallet.slice(-4)} is not whitelisted. ` +
-              'Please contact the contract owner to whitelist this address.'
-            );
-          } else {
-            setError(
-              `Your wallet ${address?.slice(0, 6)}...${address?.slice(-4)} is not whitelisted. ` +
-              'Please contact the contract owner to whitelist your address before deploying.'
-            );
-          }
-          setLoading(false);
-          return;
+          setError(
+            `Your wallet ${address?.slice(0, 6)}...${address?.slice(-4)} is not whitelisted. ` +
+            'Please contact the contract owner to whitelist your address before deploying.'
+          );
         }
+        setLoading(false);
+        return;
       }
 
       // Prepare parameters
@@ -459,75 +423,82 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
               </div>
             )}
 
-            {/* Agent Wallet */}
-            <div className="group relative">
+            {/* Agent Selection */}
+            <div className="space-y-3">
               <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
-                Agent Wallet Address
+                Trading Agent
                 <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Optional</span>
-                <div className="inline-block">
+                <div className="inline-block group">
                   <svg className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-72 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-10">
-                    Recommended: Deploy an AI trading agent for this fund. The agent will automatically execute trades based on your group&apos;s markets. Click &quot;Deploy Agent&quot; below for instructions.
+                    Select a deployed agent to manage this fund&apos;s trades, or enter a wallet address manually.
                   </div>
                 </div>
               </label>
 
-              {/* Agent Status Messages */}
-              {agentWalletStatus === 'ready' && formData.agentWallet && (
-                <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <p className="text-sm font-semibold text-green-900">Agent wallet ready and loaded!</p>
-                  </div>
-                </div>
-              )}
+              {/* Toggle between agent selector and manual input */}
+              <div className="flex items-center gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => setUseAgentSelector(true)}
+                  className={`px-3 py-1 text-sm rounded transition ${
+                    useAgentSelector
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                  disabled={loading}
+                >
+                  Select Agent
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUseAgentSelector(false);
+                    setSelectedAgentId(null);
+                  }}
+                  className={`px-3 py-1 text-sm rounded transition ${
+                    !useAgentSelector
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                  disabled={loading}
+                >
+                  Manual Input
+                </button>
+              </div>
 
-              {agentWalletStatus === 'generating' && (
-                <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <svg className="w-5 h-5 text-yellow-600 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-yellow-900">Agent wallet is being generated...</p>
-                      <p className="text-xs text-yellow-700 mt-0.5">This takes about 5 minutes after deployment. Please wait or check back later.</p>
-                    </div>
-                  </div>
+              {useAgentSelector ? (
+                <AgentSelector
+                  selectedAgentId={selectedAgentId}
+                  onSelect={(agentId, walletAddress) => {
+                    setSelectedAgentId(agentId);
+                    setFormData({ ...formData, agentWallet: walletAddress || '' });
+                  }}
+                  excludeGroupId={groupId}
+                />
+              ) : (
+                <div>
+                  <input
+                    type="text"
+                    value={formData.agentWallet}
+                    onChange={(e) => setFormData({ ...formData, agentWallet: e.target.value })}
+                    className={`w-full px-3 py-2 border rounded-md text-black focus:ring-blue-500 focus:border-blue-500 ${
+                      validationErrors.agentWallet ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="0x... (leave empty to use your wallet)"
+                    disabled={loading}
+                  />
+                  {validationErrors.agentWallet && (
+                    <p className="text-red-500 text-xs mt-1">{validationErrors.agentWallet}</p>
+                  )}
+                  {!formData.agentWallet && (
+                    <p className="text-blue-600 text-xs mt-1">
+                      Your wallet will be used as both manager and agent
+                    </p>
+                  )}
                 </div>
-              )}
-
-              {agentWalletStatus === 'none' && !formData.agentWallet && (
-                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <p className="text-sm text-blue-900">No agent deployed for this group. Deploy one from the groups page or enter a wallet address manually.</p>
-                  </div>
-                </div>
-              )}
-
-              <input
-                type="text"
-                value={formData.agentWallet}
-                onChange={(e) => setFormData({ ...formData, agentWallet: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-md text-black focus:ring-blue-500 focus:border-blue-500 ${
-                  validationErrors.agentWallet ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="0x... (leave empty to use your wallet)"
-                disabled={loading}
-              />
-              {validationErrors.agentWallet && (
-                <p className="text-red-500 text-xs mt-1">{validationErrors.agentWallet}</p>
-              )}
-              {!formData.agentWallet && (
-                <p className="text-blue-600 text-xs mt-1">
-                  Your wallet will be used as both manager and agent
-                </p>
               )}
             </div>
 

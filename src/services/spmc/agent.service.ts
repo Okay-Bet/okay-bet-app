@@ -542,6 +542,63 @@ class AgentService {
       };
     }
   }
+
+  /**
+   * Get all agents across all groups
+   * Note: SPMC API doesn't have a dedicated list agents endpoint,
+   * so we fetch all groups and then fetch each group's agent
+   */
+  async getAllAgents(): Promise<SPMCResponse<SPMCAgent[]>> {
+    try {
+      // Fetch all groups
+      const groupsResponse = await fetch(`${this.baseUrl}/groups?limit=100`);
+
+      if (!groupsResponse.ok) {
+        return {
+          success: false,
+          error: {
+            status: groupsResponse.status,
+            message: 'Failed to fetch groups'
+          },
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      const groupsData = await groupsResponse.json();
+      const groups = groupsData.groups || [];
+
+      // Fetch agent for each group
+      const agentPromises = groups.map(async (group: any) => {
+        try {
+          const agentResponse = await this.getAgentByGroupId(group.id);
+          if (agentResponse.success && agentResponse.data) {
+            return agentResponse.data;
+          }
+          return null;
+        } catch {
+          return null;
+        }
+      });
+
+      const agents = (await Promise.all(agentPromises)).filter((agent): agent is SPMCAgent => agent !== null);
+
+      return {
+        success: true,
+        data: agents,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error getting all agents:', error);
+      return {
+        success: false,
+        error: {
+          status: 500,
+          message: error instanceof Error ? error.message : 'Unknown error getting all agents'
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
 }
 
 // Export singleton instance

@@ -413,3 +413,9 @@ export interface DiskUsageInfo {
   total_size: string;
   total_reclaimable: string;
 }
+
+// Agent with group information (for display purposes)
+export interface AgentWithGroup extends SPMCAgent {
+  group_title?: string;
+  group_type?: string;
+}
