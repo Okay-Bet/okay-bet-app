@@ -221,6 +221,33 @@ export class FundFactoryService {
     }
   }
 
+  // Whitelist an agent (only owner can call this)
+  async whitelistAgent(
+    agentAddress: Address,
+    status: boolean,
+    walletClient: WalletClient
+  ): Promise<string> {
+    const account = walletClient.account;
+    if (!account) throw new Error('Wallet not connected');
+
+    try {
+      const { request } = await this.publicClient.simulateContract({
+        address: this.factoryAddress,
+        abi: FUND_FACTORY_ABI,
+        functionName: 'whitelistAgent',
+        args: [agentAddress, status],
+        account
+      });
+
+      const hash = await walletClient.writeContract(request);
+      return hash;
+    } catch (error: any) {
+      console.error('Error whitelisting agent:', error);
+      throw new Error(error.message || 'Failed to whitelist agent');
+    }
+  }
+
+
   // Get protocol fee
   async getProtocolFee(): Promise<number> {
     try {

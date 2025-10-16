@@ -4,11 +4,15 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { usePrivy } from "@privy-io/react-auth";
 import { spmcClient } from '@/services/spmc/client';
-import { SPMCGroup, SPMCMarket, SPMCGroupMarket } from '@/services/spmc/types';
+import { SPMCGroup, SPMCMarket, SPMCGroupMarket, SPMCAgent } from '@/services/spmc/types';
 import Navbar from '@/components/Common/Navbar';
 import { CreateFundModal } from '@/components/funds/CreateFundModal';
 import { GroupFundMetadata } from '@/services/funds/groupFundIntegration.service';
 import { InteractivePieChart } from '@/components/groups/InteractivePieChart';
+import { CreateAgentModal } from '@/components/agents/CreateAgentModal';
+import { AgentStatusCard } from '@/components/agents/AgentStatusCard';
+import { AgentCapacityDisplay } from '@/components/agents/AgentCapacityDisplay';
+import { agentService } from '@/services/spmc/agent.service';
 
 // Market colors for consistent numbering
 const MARKET_COLORS = [
@@ -121,6 +125,10 @@ function GroupsPageContent() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [groupToDelete, setGroupToDelete] = useState<{ id: string; title: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Agent deployment states
+  const [showCreateAgentModal, setShowCreateAgentModal] = useState(false);
+  const [selectedGroupForAgent, setSelectedGroupForAgent] = useState<SPMCGroup | null>(null);
 
   // Load all groups
   const loadGroups = async () => {
@@ -510,6 +518,25 @@ function GroupsPageContent() {
     setShowDeleteModal(true);
   };
 
+  // Handle agent creation success
+  const handleAgentCreated = async (agentId: string) => {
+    setShowCreateAgentModal(false);
+
+    // Reload groups to show the new agent
+    loadGroups();
+  };
+
+  // Check if group has an agent
+  const getGroupAgent = (group: SPMCGroup): any | null => {
+    return (group.metadata as any)?.agent_deployment || null;
+  };
+
+  // Check if group can deploy fund (needs agent first)
+  const canDeployFund = (group: SPMCGroup): boolean => {
+    const agent = getGroupAgent(group);
+    return agent && agent.deployment_status === 'ready';
+  };
+
   // Toggle group expansion
   const toggleGroupExpansion = async (groupId: string) => {
     const newExpanded = new Set(expandedGroups);
@@ -626,11 +653,13 @@ function GroupsPageContent() {
         {/* All Groups Tab */}
         {activeTab === 'all' && (
           <div>
-            <div className="mb-4 flex justify-between items-center">
-              <div className="flex items-center gap-4">
+            <div className="mb-4 flex justify-between items-center flex-wrap gap-4">
+              <div className="flex items-center gap-4 flex-wrap">
                 <p className="text-sm font-medium text-gray-800">
                   {groups.length} group{groups.length !== 1 ? 's' : ''} total
                 </p>
+                {/* Agent Capacity Display */}
+                <AgentCapacityDisplay variant="compact" showQueue={true} />
                 {/* Fund Status Filter */}
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-600">Filter:</span>
@@ -779,7 +808,71 @@ function GroupsPageContent() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                   </svg>
                                 </button>
-                                {(group.metadata as GroupFundMetadata)?.fund_deployment ? (
+                                {/* Agent Status Display */}
+                                {getGroupAgent(group) && (
+                                  <div className="px-3 py-1 rounded-lg text-xs bg-gray-100 border border-gray-300 flex items-center gap-2">
+                                    <span className="font-medium text-gray-700">Agent:</span>
+                                    <span className={`font-semibold ${
+                                      getGroupAgent(group).deployment_status === 'ready' ? 'text-green-600' :
+                                      getGroupAgent(group).deployment_status === 'failed' ? 'text-red-600' :
+                                      'text-yellow-600'
+                                    }`}>
+                                      {getGroupAgent(group).deployment_status}
+                                    </span>
+                                  </div>
+                                )}
+                                {/* Agent and Fund Management */}
+                                {!getGroupAgent(group) ? (
+                                  // No agent yet - show deploy agent button
+                                  <button
+                                    onClick={() => {
+                                      setSelectedGroupForAgent(group);
+                                      setShowCreateAgentModal(true);
+                                    }}
+                                    className="p-2 text-orange-500 hover:text-orange-700 transition"
+                                    title="Deploy Trading Agent"
+                                  >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                    </svg>
+                                  </button>
+                                ) : getGroupAgent(group).deployment_target === 'local' && (getGroupAgent(group).deployment_status === 'failed' || getGroupAgent(group).deployment_status === 'ready') ? (
+                                  // Local agent that's ready or failed - show redeploy button
+                                  <button
+                                    onClick={async () => {
+                                      const agent = getGroupAgent(group);
+                                      if (!agent) return;
+
+                                      const confirmed = confirm(
+                                        'Are you sure you want to redeploy this agent?\n\n' +
+                                        'This will:\n1. Delete the current agent and container\n' +
+                                        '2. Allow you to create a new agent with updated configuration\n\n' +
+                                        'This action cannot be undone.'
+                                      );
+
+                                      if (!confirmed) return;
+
+                                      try {
+                                        const response = await agentService.redeployAgent(agent.agent_id);
+                                        if (response.success) {
+                                          alert('Agent deleted successfully. The page will refresh so you can create a new agent.');
+                                          loadGroups();
+                                        } else {
+                                          alert(`Failed to redeploy agent: ${response.error?.message || 'Unknown error'}`);
+                                        }
+                                      } catch (err) {
+                                        alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                                      }
+                                    }}
+                                    className="p-2 text-orange-500 hover:text-orange-700 transition"
+                                    title="Redeploy Agent (Delete & Recreate)"
+                                  >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                  </button>
+                                ) : (group.metadata as GroupFundMetadata)?.fund_deployment ? (
+                                  // Has agent and fund - show fund actions
                                   <>
                                     <button
                                       onClick={() => {
@@ -806,7 +899,8 @@ function GroupsPageContent() {
                                       </svg>
                                     </button>
                                   </>
-                                ) : (
+                                ) : canDeployFund(group) ? (
+                                  // Has ready agent, no fund - show deploy fund button
                                   <button
                                     onClick={() => {
                                       setSelectedGroupForFund(group);
@@ -814,6 +908,17 @@ function GroupsPageContent() {
                                     }}
                                     className="p-2 text-green-500 hover:text-green-700 transition"
                                     title="Deploy Fund"
+                                  >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                  </button>
+                                ) : (
+                                  // Has agent but not ready - show disabled button with tooltip
+                                  <button
+                                    disabled
+                                    className="p-2 text-gray-400 cursor-not-allowed"
+                                    title="Agent must be ready before deploying fund"
                                   >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -836,6 +941,17 @@ function GroupsPageContent() {
 
                         {isExpanded && displayGroup.markets && (
                           <div className="mt-4 pt-4 border-t border-gray-200">
+                            {/* Agent Status Card */}
+                            {getGroupAgent(displayGroup) && (
+                              <div className="mb-4">
+                                <AgentStatusCard
+                                  agentId={getGroupAgent(displayGroup).agent_id}
+                                  groupId={displayGroup.id}
+                                  onRefresh={loadGroups}
+                                />
+                              </div>
+                            )}
+
                             <div className="flex items-center justify-between mb-3">
                               <h4 className="text-sm font-semibold text-gray-800">Markets in this group:</h4>
                               {isEditing && (
@@ -1408,6 +1524,20 @@ function GroupsPageContent() {
         )}
       </div>
       
+      {/* Create Agent Modal */}
+      {showCreateAgentModal && selectedGroupForAgent && (
+        <CreateAgentModal
+          isOpen={showCreateAgentModal}
+          onClose={() => {
+            setShowCreateAgentModal(false);
+            setSelectedGroupForAgent(null);
+          }}
+          groupId={selectedGroupForAgent.id}
+          groupName={selectedGroupForAgent.title}
+          onSuccess={handleAgentCreated}
+        />
+      )}
+
       {/* Create Fund Modal */}
       {showCreateFundModal && selectedGroupForFund && (
         <CreateFundModal
@@ -1419,6 +1549,7 @@ function GroupsPageContent() {
           groupId={selectedGroupForFund.id}
           groupName={selectedGroupForFund.title}
           group={selectedGroupForFund}
+          defaultAgentWallet={getGroupAgent(selectedGroupForFund)?.wallet_address || undefined}
           onSuccess={(fundAddress) => {
             console.log('Fund created for group:', selectedGroupForFund.id, 'Fund address:', fundAddress);
             setShowCreateFundModal(false);
@@ -1428,7 +1559,7 @@ function GroupsPageContent() {
           }}
         />
       )}
-      
+
       {/* Delete Confirmation Modal */}
       {showDeleteModal && groupToDelete && (
         <div className="fixed inset-0 z-50 overflow-y-auto">

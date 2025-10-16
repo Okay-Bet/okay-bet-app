@@ -54,3 +54,8 @@ __pycache__/
 
 # Weird files
 e2e.log
+
+# Working documentation (not for git)
+AGENT_INTEGRATION_*.md
+BACKEND_ORCHESTRATOR_ISSUES.md
+CLAUDE.md
