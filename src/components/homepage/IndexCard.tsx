@@ -20,6 +20,7 @@ interface IndexCardProps {
   onBuyIndex?: (groupId: string) => void;
   onCreateFund?: (groupId: string) => void;
   onRefreshFund?: () => void;
+  indexNumber?: number;
 }
 
 export interface MarketAllocation {
@@ -35,7 +36,7 @@ export interface MarketAllocation {
   resolutionDate?: string;
 }
 
-export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCreateFund, onRefreshFund }) => {
+export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCreateFund, onRefreshFund, indexNumber }) => {
   const [investmentAmount, setInvestmentAmount] = useState<string>('100');
   const [showCalculator, setShowCalculator] = useState(false);
   const [showCreateFund, setShowCreateFund] = useState(false);
@@ -71,6 +72,7 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
           priceColors={priceColors}
           isExpanded={isExpanded}
           onToggleExpand={() => setIsExpanded(!isExpanded)}
+          indexNumber={indexNumber}
         />
 
         {/* Price History Chart - Only render when expanded */}
@@ -82,15 +84,6 @@ export const IndexCard: React.FC<IndexCardProps> = ({ group, fundAddress, onCrea
             loading={historyLoading}
           />
         )}
-
-        {/* Fund Status Section */}
-        <FundStatusSection
-          fundAddress={fundAddress}
-          fundMetrics={fundMetrics}
-          fundLoading={fundLoading}
-          fundError={fundError}
-          phaseDisplay={phaseDisplay}
-        />
 
         {/* Fund Action Buttons */}
         <FundActionButtons

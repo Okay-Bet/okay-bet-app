@@ -12,6 +12,7 @@ interface IndexCardHeaderProps {
   };
   isExpanded?: boolean;
   onToggleExpand?: () => void;
+  indexNumber?: number;
 }
 
 /**
@@ -22,11 +23,36 @@ export const IndexCardHeader: React.FC<IndexCardHeaderProps> = ({
   indexPrice,
   priceColors,
   isExpanded,
-  onToggleExpand
+  onToggleExpand,
+  indexNumber = 0
 }) => {
+  // Map telegram handles by index
+  const telegramHandles = [
+    '@nothing_happens_pm_bot',
+    '@trumped_up_pm_bot',
+    '@lib_out_pm_bot'
+  ];
+
+  const telegramHandle = telegramHandles[indexNumber] || '@okaybet_agent';
+  const telegramUrl = `https://t.me/${telegramHandle.slice(1)}`;
+
   return (
     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
       <div className="flex-1">
+        {/* Telegram Handle */}
+        <div className="mb-2">
+          <a
+            href={telegramUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 transition"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.941z"/>
+            </svg>
+            {telegramHandle}
+          </a>
+        </div>
         <div className="flex items-center flex-wrap gap-2 sm:gap-3 mb-2">
           <h3 className="text-xl font-bold text-gray-900">{group.title}</h3>
           <span className={`px-2 py-1 text-xs font-semibold rounded-full ${

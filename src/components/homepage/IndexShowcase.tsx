@@ -72,13 +72,14 @@ export const IndexShowcase: React.FC<IndexShowcaseProps> = ({
         {/* Index List - Full Width */}
         {groups.length > 0 ? (
           <div className="space-y-6">
-            {groups.map((group) => (
-              <IndexCard 
-                key={group.id} 
+            {groups.map((group, index) => (
+              <IndexCard
+                key={group.id}
                 group={group}
                 fundAddress={localFundAddresses[group.id] || null}
                 onInvest={onInvest}
                 onRefreshFund={() => handleRefreshFund(group.id)}
+                indexNumber={index}
               />
             ))}
           </div>

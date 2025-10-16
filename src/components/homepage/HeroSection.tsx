@@ -19,21 +19,6 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
             global themes and managed strategies.
           </p>
 
-          {/* CTAs */}
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <a
-              href="#funds"
-              className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-6 py-3 text-white font-medium hover:bg-black focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900"
-            >
-              Browse Funds
-            </a>
-            <a
-              href="#how-it-works"
-              className="inline-flex items-center justify-center rounded-xl border border-gray-300 px-6 py-3 text-gray-900 font-medium bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300"
-            >
-              How it works
-            </a>
-          </div>
 
           {/* Trust strip */}
           {/* <p className="mt-6 text-sm text-gray-500">

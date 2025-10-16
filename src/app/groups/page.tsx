@@ -73,7 +73,7 @@ function GroupsPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'create'>(
-    (searchParams?.get('tab') as 'all' | 'create') || 'all'
+    (searchParams?.get('tab') as 'all' | 'create') || 'create'
   );
   const [fundStatusFilter, setFundStatusFilter] = useState<'all' | 'no-fund' | 'deployed' | 'deposit' | 'trading' | 'redemption' | 'completed'>('all');
   

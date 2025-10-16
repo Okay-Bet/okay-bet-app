@@ -25,6 +25,7 @@ interface CreateFundModalProps {
   groupName?: string;
   group?: SPMCGroup;
   defaultAgentWallet?: string;
+  hideAgentSection?: boolean;
 }
 
 export const CreateFundModal: React.FC<CreateFundModalProps> = ({
@@ -34,7 +35,8 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
   groupId,
   groupName,
   group,
-  defaultAgentWallet
+  defaultAgentWallet,
+  hideAgentSection = false
 }) => {
   // Try to use wallet context if available
   const walletContext = useContext(WalletContext);
@@ -423,84 +425,86 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
               </div>
             )}
 
-            {/* Agent Selection */}
-            <div className="space-y-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
-                Trading Agent
-                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Optional</span>
-                <div className="inline-block group">
-                  <svg className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-72 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-10">
-                    Select a deployed agent to manage this fund&apos;s trades, or enter a wallet address manually.
+            {/* Agent Selection - Hidden when hideAgentSection is true */}
+            {!hideAgentSection && (
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                  Trading Agent
+                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Optional</span>
+                  <div className="inline-block group">
+                    <svg className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-72 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-10">
+                      Select a deployed agent to manage this fund&apos;s trades, or enter a wallet address manually.
+                    </div>
                   </div>
-                </div>
-              </label>
+                </label>
 
-              {/* Toggle between agent selector and manual input */}
-              <div className="flex items-center gap-2 mb-2">
-                <button
-                  type="button"
-                  onClick={() => setUseAgentSelector(true)}
-                  className={`px-3 py-1 text-sm rounded transition ${
-                    useAgentSelector
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                  disabled={loading}
-                >
-                  Select Agent
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUseAgentSelector(false);
-                    setSelectedAgentId(null);
-                  }}
-                  className={`px-3 py-1 text-sm rounded transition ${
-                    !useAgentSelector
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                  disabled={loading}
-                >
-                  Manual Input
-                </button>
-              </div>
-
-              {useAgentSelector ? (
-                <AgentSelector
-                  selectedAgentId={selectedAgentId}
-                  onSelect={(agentId, walletAddress) => {
-                    setSelectedAgentId(agentId);
-                    setFormData({ ...formData, agentWallet: walletAddress || '' });
-                  }}
-                  excludeGroupId={groupId}
-                />
-              ) : (
-                <div>
-                  <input
-                    type="text"
-                    value={formData.agentWallet}
-                    onChange={(e) => setFormData({ ...formData, agentWallet: e.target.value })}
-                    className={`w-full px-3 py-2 border rounded-md text-black focus:ring-blue-500 focus:border-blue-500 ${
-                      validationErrors.agentWallet ? 'border-red-500' : 'border-gray-300'
+                {/* Toggle between agent selector and manual input */}
+                <div className="flex items-center gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setUseAgentSelector(true)}
+                    className={`px-3 py-1 text-sm rounded transition ${
+                      useAgentSelector
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
-                    placeholder="0x... (leave empty to use your wallet)"
                     disabled={loading}
-                  />
-                  {validationErrors.agentWallet && (
-                    <p className="text-red-500 text-xs mt-1">{validationErrors.agentWallet}</p>
-                  )}
-                  {!formData.agentWallet && (
-                    <p className="text-blue-600 text-xs mt-1">
-                      Your wallet will be used as both manager and agent
-                    </p>
-                  )}
+                  >
+                    Select Agent
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUseAgentSelector(false);
+                      setSelectedAgentId(null);
+                    }}
+                    className={`px-3 py-1 text-sm rounded transition ${
+                      !useAgentSelector
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                    disabled={loading}
+                  >
+                    Manual Input
+                  </button>
                 </div>
-              )}
-            </div>
+
+                {useAgentSelector ? (
+                  <AgentSelector
+                    selectedAgentId={selectedAgentId}
+                    onSelect={(agentId, walletAddress) => {
+                      setSelectedAgentId(agentId);
+                      setFormData({ ...formData, agentWallet: walletAddress || '' });
+                    }}
+                    excludeGroupId={groupId}
+                  />
+                ) : (
+                  <div>
+                    <input
+                      type="text"
+                      value={formData.agentWallet}
+                      onChange={(e) => setFormData({ ...formData, agentWallet: e.target.value })}
+                      className={`w-full px-3 py-2 border rounded-md text-black focus:ring-blue-500 focus:border-blue-500 ${
+                        validationErrors.agentWallet ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="0x... (leave empty to use your wallet)"
+                      disabled={loading}
+                    />
+                    {validationErrors.agentWallet && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.agentWallet}</p>
+                    )}
+                    {!formData.agentWallet && (
+                      <p className="text-blue-600 text-xs mt-1">
+                        Your wallet will be used as both manager and agent
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Two columns */}
             <div className="grid grid-cols-2 gap-4">
