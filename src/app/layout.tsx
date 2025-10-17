@@ -9,6 +9,7 @@ import PrivyProvider from "../components/Providers/privyProvider";
 import { Analytics } from "@vercel/analytics/react";
 import dynamic from "next/dynamic";
 import ServiceWorkerRegistration from "../components/ServiceWorkerRegistration";
+import { DemoModeProvider } from "../contexts/DemoModeContext";
 
 const PushNotificationSubscriber = dynamic(
   () => import("../components/Notifications/PushNotificationSubscriber"),
@@ -85,13 +86,15 @@ export default function RootLayout({
 
         {/* Content wrapper */}
         <div className="relative z-10">
-          <PrivyProvider>
-            <Providers>
-              <ServiceWorkerRegistration />
-              {children}
-              <Analytics />
-            </Providers>
-          </PrivyProvider>
+          <DemoModeProvider>
+            <PrivyProvider>
+              <Providers>
+                <ServiceWorkerRegistration />
+                {children}
+                <Analytics />
+              </Providers>
+            </PrivyProvider>
+          </DemoModeProvider>
         </div>
       </body>
     </html>

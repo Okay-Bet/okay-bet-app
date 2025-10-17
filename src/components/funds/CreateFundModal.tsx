@@ -6,6 +6,7 @@ import { groupFundIntegrationService } from '@/services/funds/groupFundIntegrati
 import { agentService } from '@/services/spmc/agent.service';
 import { SPMCGroup } from '@/services/spmc/types';
 import { AgentSelector } from '@/components/agents/AgentSelector';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 import {
   CreateFundParams,
   usdcToWei,
@@ -41,6 +42,7 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
   // Try to use wallet context if available
   const walletContext = useContext(WalletContext);
   const { login } = usePrivy();
+  const { isDemoMode } = useDemoMode();
   const walletClient = walletContext?.walletClient || null;
   const address = walletContext?.address;
   const chainId = walletContext?.chainId;
@@ -766,7 +768,8 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
               <button
                 type="submit"
                 className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
-                disabled={loading || !walletContext}
+                disabled={loading || !walletContext || isDemoMode}
+                title={isDemoMode ? "Disabled in demo mode" : ""}
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
@@ -775,7 +778,7 @@ export const CreateFundModal: React.FC<CreateFundModalProps> = ({
                     </svg>
                     Creating Fund...
                   </span>
-                ) : !walletContext ? 'Wallet Not Connected' : 'Create Fund'}
+                ) : isDemoMode ? 'Create Fund (Demo Mode)' : !walletContext ? 'Wallet Not Connected' : 'Create Fund'}
               </button>
             </div>
           </form>

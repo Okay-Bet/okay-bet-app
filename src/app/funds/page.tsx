@@ -13,9 +13,11 @@ import { WalletContext } from '@/app/context/WalletContext';
 import { spmcClient } from '@/services/spmc/client';
 import { SPMCGroup } from '@/services/spmc/types';
 import { GroupFundMetadata } from '@/services/funds/groupFundIntegration.service';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 
 export default function FundsPage() {
   const router = useRouter();
+  const { isDemoMode } = useDemoMode();
   // Try to use wallet context if available
   const walletContext = useContext(WalletContext);
   const address = walletContext?.address;
@@ -138,6 +140,23 @@ export default function FundsPage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8 pt-24">
+        {/* Demo Mode Banner */}
+        {isDemoMode && (
+          <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-lg">
+            <div className="flex items-start gap-3">
+              <svg className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-blue-900 mb-1">Demo Mode Active</h3>
+                <p className="text-blue-800 text-sm">
+                  You&apos;re viewing the app in demo mode. All forms and modals are interactive for exploration, but deployment and investment buttons are disabled. No changes will be made to the blockchain.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Page Title and View Tabs */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
@@ -319,10 +338,15 @@ export default function FundsPage() {
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => setShowAutomatedModal(true)}
-                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium"
+                      onClick={() => {
+                        if (isDemoMode) return;
+                        setShowAutomatedModal(true);
+                      }}
+                      disabled={isDemoMode}
+                      className={`flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium ${isDemoMode ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      title={isDemoMode ? "Disabled in demo mode" : "Deploy automated fund"}
                     >
-                      Deploy Fund
+                      Deploy Fund{isDemoMode ? ' (Demo)' : ''}
                     </button>
                   </div>
                 </div>
@@ -364,12 +388,15 @@ export default function FundsPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => {
+                          if (isDemoMode) return;
                           setSelectedGroupForDeploy(group);
                           setShowCreateModal(true);
                         }}
-                        className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-medium"
+                        disabled={isDemoMode}
+                        className={`flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-medium ${isDemoMode ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        title={isDemoMode ? "Disabled in demo mode" : "Deploy fund from group"}
                       >
-                        Deploy Fund
+                        Deploy Fund{isDemoMode ? ' (Demo)' : ''}
                       </button>
                       <button
                         onClick={() => router.push(`/groups`)}

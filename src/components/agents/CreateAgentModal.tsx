@@ -5,6 +5,7 @@ import { AgentCharacter, DeploymentTarget } from '@/services/spmc/types';
 import { agentService } from '@/services/spmc/agent.service';
 import { useAgentCapacity } from '@/hooks/useAgentCapacity';
 import { AgentCapacityDisplay } from './AgentCapacityDisplay';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 
 interface CreateAgentModalProps {
   isOpen: boolean;
@@ -56,6 +57,7 @@ const AGENT_CONFIGS: Record<AgentCharacter, {
 
 export function CreateAgentModal({ isOpen, onClose, groupId, groupName, onSuccess, onDeploymentStarted }: CreateAgentModalProps) {
   const { canDeployCharacter, isAtCapacity, capacity } = useAgentCapacity();
+  const { isDemoMode } = useDemoMode();
 
   const [agentCharacter, setAgentCharacter] = useState<AgentCharacter>('pamela');
   const [deploymentTarget, setDeploymentTarget] = useState<DeploymentTarget>('local');
@@ -570,8 +572,9 @@ export function CreateAgentModal({ isOpen, onClose, groupId, groupName, onSucces
             <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-2">
               <button
                 type="submit"
-                disabled={isCreating || (isAtCapacity && canDeployCharacter(agentCharacter))}
+                disabled={isCreating || (isAtCapacity && canDeployCharacter(agentCharacter)) || isDemoMode}
                 className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                title={isDemoMode ? "Disabled in demo mode" : ""}
               >
                 {isCreating ? (
                   <div className="flex items-center gap-2">
@@ -580,6 +583,8 @@ export function CreateAgentModal({ isOpen, onClose, groupId, groupName, onSucces
                     </svg>
                     Deploying...
                   </div>
+                ) : isDemoMode ? (
+                  !canDeployCharacter(agentCharacter) ? 'Redeploy Agent (Demo Mode)' : 'Deploy Agent (Demo Mode)'
                 ) : !canDeployCharacter(agentCharacter) ? (
                   'Redeploy Agent'
                 ) : (
