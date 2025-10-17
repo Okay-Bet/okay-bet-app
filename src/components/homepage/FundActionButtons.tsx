@@ -30,11 +30,9 @@ export const FundActionButtons: React.FC<FundActionButtonsProps> = ({
             </div>
           </div>
           <button
-            onClick={(e) => {
-              e.preventDefault();
-              alert('Investment functionality coming soon for demo!');
-            }}
-            className="w-full sm:w-auto px-6 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition whitespace-nowrap"
+            disabled
+            className="w-full sm:w-auto px-6 py-2.5 bg-green-600 text-white rounded-lg font-semibold opacity-60 cursor-not-allowed whitespace-nowrap"
+            title="Coming soon"
           >
             Invest Now
           </button>
