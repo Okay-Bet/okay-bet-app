@@ -72,11 +72,11 @@ export const MarketAllocationTable: React.FC<MarketAllocationTableProps> = ({
             {/* Outcome (Yes/No) */}
             <div className="col-span-1 flex items-center justify-center">
               <span className={`px-2 py-1 text-xs font-bold rounded ${
-                allocation.outcome.toLowerCase() === 'yes'
+                (allocation.outcome || 'yes').toLowerCase() === 'yes'
                   ? 'bg-green-100 text-green-700 border border-green-200'
                   : 'bg-red-100 text-red-700 border border-red-200'
               }`}>
-                {allocation.outcome.toUpperCase()}
+                {(allocation.outcome || 'yes').toUpperCase()}
               </span>
             </div>
 
@@ -148,11 +148,11 @@ export const MarketAllocationTable: React.FC<MarketAllocationTableProps> = ({
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <span className="capitalize">{allocation.platform.toLowerCase()}</span>
                 <span className={`px-2 py-0.5 font-bold rounded ${
-                  allocation.outcome.toLowerCase() === 'yes'
+                  (allocation.outcome || 'yes').toLowerCase() === 'yes'
                     ? 'bg-green-100 text-green-700'
                     : 'bg-red-100 text-red-700'
                 }`}>
-                  {allocation.outcome.toUpperCase()}
+                  {(allocation.outcome || 'yes').toUpperCase()}
                 </span>
               </div>
             </div>
