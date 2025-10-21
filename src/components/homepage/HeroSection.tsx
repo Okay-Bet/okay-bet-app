@@ -1,4 +1,5 @@
 import React from "react";
+import { WaitlistSection } from "./WaitlistSection";
 
 interface HeroSectionProps {
   onGetStarted?: () => void;
@@ -25,6 +26,11 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
             Powered by leading prediction venues (e.g., Kalshi, Polymarket,
             Limitless)
           </p> */}
+        </div>
+
+        {/* Waitlist Section */}
+        <div className="mb-12">
+          <WaitlistSection />
         </div>
 
         {/* Key Benefits */}
